@@ -200,10 +200,12 @@ function getCurrentUser()
  */
 function url($path)
 {
+    $originalPath = $path;
     $path = ltrim($path, '/');
 
     // Get the script name (e.g., /index.php or /project/public/index.php)
     $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+    $resultUrl = '';
 
     // Check if we are in a 'public' subdirectory context
     $publicPos = strpos($scriptName, '/public/');
@@ -211,16 +213,28 @@ function url($path)
     if ($publicPos !== false) {
         // We are in a subdirectory like /project/public/
         $base = substr($scriptName, 0, $publicPos + 8); // includes the trailing slash
-        return $base . $path;
+        $resultUrl = $base . $path;
     }
-
     // Check if we are in 'public' directly (XAMPP root of public)
-    if (strpos($scriptName, '/public') === 0 && (strlen($scriptName) === 7 || $scriptName[7] === '/')) {
-        return '/public/' . $path;
+    elseif (strpos($scriptName, '/public') === 0 && (strlen($scriptName) === 7 || $scriptName[7] === '/')) {
+        $resultUrl = '/public/' . $path;
+    } else {
+        // Default to root-relative path (router mode)
+        $resultUrl = '/' . $path;
     }
 
-    // Default to root-relative path (router mode)
-    return '/' . $path;
+    // Add cache-busting version parameter for static assets
+    $filePath = realpath(__DIR__ . '/../../public/' . $originalPath);
+    if ($filePath && file_exists($filePath)) {
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        if (in_array($ext, ['css', 'js', 'jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'ico'])) {
+            $version = filemtime($filePath);
+            $separator = (strpos($resultUrl, '?') !== false) ? '&' : '?';
+            $resultUrl .= $separator . 'v=' . $version;
+        }
+    }
+
+    return $resultUrl;
 }
 
 /**
