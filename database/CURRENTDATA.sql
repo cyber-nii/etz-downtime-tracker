@@ -1835,7 +1835,7 @@ CREATE TABLE `users` (
   `email` varchar(255) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
   `full_name` varchar(255) NOT NULL,
-  `phone` varchar(20) DEFAULT NULL,
+  `phone` varchar(255) DEFAULT NULL,
   `location` varchar(255) DEFAULT NULL,
   `role` enum('admin','user') NOT NULL DEFAULT 'user',
   `is_active` tinyint(1) NOT NULL DEFAULT 1,

@@ -60,6 +60,7 @@ config.php
 
 # Uploads
 /public/uploads/
+.agent/
 
 # System Files
 .htaccess

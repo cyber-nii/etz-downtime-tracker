@@ -75,10 +75,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $root_cause = $_POST['root_cause'] ?? '';
             $lessons_learned = $_POST['lessons_learned'] ?? '';
             $resolved_date = $_POST['resolved_date'] ?? null;
+            $resolvers = $_POST['resolvers'] ?? [];
 
             // Check if root cause is required (either text or file)
             if (empty($root_cause) && empty($root_cause_file)) {
                 $errors[] = 'Root cause is required when resolving an incident.';
+            }
+
+            // Check if resolvers are provided
+            $valid_resolvers = array_filter(array_map('trim', is_array($resolvers) ? $resolvers : []));
+            if (empty($valid_resolvers)) {
+                $errors[] = 'At least one resolver name is required.';
             }
 
             // Check if lessons learned is provided (either text or file)
@@ -110,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         // Add fields for resolved status
         if ($status === 'resolved') {
-            $sql .= ", resolved_by = :user_id, resolved_at = :resolved_at";
+            $sql .= ", resolved_by = :user_id, resolved_at = :resolved_at, resolvers = :resolvers";
             if (!empty($root_cause)) {
                 $sql .= ", root_cause = :root_cause";
             }
@@ -138,6 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if ($status === 'resolved') {
             $params[':user_id'] = $_SESSION['user_id'];
             $params[':resolved_at'] = $resolved_date;
+            $params[':resolvers'] = json_encode(array_values($valid_resolvers));
             if (!empty($root_cause)) {
                 $params[':root_cause'] = $root_cause;
             }
@@ -423,6 +431,7 @@ try {
             i.root_cause_file,
             i.lessons_learned,
             i.lessons_learned_file,
+            i.resolvers,
             s.service_name,
             sc.name as component_name,
             it.name as incident_type_name,
@@ -656,505 +665,597 @@ try {
                     </div>
 
                     <?php if (empty($incidents)): ?>
-                        <div class="text-center py-12">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No incidents reported yet
-                            </h3>
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by reporting a new
-                                incident.
-                            </p>
-                        </div>
-                    <?php else: ?>
-                        <?php foreach ($incidents as $incident):
-                        // ── colour maps ────────────────────────────────────
-                        $impactKey = strtolower($incident['impact_level'] ?? 'low');
-                        $borderColors = [
-                            'critical' => 'border-l-4 border-l-red-500',
-                            'high'     => 'border-l-4 border-l-orange-500',
-                            'medium'   => 'border-l-4 border-l-amber-400',
-                            'low'      => 'border-l-4 border-l-blue-400',
-                        ];
-                        $borderClass = $borderColors[$impactKey] ?? 'border-l-4 border-l-gray-300';
-
-                        $impactBadge = [
-                            'critical' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-                            'high'     => 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-                            'medium'   => 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-                            'low'      => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-                        ][$impactKey] ?? 'bg-gray-100 text-gray-700';
-
-                        $statusBadge  = $incident['status'] === 'pending'
-                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                            : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-
-                        $priorityKey  = strtolower($incident['priority'] ?? 'medium');
-                        $priorityBadge = [
-                            'urgent' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-                            'high'   => 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-                            'medium' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-                            'low'    => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-                        ][$priorityKey] ?? 'bg-gray-100 text-gray-700';
-
-                        // ── attachments ────────────────────────────────────
-                        $attachmentsQuery = $pdo->prepare("SELECT file_path, file_name, uploaded_at FROM incident_attachments WHERE incident_id = :id ORDER BY uploaded_at ASC");
-                        $attachmentsQuery->execute([':id' => $incident['incident_id']]);
-                        $attachments = $attachmentsQuery->fetchAll();
-                        $allAttachments = [];
-                        foreach ($attachments as $att) { $allAttachments[] = ['file_path' => $att['file_path'], 'file_name' => $att['file_name']]; }
-                        if (!empty($incident['attachment_path'])) {
-                            $ex = false;
-                            foreach ($allAttachments as $ea) { if ($ea['file_path'] === $incident['attachment_path']) { $ex = true; break; } }
-                            if (!$ex) $allAttachments[] = ['file_path' => $incident['attachment_path'], 'file_name' => basename($incident['attachment_path'])];
-                        }
-                    ?>
-                    <!-- ═══════════════ INCIDENT CARD ═══════════════════════ -->
-                    <div class="incident-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 <?= $borderClass ?> overflow-hidden mb-5"
-                         data-status="<?= $incident['status'] ?>">
-
-                        <!-- ── Card Header ─────────────────────────────────── -->
-                        <div class="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                            <!-- Left: service name + badges -->
-                            <div class="flex flex-col gap-1.5">
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <h3 class="text-base font-bold text-gray-900 dark:text-white leading-tight">
-                                        <?= htmlspecialchars($incident['service_name']) ?>
+                                <div class="text-center py-12">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No incidents reported yet
                                     </h3>
-                                    <?php if (!empty($incident['incident_ref'])): ?>
-                                        <button type="button"
-                                            x-data="{ copied: false }"
-                                            @click="navigator.clipboard.writeText('<?= htmlspecialchars($incident['incident_ref']) ?>'); copied = true; setTimeout(() => copied = false, 2000)"
-                                            title="Click to copy"
-                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-medium bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 transition-colors">
-                                            <span x-show="!copied"><i class="fas fa-hashtag text-[9px]"></i> <?= htmlspecialchars($incident['incident_ref']) ?></span>
-                                            <span x-show="copied" x-cloak class="text-green-600 dark:text-green-400"><i class="fas fa-check text-[9px]"></i> Copied</span>
-                                        </button>
-                                    <?php endif; ?>
+                                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by reporting a new
+                                        incident.
+                                    </p>
                                 </div>
-                                <!-- Badge row -->
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $statusBadge ?>">
-                                        <i class="fas <?= $incident['status'] === 'pending' ? 'fa-hourglass-half' : 'fa-circle-check' ?> text-[9px]"></i>
-                                        <?= ucfirst($incident['status']) ?>
-                                    </span>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $impactBadge ?>">
-                                        <?= ucfirst($incident['impact_level']) ?> Impact
-                                    </span>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $priorityBadge ?>">
-                                        <?= ucfirst($incident['priority']) ?> Priority
-                                    </span>
-                                    <?php if (!empty($incident['incident_type_name'])): ?>
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                                            <i class="fas fa-tag mr-1 text-[9px]"></i><?= htmlspecialchars($incident['incident_type_name']) ?>
-                                        </span>
-                                    <?php endif; ?>
-                                    <?php if ($incident['attachment_count'] > 0): ?>
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                                            <i class="fas fa-paperclip text-[9px]"></i> <?= $incident['attachment_count'] ?>
-                                        </span>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
+                    <?php else: ?>
+                                <?php foreach ($incidents as $incident):
+                                    // ── colour maps ────────────────────────────────────
+                                    $impactKey = strtolower($incident['impact_level'] ?? 'low');
+                                    $borderColors = [
+                                        'critical' => 'border-l-4 border-l-red-500',
+                                        'high' => 'border-l-4 border-l-orange-500',
+                                        'medium' => 'border-l-4 border-l-amber-400',
+                                        'low' => 'border-l-4 border-l-blue-400',
+                                    ];
+                                    $borderClass = $borderColors[$impactKey] ?? 'border-l-4 border-l-gray-300';
 
-                            <!-- Right: action buttons -->
-                            <div class="flex items-center gap-2 flex-shrink-0">
-                                <?php if ($incident['status'] === 'pending'): ?>
-                                    <button type="button"
-                                        onclick="showEditModal(<?= $incident['incident_id'] ?>)"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
-                                        <i class="fas fa-pen-to-square text-gray-400"></i> Edit
-                                    </button>
-                                    <button type="button"
-                                        onclick="showResolveModal(<?= $incident['incident_id'] ?>, '<?= addslashes(htmlspecialchars($incident['service_name'])) ?>', '<?= addslashes(htmlspecialchars($incident['root_cause'] ?? '')) ?>')"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors shadow-sm">
-                                        <i class="fas fa-check"></i> Mark Resolved
-                                    </button>
-                                <?php else: ?>
-                                    <div class="flex flex-col items-end gap-1">
-                                        <span class="text-xs text-green-600 dark:text-green-400 font-medium">
-                                            <i class="fas fa-check-circle mr-1"></i>Resolved by <?= htmlspecialchars($incident['resolved_by'] ?? 'System') ?>
-                                        </span>
-                                        <span class="text-[11px] text-gray-400"><?= $incident['resolved_at'] ? date('M j, Y g:i A', strtotime($incident['resolved_at'])) : '' ?></span>
-                                        <button type="button"
-                                            onclick="showReopenModal(<?= $incident['incident_id'] ?>, '<?= addslashes(htmlspecialchars($incident['service_name'])) ?>')"
-                                            class="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-orange-400 text-orange-600 dark:text-orange-400 bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-gray-700 transition-colors">
-                                            <i class="fas fa-rotate-left text-[10px]"></i> Reopen
-                                        </button>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
+                                    $impactBadge = [
+                                        'critical' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+                                        'high' => 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+                                        'medium' => 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+                                        'low' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+                                    ][$impactKey] ?? 'bg-gray-100 text-gray-700';
 
-                        <!-- ── Body ─────────────────────────────────────────── -->
-                        <div class="border-t border-gray-100 dark:border-gray-700 px-5 py-4">
-                            <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
+                                    $statusBadge = $incident['status'] === 'pending'
+                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                                        : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
 
-                                <!-- LEFT (3/5): meta grid + description + attachments -->
-                                <div class="lg:col-span-3 space-y-4">
+                                    $priorityKey = strtolower($incident['priority'] ?? 'medium');
+                                    $priorityBadge = [
+                                        'urgent' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+                                        'high' => 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+                                        'medium' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+                                        'low' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                                    ][$priorityKey] ?? 'bg-gray-100 text-gray-700';
 
-                                    <!-- Meta info grid -->
-                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                        <!-- Reported by -->
-                                        <div class="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2.5">
-                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Reported By</p>
-                                            <div class="flex items-center gap-1.5">
-                                                <i class="fas fa-user-circle text-gray-400 text-sm"></i>
-                                                <span class="text-sm font-medium text-gray-800 dark:text-white truncate"><?= htmlspecialchars($incident['user_name']) ?></span>
-                                            </div>
-                                            <p class="text-[11px] text-gray-400 mt-0.5"><?= date('M j, Y g:i A', strtotime($incident['created_at'])) ?></p>
-                                        </div>
+                                    // ── attachments ────────────────────────────────────
+                                    $attachmentsQuery = $pdo->prepare("SELECT file_path, file_name, uploaded_at FROM incident_attachments WHERE incident_id = :id ORDER BY uploaded_at ASC");
+                                    $attachmentsQuery->execute([':id' => $incident['incident_id']]);
+                                    $attachments = $attachmentsQuery->fetchAll();
+                                    $allAttachments = [];
+                                    foreach ($attachments as $att) {
+                                        $allAttachments[] = ['file_path' => $att['file_path'], 'file_name' => $att['file_name']];
+                                    }
+                                    if (!empty($incident['attachment_path'])) {
+                                        $ex = false;
+                                        foreach ($allAttachments as $ea) {
+                                            if ($ea['file_path'] === $incident['attachment_path']) {
+                                                $ex = true;
+                                                break;
+                                            }
+                                        }
+                                        if (!$ex)
+                                            $allAttachments[] = ['file_path' => $incident['attachment_path'], 'file_name' => basename($incident['attachment_path'])];
+                                    }
+                                    ?>
+                                            <!-- ═══════════════ INCIDENT CARD ═══════════════════════ -->
+                                            <div class="incident-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 <?= $borderClass ?> overflow-hidden mb-5"
+                                                data-status="<?= $incident['status'] ?>">
 
-                                        <!-- Component -->
-                                        <div class="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2.5">
-                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Component</p>
-                                            <p class="text-sm font-medium text-gray-800 dark:text-white truncate"><?= htmlspecialchars($incident['component_name'] ?? 'All / General') ?></p>
-                                        </div>
-
-                                        <!-- Affected companies -->
-                                        <div class="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2.5 col-span-2 sm:col-span-1">
-                                            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                                                Affected Companies (<?= $incident['company_count'] ?>)
-                                            </p>
-                                            <?php
-                                                $cos = !empty($incident['affected_companies']) ? explode(', ', $incident['affected_companies']) : [];
-                                                $displayCos = array_slice($cos, 0, 3);
-                                                $moreCos    = count($cos) - 3;
-                                            ?>
-                                            <div class="flex flex-wrap gap-1">
-                                                <?php foreach ($displayCos as $co): ?>
-                                                    <span class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
-                                                        <?= htmlspecialchars(trim($co)) ?>
-                                                    </span>
-                                                <?php endforeach; ?>
-                                                <?php if ($moreCos > 0): ?>
-                                                    <span class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">+<?= $moreCos ?> more</span>
-                                                <?php endif; ?>
-                                                <?php if (empty($cos)): ?><span class="text-xs text-gray-400 italic">None listed</span><?php endif; ?>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Description -->
-                                    <?php if (!empty($incident['description'])): ?>
-                                    <div>
-                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Description</p>
-                                        <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed line-clamp-3">
-                                            <?= nl2br(htmlspecialchars($incident['description'])) ?>
-                                        </p>
-                                    </div>
-                                    <?php endif; ?>
-
-                                    <!-- Root Cause -->
-                                    <?php if (!empty($incident['root_cause'])): ?>
-                                    <div class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-lg px-3 py-2.5">
-                                        <p class="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1">
-                                            <i class="fas fa-magnifying-glass mr-1"></i>Root Cause
-                                        </p>
-                                        <p class="text-sm text-gray-700 dark:text-gray-300"><?= nl2br(htmlspecialchars($incident['root_cause'])) ?></p>
-                                    </div>
-                                    <?php endif; ?>
-
-                                    <!-- Lessons Learned -->
-                                    <?php if ($incident['status'] === 'resolved' && !empty($incident['lessons_learned'])): ?>
-                                    <div class="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/40 rounded-lg px-3 py-2.5">
-                                        <p class="text-[10px] font-semibold text-green-700 dark:text-green-400 uppercase tracking-wider mb-1">
-                                            <i class="fas fa-lightbulb mr-1"></i>Lessons Learned
-                                        </p>
-                                        <p class="text-sm text-gray-700 dark:text-gray-300"><?= nl2br(htmlspecialchars($incident['lessons_learned'])) ?></p>
-                                    </div>
-                                    <?php endif; ?>
-
-                                    <!-- Attachments -->
-                                    <?php if (!empty($allAttachments)): ?>
-                                    <div>
-                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                                            <i class="fas fa-paperclip mr-1"></i><?= count($allAttachments) > 1 ? 'Attachments' : 'Attachment' ?> (<?= count($allAttachments) ?>)
-                                        </p>
-                                        <div class="flex flex-wrap gap-1.5">
-                                            <?php foreach ($allAttachments as $att): ?>
-                                                <button type="button"
-                                                    onclick="openAttachmentViewer('<?= url($att['file_path']) ?>', '<?= htmlspecialchars($att['file_name'], ENT_QUOTES) ?>')"
-                                                    class="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600 transition-colors">
-                                                    <i class="fas fa-file text-gray-400"></i>
-                                                    <?= htmlspecialchars(strlen($att['file_name']) > 28 ? substr($att['file_name'], 0, 25) . '…' : $att['file_name']) ?>
-                                                </button>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    </div>
-                                    <?php endif; ?>
-                                </div>
-
-                                <!-- RIGHT (2/5): Activity timeline + update form -->
-                                <div class="lg:col-span-2 lg:border-l lg:border-gray-100 dark:lg:border-gray-700 lg:pl-5">
-                                    <div class="flex items-center justify-between mb-3">
-                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                                            <i class="fas fa-clock-rotate-left mr-1"></i>Activity Log
-                                            <span class="ml-1 px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-bold"><?= $incident['update_count'] ?></span>
-                                        </p>
-                                    </div>
-
-                                    <!-- Timeline -->
-                                    <div class="space-y-2 max-h-52 overflow-y-auto pr-1 mb-3 scrollbar-thin">
-                                        <?php if (empty($incident['updates'])): ?>
-                                            <p class="text-xs text-gray-400 italic text-center py-4">No activity logged yet.</p>
-                                        <?php else: ?>
-                                            <?php foreach ($incident['updates'] as $update): ?>
-                                                <div class="flex gap-2.5 text-sm">
-                                                    <div class="flex-shrink-0 mt-1">
-                                                        <div class="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                                                            <i class="fas <?= $update['user_name'] === 'System' ? 'fa-robot text-purple-400' : 'fa-user text-blue-400' ?> text-[9px]"></i>
+                                                <!-- ── Card Header ─────────────────────────────────── -->
+                                                <div class="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                                    <!-- Left: service name + badges -->
+                                                    <div class="flex flex-col gap-1.5">
+                                                        <div class="flex items-center gap-2 flex-wrap">
+                                                            <h3 class="text-base font-bold text-gray-900 dark:text-white leading-tight">
+                                                                <?= htmlspecialchars($incident['service_name']) ?>
+                                                            </h3>
+                                                            <?php if (!empty($incident['incident_ref'])): ?>
+                                                                        <button type="button" x-data="{ copied: false }"
+                                                                            @click="navigator.clipboard.writeText('<?= htmlspecialchars($incident['incident_ref']) ?>'); copied = true; setTimeout(() => copied = false, 2000)"
+                                                                            title="Click to copy"
+                                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-medium bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 transition-colors">
+                                                                            <span x-show="!copied"><i class="fas fa-hashtag text-[9px]"></i>
+                                                                                <?= htmlspecialchars($incident['incident_ref']) ?></span>
+                                                                            <span x-show="copied" x-cloak class="text-green-600 dark:text-green-400"><i
+                                                                                    class="fas fa-check text-[9px]"></i> Copied</span>
+                                                                        </button>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <!-- Badge row -->
+                                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                                            <span
+                                                                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $statusBadge ?>">
+                                                                <i
+                                                                    class="fas <?= $incident['status'] === 'pending' ? 'fa-hourglass-half' : 'fa-circle-check' ?> text-[9px]"></i>
+                                                                <?= ucfirst($incident['status']) ?>
+                                                            </span>
+                                                            <span
+                                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $impactBadge ?>">
+                                                                <?= ucfirst($incident['impact_level']) ?> Impact
+                                                            </span>
+                                                            <span
+                                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $priorityBadge ?>">
+                                                                <?= ucfirst($incident['priority']) ?> Priority
+                                                            </span>
+                                                            <?php if (!empty($incident['incident_type_name'])): ?>
+                                                                        <span
+                                                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                                                                            <i
+                                                                                class="fas fa-tag mr-1 text-[9px]"></i><?= htmlspecialchars($incident['incident_type_name']) ?>
+                                                                        </span>
+                                                            <?php endif; ?>
+                                                            <?php if ($incident['attachment_count'] > 0): ?>
+                                                                        <span
+                                                                            class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                                                                            <i class="fas fa-paperclip text-[9px]"></i> <?= $incident['attachment_count'] ?>
+                                                                        </span>
+                                                            <?php endif; ?>
                                                         </div>
                                                     </div>
-                                                    <div class="flex-1 min-w-0">
-                                                        <div class="flex items-baseline gap-1.5 flex-wrap">
-                                                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-300"><?= htmlspecialchars($update['user_name']) ?></span>
-                                                            <span class="text-[10px] text-gray-400"><?= date('M j, g:i A', strtotime($update['created_at'])) ?></span>
-                                                        </div>
-                                                        <p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5 leading-relaxed"><?= nl2br(htmlspecialchars($update['update_text'])) ?></p>
+
+                                                    <!-- Right: action buttons -->
+                                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                                        <?php if ($incident['status'] === 'pending'): ?>
+                                                                    <button type="button" onclick="showEditModal(<?= $incident['incident_id'] ?>)"
+                                                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                                                                        <i class="fas fa-pen-to-square text-gray-400"></i> Edit
+                                                                    </button>
+                                                                    <button type="button"
+                                                                        onclick="showResolveModal(<?= $incident['incident_id'] ?>, '<?= addslashes(htmlspecialchars($incident['service_name'])) ?>', '<?= addslashes(htmlspecialchars($incident['root_cause'] ?? '')) ?>')"
+                                                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors shadow-sm">
+                                                                        <i class="fas fa-check"></i> Mark Resolved
+                                                                    </button>
+                                                        <?php else: ?>
+                                                                    <div class="flex flex-col items-end gap-1">
+                                                                        <span class="text-xs text-green-600 dark:text-green-400 font-medium">
+                                                                            <i class="fas fa-check-circle mr-1"></i>Resolved by
+                                                                            <?= htmlspecialchars($incident['resolved_by'] ?? 'System') ?>
+                                                                        </span>
+                                                                        <?php $resolvers = !empty($incident['resolvers']) ? json_decode($incident['resolvers'], true) : []; ?>
+                                                                        <?php if (!empty($resolvers)): ?>
+                                                                            <span class="text-[11px] text-gray-500 dark:text-gray-400 font-medium mt-0.5" title="Assisted by: <?= htmlspecialchars(implode(', ', $resolvers)) ?>">
+                                                                                <i class="fas fa-users mr-1"></i><?= count($resolvers) ?> Helper<?= count($resolvers) > 1 ? 's' : '' ?>
+                                                                            </span>
+                                                                        <?php endif; ?>
+                                                                        <span
+                                                                            class="text-[11px] text-gray-400"><?= $incident['resolved_at'] ? date('M j, Y g:i A', strtotime($incident['resolved_at'])) : '' ?></span>
+                                                                        <button type="button"
+                                                                            onclick="showReopenModal(<?= $incident['incident_id'] ?>, '<?= addslashes(htmlspecialchars($incident['service_name'])) ?>')"
+                                                                            class="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-orange-400 text-orange-600 dark:text-orange-400 bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-gray-700 transition-colors">
+                                                                            <i class="fas fa-rotate-left text-[10px]"></i> Reopen
+                                                                        </button>
+                                                                    </div>
+                                                        <?php endif; ?>
                                                     </div>
                                                 </div>
-                                            <?php endforeach; ?>
-                                        <?php endif; ?>
-                                    </div>
 
-                                    <!-- Add Update Form -->
-                                    <?php if ($incident['status'] === 'pending'): ?>
-                                        <form method="POST" class="mt-2 border-t border-gray-100 dark:border-gray-700 pt-3">
-                                            <input type="hidden" name="action" value="add_update">
-                                            <input type="hidden" name="incident_id" value="<?= $incident['incident_id'] ?>">
-                                            <div class="flex flex-col gap-2">
-                                                <input type="text" name="update_text" placeholder="Describe action taken…" required
-                                                    class="w-full text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg py-2 px-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-gray-400">
-                                                <input type="hidden" name="user_name" value="<?= htmlspecialchars($_SESSION['full_name']) ?>">
-                                                <button type="submit"
-                                                    class="self-end inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-gray-800 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 transition-colors">
-                                                    <i class="fas fa-paper-plane text-[10px]"></i> Post Update
-                                                </button>
-                                            </div>
-                                        </form>
-                                    <?php else: ?>
-                                        <div class="mt-2 border-t border-gray-100 dark:border-gray-700 pt-3">
-                                            <p class="text-[11px] text-gray-400 flex items-center gap-1.5">
-                                                <i class="fas fa-lock text-gray-300"></i>
-                                                Incident resolved. Reopen to add updates.
-                                            </p>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
+                                                <!-- ── Body ─────────────────────────────────────────── -->
+                                                <div class="border-t border-gray-100 dark:border-gray-700 px-5 py-4">
+                                                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
-                            </div><!-- /grid -->
-                        </div><!-- /body -->
-                    </div><!-- /incident-card -->
-                    <?php endforeach; ?>
+                                                        <!-- LEFT (3/5): meta grid + description + attachments -->
+                                                        <div class="lg:col-span-3 space-y-4">
+
+                                                            <!-- Meta info grid -->
+                                                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                                                <!-- Reported by -->
+                                                                <div class="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2.5">
+                                                                    <p
+                                                                        class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                                                                        Reported By</p>
+                                                                    <div class="flex items-center gap-1.5">
+                                                                        <i class="fas fa-user-circle text-gray-400 text-sm"></i>
+                                                                        <span
+                                                                            class="text-sm font-medium text-gray-800 dark:text-white truncate"><?= htmlspecialchars($incident['user_name']) ?></span>
+                                                                    </div>
+                                                                    <p class="text-[11px] text-gray-400 mt-0.5">
+                                                                        <?= date('M j, Y g:i A', strtotime($incident['created_at'])) ?></p>
+                                                                </div>
+
+                                                                <!-- Component -->
+                                                                <div class="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2.5">
+                                                                    <p
+                                                                        class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                                                                        Component</p>
+                                                                    <p class="text-sm font-medium text-gray-800 dark:text-white truncate">
+                                                                        <?= htmlspecialchars($incident['component_name'] ?? 'All / General') ?>
+                                                                    </p>
+                                                                </div>
+
+                                                                <!-- Affected companies -->
+                                                                <div
+                                                                    class="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2.5 col-span-2 sm:col-span-1">
+                                                                    <p
+                                                                        class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                                                                        Affected Companies (<?= $incident['company_count'] ?>)
+                                                                    </p>
+                                                                    <?php
+                                                                    $cos = !empty($incident['affected_companies']) ? explode(', ', $incident['affected_companies']) : [];
+                                                                    $displayCos = array_slice($cos, 0, 3);
+                                                                    $moreCos = count($cos) - 3;
+                                                                    ?>
+                                                                    <div class="flex flex-wrap gap-1">
+                                                                        <?php foreach ($displayCos as $co): ?>
+                                                                                    <span
+                                                                                        class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
+                                                                                        <?= htmlspecialchars(trim($co)) ?>
+                                                                                    </span>
+                                                                        <?php endforeach; ?>
+                                                                        <?php if ($moreCos > 0): ?>
+                                                                                    <span
+                                                                                        class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">+<?= $moreCos ?>
+                                                                                        more</span>
+                                                                        <?php endif; ?>
+                                                                        <?php if (empty($cos)): ?><span
+                                                                                        class="text-xs text-gray-400 italic">None
+                                                                                        listed</span><?php endif; ?>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <!-- Description -->
+                                                            <?php if (!empty($incident['description'])): ?>
+                                                                        <div>
+                                                                            <p
+                                                                                class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                                                                                Description</p>
+                                                                            <p
+                                                                                class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed line-clamp-3">
+                                                                                <?= nl2br(htmlspecialchars($incident['description'])) ?>
+                                                                            </p>
+                                                                        </div>
+                                                            <?php endif; ?>
+
+                                                            <!-- Root Cause -->
+                                                            <?php if (!empty($incident['root_cause'])): ?>
+                                                                        <div
+                                                                            class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-lg px-3 py-2.5">
+                                                                            <p
+                                                                                class="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1">
+                                                                                <i class="fas fa-magnifying-glass mr-1"></i>Root Cause
+                                                                            </p>
+                                                                            <p class="text-sm text-gray-700 dark:text-gray-300">
+                                                                                <?= nl2br(htmlspecialchars($incident['root_cause'])) ?></p>
+                                                                        </div>
+                                                            <?php endif; ?>
+
+                                                            <!-- Lessons Learned -->
+                                                            <?php if ($incident['status'] === 'resolved' && !empty($incident['lessons_learned'])): ?>
+                                                                        <div
+                                                                            class="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/40 rounded-lg px-3 py-2.5">
+                                                                            <p
+                                                                                class="text-[10px] font-semibold text-green-700 dark:text-green-400 uppercase tracking-wider mb-1">
+                                                                                <i class="fas fa-lightbulb mr-1"></i>Lessons Learned
+                                                                            </p>
+                                                                            <p class="text-sm text-gray-700 dark:text-gray-300">
+                                                                                <?= nl2br(htmlspecialchars($incident['lessons_learned'])) ?></p>
+                                                                        </div>
+                                                            <?php endif; ?>
+
+                                                            <!-- Attachments -->
+                                                            <?php if (!empty($allAttachments)): ?>
+                                                                        <div>
+                                                                            <p
+                                                                                class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                                                                                <i
+                                                                                    class="fas fa-paperclip mr-1"></i><?= count($allAttachments) > 1 ? 'Attachments' : 'Attachment' ?>
+                                                                                (<?= count($allAttachments) ?>)
+                                                                            </p>
+                                                                            <div class="flex flex-wrap gap-1.5">
+                                                                                <?php foreach ($allAttachments as $att): ?>
+                                                                                            <button type="button"
+                                                                                                onclick="openAttachmentViewer('<?= url($att['file_path']) ?>', '<?= htmlspecialchars($att['file_name'], ENT_QUOTES) ?>')"
+                                                                                                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600 transition-colors">
+                                                                                                <i class="fas fa-file text-gray-400"></i>
+                                                                                                <?= htmlspecialchars(strlen($att['file_name']) > 28 ? substr($att['file_name'], 0, 25) . '…' : $att['file_name']) ?>
+                                                                                            </button>
+                                                                                <?php endforeach; ?>
+                                                                            </div>
+                                                                        </div>
+                                                            <?php endif; ?>
+                                                        </div>
+
+                                                        <!-- RIGHT (2/5): Activity timeline + update form -->
+                                                        <div
+                                                            class="lg:col-span-2 lg:border-l lg:border-gray-100 dark:lg:border-gray-700 lg:pl-5">
+                                                            <div class="flex items-center justify-between mb-3">
+                                                                <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                                                                    <i class="fas fa-clock-rotate-left mr-1"></i>Activity Log
+                                                                    <span
+                                                                        class="ml-1 px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-bold"><?= $incident['update_count'] ?></span>
+                                                                </p>
+                                                            </div>
+
+                                                            <!-- Timeline -->
+                                                            <div class="space-y-2 max-h-52 overflow-y-auto pr-1 mb-3 scrollbar-thin">
+                                                                <?php if (empty($incident['updates'])): ?>
+                                                                            <p class="text-xs text-gray-400 italic text-center py-4">No activity logged yet.
+                                                                            </p>
+                                                                <?php else: ?>
+                                                                            <?php foreach ($incident['updates'] as $update): ?>
+                                                                                        <div class="flex gap-2.5 text-sm">
+                                                                                            <div class="flex-shrink-0 mt-1">
+                                                                                                <div
+                                                                                                    class="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                                                                                    <i
+                                                                                                        class="fas <?= $update['user_name'] === 'System' ? 'fa-robot text-purple-400' : 'fa-user text-blue-400' ?> text-[9px]"></i>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            <div class="flex-1 min-w-0">
+                                                                                                <div class="flex items-baseline gap-1.5 flex-wrap">
+                                                                                                    <span
+                                                                                                        class="text-xs font-semibold text-gray-700 dark:text-gray-300"><?= htmlspecialchars($update['user_name']) ?></span>
+                                                                                                    <span
+                                                                                                        class="text-[10px] text-gray-400"><?= date('M j, g:i A', strtotime($update['created_at'])) ?></span>
+                                                                                                </div>
+                                                                                                <p
+                                                                                                    class="text-xs text-gray-600 dark:text-gray-400 mt-0.5 leading-relaxed">
+                                                                                                    <?= nl2br(htmlspecialchars($update['update_text'])) ?></p>
+                                                                                            </div>
+                                                                                        </div>
+                                                                            <?php endforeach; ?>
+                                                                <?php endif; ?>
+                                                            </div>
+
+                                                            <!-- Add Update Form -->
+                                                            <?php if ($incident['status'] === 'pending'): ?>
+                                                                        <form method="POST" class="mt-2 border-t border-gray-100 dark:border-gray-700 pt-3">
+                                                                            <input type="hidden" name="action" value="add_update">
+                                                                            <input type="hidden" name="incident_id" value="<?= $incident['incident_id'] ?>">
+                                                                            <div class="flex flex-col gap-2">
+                                                                                <input type="text" name="update_text" placeholder="Describe action taken…"
+                                                                                    required
+                                                                                    class="w-full text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg py-2 px-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-gray-400">
+                                                                                <input type="hidden" name="user_name"
+                                                                                    value="<?= htmlspecialchars($_SESSION['full_name']) ?>">
+                                                                                <button type="submit"
+                                                                                    class="self-end inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-gray-800 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 transition-colors">
+                                                                                    <i class="fas fa-paper-plane text-[10px]"></i> Post Update
+                                                                                </button>
+                                                                            </div>
+                                                                        </form>
+                                                            <?php else: ?>
+                                                                        <div class="mt-2 border-t border-gray-100 dark:border-gray-700 pt-3">
+                                                                            <p class="text-[11px] text-gray-400 flex items-center gap-1.5">
+                                                                                <i class="fas fa-lock text-gray-300"></i>
+                                                                                Incident resolved. Reopen to add updates.
+                                                                            </p>
+                                                                        </div>
+                                                            <?php endif; ?>
+                                                        </div>
+
+                                                    </div><!-- /grid -->
+                                                </div><!-- /body -->
+                                            </div><!-- /incident-card -->
+                                <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
-                </div>
+            </div>
 
-                <!-- Pagination -->
-                <?php if ($totalPages > 1): ?>
-                    <?php
+            <!-- Pagination -->
+            <?php if ($totalPages > 1): ?>
+                        <?php
                         $startPage = max(1, $currentPage - 2);
-                        $endPage   = min($totalPages, $currentPage + 2);
-                    ?>
-                    <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 w-fit mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-6 py-3 shadow-sm">
-                        <!-- "Showing X to Y of Z" -->
-                        <p class="text-sm text-gray-500 dark:text-gray-400 order-2 sm:order-1">
-                            Showing
-                            <span class="font-semibold text-gray-700 dark:text-gray-300"><?= min($offset + 1, $totalIncidents) ?></span>
-                            –
-                            <span class="font-semibold text-gray-700 dark:text-gray-300"><?= min($offset + $itemsPerPage, $totalIncidents) ?></span>
-                            of
-                            <span class="font-semibold text-gray-700 dark:text-gray-300"><?= $totalIncidents ?></span>
-                            incidents
-                        </p>
-
-                        <!-- Page controls -->
-                        <div class="flex items-center gap-1 order-1 sm:order-2">
-                            <!-- Previous -->
-                            <?php if ($currentPage > 1): ?>
-                                <a href="?page=<?= $currentPage - 1 ?>"
-                                   class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
-                                    <i class="fas fa-chevron-left text-xs"></i>
-                                </a>
-                            <?php else: ?>
-                                <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed">
-                                    <i class="fas fa-chevron-left text-xs"></i>
-                                </span>
-                            <?php endif; ?>
-
-                            <!-- First page + ellipsis -->
-                            <?php if ($startPage > 1): ?>
-                                <a href="?page=1" class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">1</a>
-                                <?php if ($startPage > 2): ?>
-                                    <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
-                                <?php endif; ?>
-                            <?php endif; ?>
-
-                            <!-- Page numbers -->
-                            <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
-                                <?php if ($i === $currentPage): ?>
-                                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-600 text-white text-sm font-semibold shadow-sm">
-                                        <?= $i ?>
-                                    </span>
-                                <?php else: ?>
-                                    <a href="?page=<?= $i ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
-                                        <?= $i ?>
-                                    </a>
-                                <?php endif; ?>
-                            <?php endfor; ?>
-
-                            <!-- Ellipsis + last page -->
-                            <?php if ($endPage < $totalPages): ?>
-                                <?php if ($endPage < $totalPages - 1): ?>
-                                    <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
-                                <?php endif; ?>
-                                <a href="?page=<?= $totalPages ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"><?= $totalPages ?></a>
-                            <?php endif; ?>
-
-                            <!-- Next -->
-                            <?php if ($currentPage < $totalPages): ?>
-                                <a href="?page=<?= $currentPage + 1 ?>"
-                                   class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
-                                    <i class="fas fa-chevron-right text-xs"></i>
-                                </a>
-                            <?php else: ?>
-                                <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed">
-                                    <i class="fas fa-chevron-right text-xs"></i>
-                                </span>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
-            </div>
-        </main>
-
-        <!-- Resolve Issue Modal -->
-        <div id="resolveModal"
-            class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
-            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full transform transition-all duration-300 scale-95 opacity-0 max-h-[90vh] overflow-y-auto"
-                id="modalContent">
-                <div class="p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-1">Resolve Issue</h3>
-                    <p class="text-sm text-gray-500 mb-4" id="modalServiceName"></p>
-
-                    <form id="resolveForm" method="POST" class="space-y-4">
-                        <input type="hidden" name="action" value="update_status">
-                        <input type="hidden" name="incident_id" id="modal_incident_id" value="">
-                        <input type="hidden" name="status" value="resolved">
-
-                        <div>
-                            <label for="resolve_name" class="block text-sm font-medium text-gray-700">Your Name</label>
-                            <input type="text" id="resolve_name" name="user_name"
-                                value="<?= htmlspecialchars($_SESSION['full_name']) ?>"
-                                class="mt-1 block w-full border border-gray-300 bg-gray-100 text-gray-500 rounded-md shadow-sm py-2 px-3 cursor-not-allowed sm:text-sm"
-                                readonly autocomplete="off">
-                        </div>
-
-                        <!-- Root Cause -->
-                        <div>
-                            <label for="root_cause_textarea" class="block text-sm font-medium text-gray-700 mb-2">
-                                Root Cause <span class="text-red-500">*</span>
-                            </label>
-                            <textarea name="root_cause" id="root_cause_textarea" rows="3" required
-                                class="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Describe the root cause of this incident..."></textarea>
-                        </div>
-
-                        <!-- Lessons Learned -->
-                        <div>
-                            <label for="lessons_learned" class="block text-sm font-medium text-gray-700 mb-2">
-                                Lessons Learned <span class="text-red-500">*</span>
-                            </label>
-                            <textarea name="lessons_learned" id="lessons_learned" rows="4" required
-                                class="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="What did we learn from this incident? How can we prevent it in the future?"></textarea>
-                        </div>
-
-                        <!-- Resolution Date -->
-                        <div>
-                            <label for="resolved_date" class="block text-sm font-medium text-gray-700">
-                                Resolution Date & Time <span class="text-red-500">*</span>
-                            </label>
-                            <input type="datetime-local" name="resolved_date" id="resolved_date" required
-                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
-                            <p class="text-xs text-gray-500 mt-1">When was this incident actually resolved?</p>
-                        </div>
-
-                        <div class="flex justify-end space-x-3 pt-2">
-                            <button type="button" onclick="hideResolveModal()"
-                                class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Cancel
-                            </button>
-                            <button type="submit"
-                                class="inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                                <i class="fas fa-check mr-2"></i> Mark as Resolved
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Reopen Issue Modal -->
-        <div id="reopenModal"
-            class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 scale-95 opacity-0"
-                id="reopenModalContent">
-                <div class="p-6">
-                    <div class="flex items-center mb-4">
+                        $endPage = min($totalPages, $currentPage + 2);
+                        ?>
                         <div
-                            class="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/30">
-                            <i class="fas fa-exclamation-triangle text-orange-600 dark:text-orange-400 text-xl"></i>
+                            class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 w-fit mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-6 py-3 shadow-sm">
+                            <!-- "Showing X to Y of Z" -->
+                            <p class="text-sm text-gray-500 dark:text-gray-400 order-2 sm:order-1">
+                                Showing
+                                <span
+                                    class="font-semibold text-gray-700 dark:text-gray-300"><?= min($offset + 1, $totalIncidents) ?></span>
+                                –
+                                <span
+                                    class="font-semibold text-gray-700 dark:text-gray-300"><?= min($offset + $itemsPerPage, $totalIncidents) ?></span>
+                                of
+                                <span class="font-semibold text-gray-700 dark:text-gray-300"><?= $totalIncidents ?></span>
+                                incidents
+                            </p>
+
+                            <!-- Page controls -->
+                            <div class="flex items-center gap-1 order-1 sm:order-2">
+                                <!-- Previous -->
+                                <?php if ($currentPage > 1): ?>
+                                            <a href="?page=<?= $currentPage - 1 ?>"
+                                                class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                                                <i class="fas fa-chevron-left text-xs"></i>
+                                            </a>
+                                <?php else: ?>
+                                            <span
+                                                class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed">
+                                                <i class="fas fa-chevron-left text-xs"></i>
+                                            </span>
+                                <?php endif; ?>
+
+                                <!-- First page + ellipsis -->
+                                <?php if ($startPage > 1): ?>
+                                            <a href="?page=1"
+                                                class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">1</a>
+                                            <?php if ($startPage > 2): ?>
+                                                        <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
+                                            <?php endif; ?>
+                                <?php endif; ?>
+
+                                <!-- Page numbers -->
+                                <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+                                            <?php if ($i === $currentPage): ?>
+                                                        <span
+                                                            class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-600 text-white text-sm font-semibold shadow-sm">
+                                                            <?= $i ?>
+                                                        </span>
+                                            <?php else: ?>
+                                                        <a href="?page=<?= $i ?>"
+                                                            class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                                                            <?= $i ?>
+                                                        </a>
+                                            <?php endif; ?>
+                                <?php endfor; ?>
+
+                                <!-- Ellipsis + last page -->
+                                <?php if ($endPage < $totalPages): ?>
+                                            <?php if ($endPage < $totalPages - 1): ?>
+                                                        <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
+                                            <?php endif; ?>
+                                            <a href="?page=<?= $totalPages ?>"
+                                                class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"><?= $totalPages ?></a>
+                                <?php endif; ?>
+
+                                <!-- Next -->
+                                <?php if ($currentPage < $totalPages): ?>
+                                            <a href="?page=<?= $currentPage + 1 ?>"
+                                                class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                                                <i class="fas fa-chevron-right text-xs"></i>
+                                            </a>
+                                <?php else: ?>
+                                            <span
+                                                class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed">
+                                                <i class="fas fa-chevron-right text-xs"></i>
+                                            </span>
+                                <?php endif; ?>
+                            </div>
                         </div>
-                        <div class="ml-4">
-                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Reopen Incident</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400" id="reopenModalServiceName"></p>
-                        </div>
+            <?php endif; ?>
+
+    </div>
+    </main>
+
+    <!-- Resolve Issue Modal -->
+    <div id="resolveModal"
+        class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full transform transition-all duration-300 scale-95 opacity-0 max-h-[90vh] overflow-y-auto"
+            id="modalContent">
+            <div class="p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-1">Resolve Issue</h3>
+                <p class="text-sm text-gray-500 mb-4" id="modalServiceName"></p>
+
+                <form id="resolveForm" method="POST" class="space-y-4">
+                    <input type="hidden" name="action" value="update_status">
+                    <input type="hidden" name="incident_id" id="modal_incident_id" value="">
+                    <input type="hidden" name="status" value="resolved">
+
+                    <div>
+                        <label for="resolve_name" class="block text-sm font-medium text-gray-700">Your Name</label>
+                        <input type="text" id="resolve_name" name="user_name"
+                            value="<?= htmlspecialchars($_SESSION['full_name']) ?>"
+                            class="mt-1 block w-full border border-gray-300 bg-gray-100 text-gray-500 rounded-md shadow-sm py-2 px-3 cursor-not-allowed sm:text-sm"
+                            readonly autocomplete="off">
                     </div>
 
-                    <div
-                        class="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-md">
-                        <p class="text-sm text-orange-800 dark:text-orange-300">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            Are you sure you want to reopen this resolved incident? This will allow new updates to be
-                            added.
-                        </p>
+                    <!-- Resolvers -->
+                    <div x-data="{ resolvers: [''] }" class="space-y-2 mt-4">
+                        <label class="block text-sm font-medium text-gray-700">
+                            People who helped resolve this <span class="text-red-500">*</span>
+                        </label>
+                        <template x-for="(resolver, index) in resolvers" :key="index">
+                            <div class="flex items-center gap-2">
+                                <input type="text" x-model="resolvers[index]" name="resolvers[]" required
+                                    class="flex-1 border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Enter resolver name">
+                                <button type="button" @click="resolvers.splice(index, 1)" x-show="resolvers.length > 1"
+                                    class="text-red-500 hover:text-red-700 p-2">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </template>
+                        <button type="button" @click="resolvers.push('')"
+                            class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium mt-1">
+                            <i class="fas fa-plus-circle"></i> Add another person
+                        </button>
                     </div>
 
-                    <form id="reopenForm" method="POST" class="space-y-4">
-                        <input type="hidden" name="action" value="update_status">
-                        <input type="hidden" name="incident_id" id="reopen_incident_id" value="">
-                        <input type="hidden" name="status" value="pending">
+                    <!-- Root Cause -->
+                    <div>
+                        <label for="root_cause_textarea" class="block text-sm font-medium text-gray-700 mb-2">
+                            Root Cause <span class="text-red-500">*</span>
+                        </label>
+                        <textarea name="root_cause" id="root_cause_textarea" rows="3" required
+                            class="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Describe the root cause of this incident..."></textarea>
+                    </div>
 
-                        <div class="flex justify-end space-x-3 pt-2">
-                            <button type="button" onclick="hideReopenModal()"
-                                class="inline-flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Cancel
-                            </button>
-                            <button type="submit"
-                                class="inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
-                                <i class="fas fa-redo mr-2"></i> Reopen Incident
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                    <!-- Lessons Learned -->
+                    <div>
+                        <label for="lessons_learned" class="block text-sm font-medium text-gray-700 mb-2">
+                            Lessons Learned <span class="text-red-500">*</span>
+                        </label>
+                        <textarea name="lessons_learned" id="lessons_learned" rows="4" required
+                            class="block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="What did we learn from this incident? How can we prevent it in the future?"></textarea>
+                    </div>
+
+                    <!-- Resolution Date -->
+                    <div>
+                        <label for="resolved_date" class="block text-sm font-medium text-gray-700">
+                            Resolution Date & Time <span class="text-red-500">*</span>
+                        </label>
+                        <input type="datetime-local" name="resolved_date" id="resolved_date" required
+                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">When was this incident actually resolved?</p>
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-2">
+                        <button type="button" onclick="hideResolveModal()"
+                            class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                            class="inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            <i class="fas fa-check mr-2"></i> Mark as Resolved
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
+    </div>
 
-        <!-- Edit Incident Modal -->
-        <div id="editModal"
-            class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full transform transition-all duration-300 scale-95 opacity-0 max-h-[90vh] overflow-y-auto"
-                id="editModalContent">
-                <div class="p-6">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">Edit Incident Details</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" id="editModalIncidentInfo"></p>
+    <!-- Reopen Issue Modal -->
+    <div id="reopenModal"
+        class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 scale-95 opacity-0"
+            id="reopenModalContent">
+            <div class="p-6">
+                <div class="flex items-center mb-4">
+                    <div
+                        class="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/30">
+                        <i class="fas fa-exclamation-triangle text-orange-600 dark:text-orange-400 text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Reopen Incident</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400" id="reopenModalServiceName"></p>
+                    </div>
+                </div>
 
-                    <form id="editForm" method="POST" enctype="multipart/form-data" class="space-y-4" x-data="{
+                <div
+                    class="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-md">
+                    <p class="text-sm text-orange-800 dark:text-orange-300">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Are you sure you want to reopen this resolved incident? This will allow new updates to be
+                        added.
+                    </p>
+                </div>
+
+                <form id="reopenForm" method="POST" class="space-y-4">
+                    <input type="hidden" name="action" value="update_status">
+                    <input type="hidden" name="incident_id" id="reopen_incident_id" value="">
+                    <input type="hidden" name="status" value="pending">
+
+                    <div class="flex justify-end space-x-3 pt-2">
+                        <button type="button" onclick="hideReopenModal()"
+                            class="inline-flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                            class="inline-flex justify-center items-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
+                            <i class="fas fa-redo mr-2"></i> Reopen Incident
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Incident Modal -->
+    <div id="editModal"
+        class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full transform transition-all duration-300 scale-95 opacity-0 max-h-[90vh] overflow-y-auto"
+            id="editModalContent">
+            <div class="p-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">Edit Incident Details</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" id="editModalIncidentInfo"></p>
+
+                <form id="editForm" method="POST" enctype="multipart/form-data" class="space-y-4" x-data="{
                         existingAttachments: [],
                         attachmentsToDelete: [],
                         newFilePreviews: [],
@@ -1204,785 +1305,785 @@ try {
                             fileInput.files = dt.files;
                         }
                     }">
-                        <input type="hidden" name="action" value="edit_incident">
-                        <input type="hidden" name="incident_id" id="edit_incident_id" value="">
-                        <!-- Hidden inputs for attachments to delete -->
-                        <template x-for="attachment in attachmentsToDelete" :key="attachment.id">
-                            <input type="hidden" name="delete_attachments[]" :value="attachment.id">
-                        </template>
-                        <template x-for="attachment in attachmentsToDelete" :key="attachment.path">
-                            <input type="hidden" name="delete_attachment_paths[]" :value="attachment.path">
-                        </template>
+                    <input type="hidden" name="action" value="edit_incident">
+                    <input type="hidden" name="incident_id" id="edit_incident_id" value="">
+                    <!-- Hidden inputs for attachments to delete -->
+                    <template x-for="attachment in attachmentsToDelete" :key="attachment.id">
+                        <input type="hidden" name="delete_attachments[]" :value="attachment.id">
+                    </template>
+                    <template x-for="attachment in attachmentsToDelete" :key="attachment.path">
+                        <input type="hidden" name="delete_attachment_paths[]" :value="attachment.path">
+                    </template>
 
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Service -->
-                            <div>
-                                <label for="edit_service"
-                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Service <span class="text-red-500">*</span>
-                                </label>
-                                <select id="edit_service" name="service_id" required
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
-                                    <?php foreach ($services as $service): ?>
-                                        <option value="<?= $service['service_id'] ?>">
-                                            <?= htmlspecialchars($service['service_name']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-
-                            <!-- Component -->
-                            <div>
-                                <label for="edit_component"
-                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Component
-                                </label>
-                                <select id="edit_component" name="component_id"
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="">All</option>
-                                    <?php foreach ($components as $component): ?>
-                                        <option value="<?= $component['component_id'] ?>"
-                                            data-service="<?= $component['service_id'] ?>">
-                                            <?= htmlspecialchars($component['name']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-
-                            <!-- Incident Type -->
-                            <div>
-                                <label for="edit_incident_type"
-                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Incident Type
-                                </label>
-                                <select id="edit_incident_type" name="incident_type_id"
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="">All</option>
-                                    <?php foreach ($incidentTypes as $type): ?>
-                                        <option value="<?= $type['type_id'] ?>">
-                                            <?= htmlspecialchars($type['name']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-
-                            <!-- Impact Level -->
-                            <div>
-                                <label for="edit_impact"
-                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Impact Level <span class="text-red-500">*</span>
-                                </label>
-                                <select id="edit_impact" name="impact_level" required
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="Low">Low</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="High">High</option>
-                                    <option value="Critical">Critical</option>
-                                </select>
-                            </div>
-
-                            <!-- Priority -->
-                            <div>
-                                <label for="edit_priority"
-                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Priority <span class="text-red-500">*</span>
-                                </label>
-                                <select id="edit_priority" name="priority" required
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="Low">Low</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="High">High</option>
-                                    <option value="Urgent">Urgent</option>
-                                </select>
-                            </div>
-
-                            <!-- Actual Start Time -->
-                            <div>
-                                <label for="edit_start_time"
-                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Actual Start Time <span class="text-red-500">*</span>
-                                </label>
-                                <input type="datetime-local" id="edit_start_time" name="actual_start_time" required
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                        </div>
-
-                        <!-- Description -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Service -->
                         <div>
-                            <label for="edit_description"
+                            <label for="edit_service"
                                 class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Description
+                                Service <span class="text-red-500">*</span>
                             </label>
-                            <textarea id="edit_description" name="description" rows="3"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Describe the incident..."></textarea>
+                            <select id="edit_service" name="service_id" required
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
+                                <?php foreach ($services as $service): ?>
+                                            <option value="<?= $service['service_id'] ?>">
+                                                <?= htmlspecialchars($service['service_name']) ?>
+                                            </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
 
-                        <!-- Attachments Management -->
+                        <!-- Component -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Attachments
+                            <label for="edit_component"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Component
                             </label>
+                            <select id="edit_component" name="component_id"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">All</option>
+                                <?php foreach ($components as $component): ?>
+                                            <option value="<?= $component['component_id'] ?>"
+                                                data-service="<?= $component['service_id'] ?>">
+                                                <?= htmlspecialchars($component['name']) ?>
+                                            </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
 
-                            <!-- Existing Attachments -->
-                            <div x-show="existingAttachments.length > 0" class="mb-3">
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Current Attachments:</p>
-                                <div class="space-y-2">
-                                    <template x-for="(attachment, index) in existingAttachments"
-                                        :key="attachment.attachment_id">
-                                        <div class="flex items-center justify-between p-2 border rounded-md"
-                                            :class="attachment.markedForDeletion ? 'border-red-300 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'">
-                                            <div class="flex items-center space-x-2 flex-1 min-w-0">
-                                                <i class="fas fa-file text-gray-400"
-                                                    :class="attachment.markedForDeletion ? 'text-red-400' : 'text-gray-400'"></i>
-                                                <span class="text-sm truncate"
-                                                    :class="attachment.markedForDeletion ? 'line-through text-red-500' : 'text-gray-700 dark:text-gray-300'"
-                                                    x-text="attachment.file_name"></span>
+                        <!-- Incident Type -->
+                        <div>
+                            <label for="edit_incident_type"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Incident Type
+                            </label>
+                            <select id="edit_incident_type" name="incident_type_id"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">All</option>
+                                <?php foreach ($incidentTypes as $type): ?>
+                                            <option value="<?= $type['type_id'] ?>">
+                                                <?= htmlspecialchars($type['name']) ?>
+                                            </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Impact Level -->
+                        <div>
+                            <label for="edit_impact" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Impact Level <span class="text-red-500">*</span>
+                            </label>
+                            <select id="edit_impact" name="impact_level" required
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                        </div>
+
+                        <!-- Priority -->
+                        <div>
+                            <label for="edit_priority"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Priority <span class="text-red-500">*</span>
+                            </label>
+                            <select id="edit_priority" name="priority" required
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Urgent">Urgent</option>
+                            </select>
+                        </div>
+
+                        <!-- Actual Start Time -->
+                        <div>
+                            <label for="edit_start_time"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Actual Start Time <span class="text-red-500">*</span>
+                            </label>
+                            <input type="datetime-local" id="edit_start_time" name="actual_start_time" required
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label for="edit_description"
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Description
+                        </label>
+                        <textarea id="edit_description" name="description" rows="3"
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Describe the incident..."></textarea>
+                    </div>
+
+                    <!-- Attachments Management -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Attachments
+                        </label>
+
+                        <!-- Existing Attachments -->
+                        <div x-show="existingAttachments.length > 0" class="mb-3">
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Current Attachments:</p>
+                            <div class="space-y-2">
+                                <template x-for="(attachment, index) in existingAttachments"
+                                    :key="attachment.attachment_id">
+                                    <div class="flex items-center justify-between p-2 border rounded-md"
+                                        :class="attachment.markedForDeletion ? 'border-red-300 bg-red-50 dark:bg-red-900/20' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'">
+                                        <div class="flex items-center space-x-2 flex-1 min-w-0">
+                                            <i class="fas fa-file text-gray-400"
+                                                :class="attachment.markedForDeletion ? 'text-red-400' : 'text-gray-400'"></i>
+                                            <span class="text-sm truncate"
+                                                :class="attachment.markedForDeletion ? 'line-through text-red-500' : 'text-gray-700 dark:text-gray-300'"
+                                                x-text="attachment.file_name"></span>
+                                        </div>
+                                        <button type="button"
+                                            @click="attachment.markedForDeletion ? unmarkForDeletion(attachment.attachment_id) : markForDeletion(attachment.attachment_id, attachment.file_path)"
+                                            class="text-gray-400 hover:text-red-500 focus:outline-none transition-colors ml-2"
+                                            :class="attachment.markedForDeletion ? 'text-green-500 hover:text-green-600' : ''">
+                                            <i class="fas text-lg"
+                                                :class="attachment.markedForDeletion ? 'fa-undo' : 'fa-times'"></i>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- New File Previews -->
+                        <template x-if="newFilePreviews.length > 0">
+                            <div class="mb-3 space-y-2">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">New Attachments:</p>
+                                <template x-for="(preview, index) in newFilePreviews" :key="index">
+                                    <div
+                                        class="border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700">
+                                        <div class="flex items-center gap-3">
+                                            <!-- Preview Icon/Image -->
+                                            <div class="flex-shrink-0">
+                                                <template x-if="preview.type === 'image'">
+                                                    <img :src="preview.url" class="w-12 h-12 object-cover rounded"
+                                                        alt="Preview">
+                                                </template>
+                                                <template x-if="preview.type === 'document'">
+                                                    <div
+                                                        class="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded flex items-center justify-center">
+                                                        <i
+                                                            class="fas fa-file-alt text-blue-600 dark:text-blue-400 text-xl"></i>
+                                                    </div>
+                                                </template>
                                             </div>
-                                            <button type="button"
-                                                @click="attachment.markedForDeletion ? unmarkForDeletion(attachment.attachment_id) : markForDeletion(attachment.attachment_id, attachment.file_path)"
-                                                class="text-gray-400 hover:text-red-500 focus:outline-none transition-colors ml-2"
-                                                :class="attachment.markedForDeletion ? 'text-green-500 hover:text-green-600' : ''">
-                                                <i class="fas text-lg"
-                                                    :class="attachment.markedForDeletion ? 'fa-undo' : 'fa-times'"></i>
+
+                                            <!-- File Info -->
+                                            <div class="flex-1 min-w-0">
+                                                <label
+                                                    class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                                    Display Name
+                                                </label>
+                                                <input type="text" x-model="preview.customName"
+                                                    :name="'new_file_custom_names[' + index + ']'"
+                                                    class="block w-full text-sm border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-2 bg-white dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Enter display name...">
+                                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                    Original: <span x-text="preview.name"></span>
+                                                </p>
+                                            </div>
+
+                                            <!-- Remove Button -->
+                                            <button @click="removeNewFile(index)" type="button"
+                                                class="self-center text-gray-400 hover:text-red-500 focus:outline-none transition-colors">
+                                                <i class="fas fa-times text-lg"></i>
                                             </button>
                                         </div>
-                                    </template>
-                                </div>
+                                    </div>
+                                </template>
                             </div>
+                        </template>
 
-                            <!-- New File Previews -->
-                            <template x-if="newFilePreviews.length > 0">
-                                <div class="mb-3 space-y-2">
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">New Attachments:</p>
-                                    <template x-for="(preview, index) in newFilePreviews" :key="index">
-                                        <div
-                                            class="border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700">
-                                            <div class="flex items-center gap-3">
-                                                <!-- Preview Icon/Image -->
-                                                <div class="flex-shrink-0">
-                                                    <template x-if="preview.type === 'image'">
-                                                        <img :src="preview.url" class="w-12 h-12 object-cover rounded"
-                                                            alt="Preview">
-                                                    </template>
-                                                    <template x-if="preview.type === 'document'">
-                                                        <div
-                                                            class="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded flex items-center justify-center">
-                                                            <i
-                                                                class="fas fa-file-alt text-blue-600 dark:text-blue-400 text-xl"></i>
-                                                        </div>
-                                                    </template>
-                                                </div>
-
-                                                <!-- File Info -->
-                                                <div class="flex-1 min-w-0">
-                                                    <label
-                                                        class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                                                        Display Name
-                                                    </label>
-                                                    <input type="text" x-model="preview.customName"
-                                                        :name="'new_file_custom_names[' + index + ']'"
-                                                        class="block w-full text-sm border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-2 bg-white dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500"
-                                                        placeholder="Enter display name...">
-                                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                        Original: <span x-text="preview.name"></span>
-                                                    </p>
-                                                </div>
-
-                                                <!-- Remove Button -->
-                                                <button @click="removeNewFile(index)" type="button"
-                                                    class="self-center text-gray-400 hover:text-red-500 focus:outline-none transition-colors">
-                                                    <i class="fas fa-times text-lg"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </template>
-                                </div>
-                            </template>
-
-                            <!-- File Upload Input -->
-                            <div
-                                class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
-                                <div class="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
-                                    <label for="new_attachments"
-                                        class="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 px-2 py-0.5 border border-blue-600/20">
-                                        <span>Upload files</span>
-                                        <input id="new_attachments" name="new_attachments[]" type="file" class="sr-only"
-                                            x-ref="newFileInput" @change="handleNewFiles" multiple>
-                                    </label>
-                                    <p class="pl-1">or drag and drop</p>
-                                </div>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    PNG, JPG, GIF, PDF, DOC, TXT up to 10MB each
-                                </p>
+                        <!-- File Upload Input -->
+                        <div
+                            class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+                            <div class="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
+                                <label for="new_attachments"
+                                    class="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 px-2 py-0.5 border border-blue-600/20">
+                                    <span>Upload files</span>
+                                    <input id="new_attachments" name="new_attachments[]" type="file" class="sr-only"
+                                        x-ref="newFileInput" @change="handleNewFiles" multiple>
+                                </label>
+                                <p class="pl-1">or drag and drop</p>
                             </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                PNG, JPG, GIF, PDF, DOC, TXT up to 10MB each
+                            </p>
                         </div>
-
-                        <!-- Affected Companies -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Affected Companies <span class="text-red-500">*</span>
-                            </label>
-                            <div
-                                class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-md p-3">
-                                <?php foreach ($companies as $company): ?>
-                                    <label class="flex items-center space-x-2 text-sm">
-                                        <input type="checkbox" name="companies[]" value="<?= $company['company_id'] ?>"
-                                            class="edit-company-checkbox rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500">
-                                        <span class="text-gray-700 dark:text-gray-300">
-                                            <?= htmlspecialchars($company['company_name']) ?>
-                                        </span>
-                                    </label>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                            <button type="button" onclick="hideEditModal()"
-                                class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Cancel
-                            </button>
-                            <button type="submit"
-                                class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                <i class="fas fa-save mr-1"></i> Save Changes
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <script>
-            // Status toggle functionality
-            document.addEventListener('DOMContentLoaded', function () {
-                const statusToggles = document.querySelectorAll('.status-toggle');
-
-                statusToggles.forEach(button => {
-                    button.addEventListener('click', function () {
-                        const status = this.getAttribute('data-status');
-
-                        // Update active state
-                        statusToggles.forEach(btn => {
-                            btn.classList.remove(
-                                'bg-blue-50', 'text-blue-700', 'border-blue-200',
-                                'bg-yellow-50', 'text-yellow-700', 'border-yellow-200',
-                                'bg-green-50', 'text-green-700', 'border-green-200'
-                            );
-                            btn.classList.add('bg-white', 'text-gray-700', 'border-gray-200');
-
-                            // Reset icon colors
-                            const icon = btn.querySelector('i');
-                            if (icon) {
-                                icon.classList.remove('text-blue-500', 'text-yellow-500', 'text-green-500');
-                                if (btn.getAttribute('data-status') === 'pending') {
-                                    icon.classList.add('text-yellow-500');
-                                } else if (btn.getAttribute('data-status') === 'resolved') {
-                                    icon.classList.add('text-green-500');
-                                } else {
-                                    icon.classList.add('text-gray-500');
-                                }
-                            }
-                        });
-
-                        // Set active button styles
-                        if (status === 'pending') {
-                            this.classList.add('bg-yellow-50', 'text-yellow-700', 'border-yellow-200');
-                            this.querySelector('i').classList.add('text-yellow-600');
-                        } else if (status === 'resolved') {
-                            this.classList.add('bg-green-50', 'text-green-700', 'border-green-200');
-                            this.querySelector('i').classList.add('text-green-600');
-                        } else {
-                            this.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-200');
-                            this.querySelector('i').classList.add('text-blue-600');
-                        }
-
-                        // Filter incidents
-                        const incidents = document.querySelectorAll('.incident-card');
-                        const noResults = document.getElementById('no-results');
-                        let visibleCount = 0;
-
-                        incidents.forEach(incident => {
-                            const incidentStatus = incident.getAttribute('data-status');
-                            if (status === 'all' || incidentStatus === status) {
-                                incident.classList.remove('hidden');
-                                visibleCount++;
-                            } else {
-                                incident.classList.add('hidden');
-                            }
-                        });
-
-                        // Show/hide empty state
-                        // Only show "no results" if there are incidents but they're all filtered
-                        const hasIncidents = incidents.length > 0;
-                        if (visibleCount === 0 && hasIncidents) {
-                            noResults.classList.remove('hidden');
-                        } else {
-                            noResults.classList.add('hidden');
-                        }
-
-                        // Update URL without page reload
-                        const url = new URL(window.location);
-                        if (status === 'all') {
-                            url.searchParams.delete('status');
-                        } else {
-                            url.searchParams.set('status', status);
-                        }
-                        window.history.pushState({}, '', url);
-                    });
-                });
-
-                // Set initial active state from URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const statusParam = urlParams.get('status');
-                if (statusParam) {
-                    const activeButton = document.querySelector(`.status-toggle[data-status="${statusParam}"]`);
-                    if (activeButton) activeButton.click();
-                } else {
-                    // Default to 'all' if no status in URL
-                    const allButton = document.querySelector('.status-toggle[data-status="all"]');
-                    if (allButton) allButton.click();
-                }
-            });
-
-            // Resolve Modal Functions
-            function showResolveModal(incidentId, serviceName, rootCause = '') {
-                const modal = document.getElementById('resolveModal');
-                const modalContent = document.getElementById('modalContent');
-
-                // Set the incident ID and service name
-                document.getElementById('modal_incident_id').value = incidentId;
-                document.getElementById('modalServiceName').textContent = `Service: ${serviceName}`;
-
-                // Set current date/time as default resolution date
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = String(now.getMonth() + 1).padStart(2, '0');
-                const day = String(now.getDate()).padStart(2, '0');
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                const currentDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-                document.getElementById('resolved_date').value = currentDateTime;
-
-                // Get the form element
-                const form = document.getElementById('resolveForm');
-
-                // Set Alpine.js data using x-data attributes
-                form.setAttribute('x-data', JSON.stringify({
-                    rootCauseMode: 'text',
-                    lessonsMode: 'text',
-                    rootCauseFileName: '',
-                    lessonsFileName: ''
-                }));
-
-                // Show modal with animation
-                modal.classList.remove('hidden');
-                setTimeout(() => {
-                    modalContent.classList.remove('opacity-0', 'scale-95');
-                    modalContent.classList.add('opacity-100', 'scale-100');
-
-                    // Pre-populate the root cause textarea if it exists
-                    const rootCauseTextarea = document.getElementById('root_cause_textarea');
-                    if (rootCauseTextarea && rootCause) {
-                        rootCauseTextarea.value = rootCause;
-                    }
-
-                    document.getElementById('resolve_name').focus();
-                }, 100);
-            }
-
-            function hideResolveModal() {
-                const modal = document.getElementById('resolveModal');
-                const modalContent = document.getElementById('modalContent');
-
-                // Hide with animation
-                modalContent.classList.remove('opacity-100', 'scale-100');
-                modalContent.classList.add('opacity-0', 'scale-95');
-
-                // Hide modal after animation
-                setTimeout(() => {
-                    modal.classList.add('hidden');
-                    // Reset form
-                    document.getElementById('resolveForm').reset();
-                }, 200);
-            }
-
-            // Close modal when clicking outside
-            document.getElementById('resolveModal').addEventListener('click', function (e) {
-                if (e.target === this) {
-                    hideResolveModal();
-                }
-            });
-
-            // Edit Modal Functions
-            function showEditModal(incidentId) {
-                // Fetch incident data with attachments
-                fetch(`get_incident.php?id=${incidentId}&include_attachments=1`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            alert(data.error);
-                            return;
-                        }
-
-                        // Populate form fields
-                        document.getElementById('edit_incident_id').value = data.incident_id;
-                        document.getElementById('editModalIncidentInfo').textContent = `Incident #${data.incident_id} - ${data.service_name}`;
-                        document.getElementById('edit_service').value = data.service_id || '';
-                        document.getElementById('edit_component').value = data.component_id || '';
-                        document.getElementById('edit_incident_type').value = data.incident_type_id || '';
-                        document.getElementById('edit_impact').value = data.impact_level;
-                        document.getElementById('edit_priority').value = data.priority;
-                        document.getElementById('edit_description').value = data.description || '';
-
-                        // Format datetime for datetime-local input
-                        if (data.actual_start_time) {
-                            const date = new Date(data.actual_start_time);
-                            const year = date.getFullYear();
-                            const month = String(date.getMonth() + 1).padStart(2, '0');
-                            const day = String(date.getDate()).padStart(2, '0');
-                            const hours = String(date.getHours()).padStart(2, '0');
-                            const minutes = String(date.getMinutes()).padStart(2, '0');
-                            document.getElementById('edit_start_time').value = `${year}-${month}-${day}T${hours}:${minutes}`;
-                        }
-
-                        // Check affected companies
-                        const allEditCheckboxes = document.querySelectorAll('.edit-company-checkbox');
-                        const allEditCheckbox = Array.from(allEditCheckboxes).find(cb => cb.value === '3'); // Assuming "All" has company_id = 3
-                        const otherEditCheckboxes = Array.from(allEditCheckboxes).filter(cb => cb.value !== '3');
-
-                        // First, uncheck all
-                        allEditCheckboxes.forEach(checkbox => {
-                            checkbox.checked = false;
-                        });
-
-                        // Then check the appropriate ones
-                        data.affected_companies.forEach(companyId => {
-                            const checkbox = document.querySelector(`.edit-company-checkbox[value="${companyId}"]`);
-                            if (checkbox) {
-                                checkbox.checked = true;
-                            }
-                        });
-
-                        // If "All" is checked, uncheck others
-                        if (allEditCheckbox && allEditCheckbox.checked) {
-                            otherEditCheckboxes.forEach(cb => cb.checked = false);
-                        }
-
-                        // Add event listeners for exclusive selection
-                        if (allEditCheckbox) {
-                            allEditCheckbox.addEventListener('change', function () {
-                                if (this.checked) {
-                                    otherEditCheckboxes.forEach(cb => cb.checked = false);
-                                }
-                            });
-
-                            otherEditCheckboxes.forEach(checkbox => {
-                                checkbox.addEventListener('change', function () {
-                                    if (this.checked) {
-                                        allEditCheckbox.checked = false;
-                                    }
-                                });
-                            });
-                        }
-
-                        // Load existing attachments into Alpine.js
-                        console.log('Attachment data received:', data.attachments);
-                        if (data.attachments && data.attachments.length > 0) {
-                            // Wait for modal to be visible before accessing Alpine data
-                            setTimeout(() => {
-                                const form = document.getElementById('editForm');
-                                if (form && form._x_dataStack) {
-                                    const alpineData = form._x_dataStack[0];
-                                    console.log('Alpine data found:', alpineData);
-                                    alpineData.existingAttachments = data.attachments.map(att => ({
-                                        ...att,
-                                        markedForDeletion: false
-                                    }));
-                                    alpineData.attachmentsToDelete = [];
-                                    alpineData.newFilePreviews = [];
-                                    console.log('Attachments loaded:', alpineData.existingAttachments);
-                                } else {
-                                    console.error('Alpine.js data not found on form element');
-                                }
-                            }, 100);
-                        } else {
-                            console.log('No attachments found for this incident');
-                        }
-
-                        // Show modal with animation
-                        const modal = document.getElementById('editModal');
-                        const modalContent = document.getElementById('editModalContent');
-                        modal.classList.remove('hidden');
-                        setTimeout(() => {
-                            modalContent.classList.remove('opacity-0', 'scale-95');
-                            modalContent.classList.add('opacity-100', 'scale-100');
-                        }, 10);
-                    })
-                    .catch(error => {
-                        console.error('Error fetching incident data:', error);
-                        alert('Failed to load incident data. Please try again.');
-                    });
-            }
-
-            function hideEditModal() {
-                const modal = document.getElementById('editModal');
-                const modalContent = document.getElementById('editModalContent');
-
-                // Hide with animation
-                modalContent.classList.remove('opacity-100', 'scale-100');
-                modalContent.classList.add('opacity-0', 'scale-95');
-
-                // Hide modal after animation
-                setTimeout(() => {
-                    modal.classList.add('hidden');
-                    document.getElementById('editForm').reset();
-                }, 200);
-            }
-
-            // Close edit modal when clicking outside
-            document.getElementById('editModal').addEventListener('click', function (e) {
-                if (e.target === this) {
-                    hideEditModal();
-                }
-            });
-
-            // Handle edit form submission
-            document.getElementById('editForm').addEventListener('submit', function (e) {
-                e.preventDefault();
-
-                // Validate at least one company is selected
-                const selectedCompanies = document.querySelectorAll('.edit-company-checkbox:checked');
-                if (selectedCompanies.length === 0) {
-                    alert('Please select at least one affected company.');
-                    return;
-                }
-
-                // Submit form
-                this.submit();
-            });
-
-            // Handle form submission with validation
-            document.getElementById('resolveForm').addEventListener('submit', function (e) {
-                e.preventDefault(); // Always prevent default first
-
-                const form = this;
-                const errors = [];
-
-                // Validate resolution date
-                const resolvedDate = document.getElementById('resolved_date').value;
-                if (!resolvedDate) {
-                    errors.push('Resolution date is required.');
-                }
-
-                // Validate root cause text
-                const rootCauseText = form.querySelector('textarea[name="root_cause"]')?.value.trim() || '';
-                if (!rootCauseText) {
-                    errors.push('Root cause is required.');
-                }
-
-                // Validate lessons learned text
-                const lessonsText = form.querySelector('textarea[name="lessons_learned"]')?.value.trim() || '';
-                if (!lessonsText) {
-                    errors.push('Lessons learned is required.');
-                }
-
-                // If there are errors, show them and don't submit
-                if (errors.length > 0) {
-                    alert('Please fix the following errors:\n\n' + errors.join('\n'));
-                    return false;
-                }
-
-                // If validation passes, submit the form
-                form.submit();
-            });
-
-
-            // Close modal with ESC key
-            document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') {
-                    if (!document.getElementById('resolveModal').classList.contains('hidden')) {
-                        hideResolveModal();
-                    }
-                    if (!document.getElementById('reopenModal').classList.contains('hidden')) {
-                        hideReopenModal();
-                    }
-                }
-            });
-
-            // Reopen Modal Functions
-            function showReopenModal(incidentId, serviceName) {
-                const modal = document.getElementById('reopenModal');
-                const modalContent = document.getElementById('reopenModalContent');
-
-                // Set the incident ID and service name
-                document.getElementById('reopen_incident_id').value = incidentId;
-                document.getElementById('reopenModalServiceName').textContent = `Service: ${serviceName}`;
-
-                // Show modal with animation
-                modal.classList.remove('hidden');
-                setTimeout(() => {
-                    modalContent.classList.remove('opacity-0', 'scale-95');
-                    modalContent.classList.add('opacity-100', 'scale-100');
-                }, 10);
-            }
-
-            function hideReopenModal() {
-                const modal = document.getElementById('reopenModal');
-                const modalContent = document.getElementById('reopenModalContent');
-
-                // Hide with animation
-                modalContent.classList.remove('opacity-100', 'scale-100');
-                modalContent.classList.add('opacity-0', 'scale-95');
-
-                // Hide modal after animation
-                setTimeout(() => {
-                    modal.classList.add('hidden');
-                    // Reset form
-                    document.getElementById('reopenForm').reset();
-                }, 200);
-            }
-
-            // Close reopen modal when clicking outside
-            document.getElementById('reopenModal').addEventListener('click', function (e) {
-                if (e.target === this) {
-                    hideReopenModal();
-                }
-            });
-        </script>
-
-        <script>
-            function toggleRootCause(issueId) {
-                const rootCause = document.getElementById(`root-cause-${issueId}`);
-                const readMoreBtn = rootCause.nextElementSibling;
-                const readMoreText = readMoreBtn.querySelector('.read-more');
-                const readLessText = readMoreBtn.querySelector('.read-less');
-
-                if (rootCause.classList.contains('line-clamp-3')) {
-                    rootCause.classList.remove('line-clamp-3');
-                    readMoreText.classList.add('hidden');
-                    readLessText.classList.remove('hidden');
-                } else {
-                    rootCause.classList.add('line-clamp-3');
-                    readMoreText.classList.remove('hidden');
-                    readLessText.classList.add('hidden');
-
-                    // Scroll the element into view if needed
-                    rootCause.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
-            }
-
-            // Auto-resize textareas
-            document.addEventListener('DOMContentLoaded', function () {
-                document.querySelectorAll('textarea').forEach(textarea => {
-                    textarea.addEventListener('input', function () {
-                        this.style.height = 'auto';
-                        this.style.height = (this.scrollHeight) + 'px';
-                    });
-                });
-            });
-        </script>
-
-        <script>
-            // Search/Filter incidents
-            function filterIncidents() {
-                const searchTerm = document.getElementById('incident-search').value.toLowerCase();
-                const cards = document.querySelectorAll('.incident-card');
-                let visibleCount = 0;
-
-                cards.forEach(card => {
-                    const text = card.textContent.toLowerCase();
-                    if (text.includes(searchTerm)) {
-                        card.style.display = '';
-                        visibleCount++;
-                    } else {
-                        card.style.display = 'none';
-                    }
-                });
-            }
-
-            // Refresh incidents function
-            function refreshIncidents() {
-                const btn = event.target.closest('button');
-
-                // Show loading state
-                btn.disabled = true;
-                btn.innerHTML = '<div class="btn-spinner"></div> Refreshing...';
-
-                // Reload the page
-                setTimeout(() => {
-                    location.reload();
-                }, 300);
-            }
-
-            // Attachment Viewer Functions
-            function openAttachmentViewer(fileUrl, fileName) {
-                const modal = document.getElementById('attachmentViewerModal');
-                const modalTitle = document.getElementById('attachmentViewerTitle');
-                const iframe = document.getElementById('attachmentViewerIframe');
-                const downloadLink = document.getElementById('attachmentDownloadLink');
-                
-                // Set the modal title and iframe source
-                modalTitle.textContent = fileName;
-                iframe.src = fileUrl;
-                downloadLink.href = fileUrl;
-                downloadLink.download = fileName;
-                
-                // Show the modal
-                modal.classList.remove('hidden');
-                setTimeout(() => {
-                    document.getElementById('attachmentViewerContent').classList.remove('scale-95', 'opacity-0');
-                    document.getElementById('attachmentViewerContent').classList.add('scale-100', 'opacity-100');
-                }, 10);
-            }
-            
-            function closeAttachmentViewer() {
-                const modal = document.getElementById('attachmentViewerModal');
-                const modalContent = document.getElementById('attachmentViewerContent');
-                const iframe = document.getElementById('attachmentViewerIframe');
-                
-                // Hide modal with animation
-                modalContent.classList.remove('scale-100', 'opacity-100');
-                modalContent.classList.add('scale-95', 'opacity-0');
-                
-                setTimeout(() => {
-                    modal.classList.add('hidden');
-                    iframe.src = 'about:blank'; // Clear iframe
-                }, 300);
-            }
-        </script>
-        <!-- Attachment Viewer Modal -->
-        <div id="attachmentViewerModal"
-            class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl h-[90vh] transform transition-all duration-300 scale-95 opacity-0 flex flex-col"
-                id="attachmentViewerContent">
-                <!-- Modal Header -->
-                <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <i class="fas fa-file text-blue-600 dark:text-blue-400 text-xl"></i>
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white" id="attachmentViewerTitle"></h3>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <a id="attachmentDownloadLink" href="#" download
-                            class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                            <i class="fas fa-download mr-2"></i>
-                            Download
-                        </a>
-                        <button type="button" onclick="closeAttachmentViewer()"
-                            class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                            <i class="fas fa-times mr-2"></i>
-                            Close
+
+                    <!-- Affected Companies -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Affected Companies <span class="text-red-500">*</span>
+                        </label>
+                        <div
+                            class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-md p-3">
+                            <?php foreach ($companies as $company): ?>
+                                        <label class="flex items-center space-x-2 text-sm">
+                                            <input type="checkbox" name="companies[]" value="<?= $company['company_id'] ?>"
+                                                class="edit-company-checkbox rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500">
+                                            <span class="text-gray-700 dark:text-gray-300">
+                                                <?= htmlspecialchars($company['company_name']) ?>
+                                            </span>
+                                        </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <button type="button" onclick="hideEditModal()"
+                            class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <i class="fas fa-save mr-1"></i> Save Changes
                         </button>
                     </div>
-                </div>
-                
-                <!-- Modal Body with iframe -->
-                <div class="flex-1 p-4 overflow-hidden">
-                    <iframe id="attachmentViewerIframe" class="w-full h-full border-0 rounded-lg" src="about:blank"></iframe>
-                </div>
+                </form>
             </div>
         </div>
+    </div>
+
+    <script>
+        // Status toggle functionality
+        document.addEventListener('DOMContentLoaded', function () {
+            const statusToggles = document.querySelectorAll('.status-toggle');
+
+            statusToggles.forEach(button => {
+                button.addEventListener('click', function () {
+                    const status = this.getAttribute('data-status');
+
+                    // Update active state
+                    statusToggles.forEach(btn => {
+                        btn.classList.remove(
+                            'bg-blue-50', 'text-blue-700', 'border-blue-200',
+                            'bg-yellow-50', 'text-yellow-700', 'border-yellow-200',
+                            'bg-green-50', 'text-green-700', 'border-green-200'
+                        );
+                        btn.classList.add('bg-white', 'text-gray-700', 'border-gray-200');
+
+                        // Reset icon colors
+                        const icon = btn.querySelector('i');
+                        if (icon) {
+                            icon.classList.remove('text-blue-500', 'text-yellow-500', 'text-green-500');
+                            if (btn.getAttribute('data-status') === 'pending') {
+                                icon.classList.add('text-yellow-500');
+                            } else if (btn.getAttribute('data-status') === 'resolved') {
+                                icon.classList.add('text-green-500');
+                            } else {
+                                icon.classList.add('text-gray-500');
+                            }
+                        }
+                    });
+
+                    // Set active button styles
+                    if (status === 'pending') {
+                        this.classList.add('bg-yellow-50', 'text-yellow-700', 'border-yellow-200');
+                        this.querySelector('i').classList.add('text-yellow-600');
+                    } else if (status === 'resolved') {
+                        this.classList.add('bg-green-50', 'text-green-700', 'border-green-200');
+                        this.querySelector('i').classList.add('text-green-600');
+                    } else {
+                        this.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-200');
+                        this.querySelector('i').classList.add('text-blue-600');
+                    }
+
+                    // Filter incidents
+                    const incidents = document.querySelectorAll('.incident-card');
+                    const noResults = document.getElementById('no-results');
+                    let visibleCount = 0;
+
+                    incidents.forEach(incident => {
+                        const incidentStatus = incident.getAttribute('data-status');
+                        if (status === 'all' || incidentStatus === status) {
+                            incident.classList.remove('hidden');
+                            visibleCount++;
+                        } else {
+                            incident.classList.add('hidden');
+                        }
+                    });
+
+                    // Show/hide empty state
+                    // Only show "no results" if there are incidents but they're all filtered
+                    const hasIncidents = incidents.length > 0;
+                    if (visibleCount === 0 && hasIncidents) {
+                        noResults.classList.remove('hidden');
+                    } else {
+                        noResults.classList.add('hidden');
+                    }
+
+                    // Update URL without page reload
+                    const url = new URL(window.location);
+                    if (status === 'all') {
+                        url.searchParams.delete('status');
+                    } else {
+                        url.searchParams.set('status', status);
+                    }
+                    window.history.pushState({}, '', url);
+                });
+            });
+
+            // Set initial active state from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const statusParam = urlParams.get('status');
+            if (statusParam) {
+                const activeButton = document.querySelector(`.status-toggle[data-status="${statusParam}"]`);
+                if (activeButton) activeButton.click();
+            } else {
+                // Default to 'all' if no status in URL
+                const allButton = document.querySelector('.status-toggle[data-status="all"]');
+                if (allButton) allButton.click();
+            }
+        });
+
+        // Resolve Modal Functions
+        function showResolveModal(incidentId, serviceName, rootCause = '') {
+            const modal = document.getElementById('resolveModal');
+            const modalContent = document.getElementById('modalContent');
+
+            // Set the incident ID and service name
+            document.getElementById('modal_incident_id').value = incidentId;
+            document.getElementById('modalServiceName').textContent = `Service: ${serviceName}`;
+
+            // Set current date/time as default resolution date
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const currentDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+            document.getElementById('resolved_date').value = currentDateTime;
+
+            // Get the form element
+            const form = document.getElementById('resolveForm');
+
+            // Set Alpine.js data using x-data attributes
+            form.setAttribute('x-data', JSON.stringify({
+                rootCauseMode: 'text',
+                lessonsMode: 'text',
+                rootCauseFileName: '',
+                lessonsFileName: ''
+            }));
+
+            // Show modal with animation
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modalContent.classList.remove('opacity-0', 'scale-95');
+                modalContent.classList.add('opacity-100', 'scale-100');
+
+                // Pre-populate the root cause textarea if it exists
+                const rootCauseTextarea = document.getElementById('root_cause_textarea');
+                if (rootCauseTextarea && rootCause) {
+                    rootCauseTextarea.value = rootCause;
+                }
+
+                document.getElementById('resolve_name').focus();
+            }, 100);
+        }
+
+        function hideResolveModal() {
+            const modal = document.getElementById('resolveModal');
+            const modalContent = document.getElementById('modalContent');
+
+            // Hide with animation
+            modalContent.classList.remove('opacity-100', 'scale-100');
+            modalContent.classList.add('opacity-0', 'scale-95');
+
+            // Hide modal after animation
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                // Reset form
+                document.getElementById('resolveForm').reset();
+            }, 200);
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('resolveModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                hideResolveModal();
+            }
+        });
+
+        // Edit Modal Functions
+        function showEditModal(incidentId) {
+            // Fetch incident data with attachments
+            fetch(`get_incident.php?id=${incidentId}&include_attachments=1`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+
+                    // Populate form fields
+                    document.getElementById('edit_incident_id').value = data.incident_id;
+                    document.getElementById('editModalIncidentInfo').textContent = `Incident #${data.incident_id} - ${data.service_name}`;
+                    document.getElementById('edit_service').value = data.service_id || '';
+                    document.getElementById('edit_component').value = data.component_id || '';
+                    document.getElementById('edit_incident_type').value = data.incident_type_id || '';
+                    document.getElementById('edit_impact').value = data.impact_level;
+                    document.getElementById('edit_priority').value = data.priority;
+                    document.getElementById('edit_description').value = data.description || '';
+
+                    // Format datetime for datetime-local input
+                    if (data.actual_start_time) {
+                        const date = new Date(data.actual_start_time);
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const hours = String(date.getHours()).padStart(2, '0');
+                        const minutes = String(date.getMinutes()).padStart(2, '0');
+                        document.getElementById('edit_start_time').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+                    }
+
+                    // Check affected companies
+                    const allEditCheckboxes = document.querySelectorAll('.edit-company-checkbox');
+                    const allEditCheckbox = Array.from(allEditCheckboxes).find(cb => cb.value === '3'); // Assuming "All" has company_id = 3
+                    const otherEditCheckboxes = Array.from(allEditCheckboxes).filter(cb => cb.value !== '3');
+
+                    // First, uncheck all
+                    allEditCheckboxes.forEach(checkbox => {
+                        checkbox.checked = false;
+                    });
+
+                    // Then check the appropriate ones
+                    data.affected_companies.forEach(companyId => {
+                        const checkbox = document.querySelector(`.edit-company-checkbox[value="${companyId}"]`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                        }
+                    });
+
+                    // If "All" is checked, uncheck others
+                    if (allEditCheckbox && allEditCheckbox.checked) {
+                        otherEditCheckboxes.forEach(cb => cb.checked = false);
+                    }
+
+                    // Add event listeners for exclusive selection
+                    if (allEditCheckbox) {
+                        allEditCheckbox.addEventListener('change', function () {
+                            if (this.checked) {
+                                otherEditCheckboxes.forEach(cb => cb.checked = false);
+                            }
+                        });
+
+                        otherEditCheckboxes.forEach(checkbox => {
+                            checkbox.addEventListener('change', function () {
+                                if (this.checked) {
+                                    allEditCheckbox.checked = false;
+                                }
+                            });
+                        });
+                    }
+
+                    // Load existing attachments into Alpine.js
+                    console.log('Attachment data received:', data.attachments);
+                    if (data.attachments && data.attachments.length > 0) {
+                        // Wait for modal to be visible before accessing Alpine data
+                        setTimeout(() => {
+                            const form = document.getElementById('editForm');
+                            if (form && form._x_dataStack) {
+                                const alpineData = form._x_dataStack[0];
+                                console.log('Alpine data found:', alpineData);
+                                alpineData.existingAttachments = data.attachments.map(att => ({
+                                    ...att,
+                                    markedForDeletion: false
+                                }));
+                                alpineData.attachmentsToDelete = [];
+                                alpineData.newFilePreviews = [];
+                                console.log('Attachments loaded:', alpineData.existingAttachments);
+                            } else {
+                                console.error('Alpine.js data not found on form element');
+                            }
+                        }, 100);
+                    } else {
+                        console.log('No attachments found for this incident');
+                    }
+
+                    // Show modal with animation
+                    const modal = document.getElementById('editModal');
+                    const modalContent = document.getElementById('editModalContent');
+                    modal.classList.remove('hidden');
+                    setTimeout(() => {
+                        modalContent.classList.remove('opacity-0', 'scale-95');
+                        modalContent.classList.add('opacity-100', 'scale-100');
+                    }, 10);
+                })
+                .catch(error => {
+                    console.error('Error fetching incident data:', error);
+                    alert('Failed to load incident data. Please try again.');
+                });
+        }
+
+        function hideEditModal() {
+            const modal = document.getElementById('editModal');
+            const modalContent = document.getElementById('editModalContent');
+
+            // Hide with animation
+            modalContent.classList.remove('opacity-100', 'scale-100');
+            modalContent.classList.add('opacity-0', 'scale-95');
+
+            // Hide modal after animation
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('editForm').reset();
+            }, 200);
+        }
+
+        // Close edit modal when clicking outside
+        document.getElementById('editModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                hideEditModal();
+            }
+        });
+
+        // Handle edit form submission
+        document.getElementById('editForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // Validate at least one company is selected
+            const selectedCompanies = document.querySelectorAll('.edit-company-checkbox:checked');
+            if (selectedCompanies.length === 0) {
+                alert('Please select at least one affected company.');
+                return;
+            }
+
+            // Submit form
+            this.submit();
+        });
+
+        // Handle form submission with validation
+        document.getElementById('resolveForm').addEventListener('submit', function (e) {
+            e.preventDefault(); // Always prevent default first
+
+            const form = this;
+            const errors = [];
+
+            // Validate resolution date
+            const resolvedDate = document.getElementById('resolved_date').value;
+            if (!resolvedDate) {
+                errors.push('Resolution date is required.');
+            }
+
+            // Validate root cause text
+            const rootCauseText = form.querySelector('textarea[name="root_cause"]')?.value.trim() || '';
+            if (!rootCauseText) {
+                errors.push('Root cause is required.');
+            }
+
+            // Validate lessons learned text
+            const lessonsText = form.querySelector('textarea[name="lessons_learned"]')?.value.trim() || '';
+            if (!lessonsText) {
+                errors.push('Lessons learned is required.');
+            }
+
+            // If there are errors, show them and don't submit
+            if (errors.length > 0) {
+                alert('Please fix the following errors:\n\n' + errors.join('\n'));
+                return false;
+            }
+
+            // If validation passes, submit the form
+            form.submit();
+        });
+
+
+        // Close modal with ESC key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                if (!document.getElementById('resolveModal').classList.contains('hidden')) {
+                    hideResolveModal();
+                }
+                if (!document.getElementById('reopenModal').classList.contains('hidden')) {
+                    hideReopenModal();
+                }
+            }
+        });
+
+        // Reopen Modal Functions
+        function showReopenModal(incidentId, serviceName) {
+            const modal = document.getElementById('reopenModal');
+            const modalContent = document.getElementById('reopenModalContent');
+
+            // Set the incident ID and service name
+            document.getElementById('reopen_incident_id').value = incidentId;
+            document.getElementById('reopenModalServiceName').textContent = `Service: ${serviceName}`;
+
+            // Show modal with animation
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modalContent.classList.remove('opacity-0', 'scale-95');
+                modalContent.classList.add('opacity-100', 'scale-100');
+            }, 10);
+        }
+
+        function hideReopenModal() {
+            const modal = document.getElementById('reopenModal');
+            const modalContent = document.getElementById('reopenModalContent');
+
+            // Hide with animation
+            modalContent.classList.remove('opacity-100', 'scale-100');
+            modalContent.classList.add('opacity-0', 'scale-95');
+
+            // Hide modal after animation
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                // Reset form
+                document.getElementById('reopenForm').reset();
+            }, 200);
+        }
+
+        // Close reopen modal when clicking outside
+        document.getElementById('reopenModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                hideReopenModal();
+            }
+        });
+    </script>
+
+    <script>
+        function toggleRootCause(issueId) {
+            const rootCause = document.getElementById(`root-cause-${issueId}`);
+            const readMoreBtn = rootCause.nextElementSibling;
+            const readMoreText = readMoreBtn.querySelector('.read-more');
+            const readLessText = readMoreBtn.querySelector('.read-less');
+
+            if (rootCause.classList.contains('line-clamp-3')) {
+                rootCause.classList.remove('line-clamp-3');
+                readMoreText.classList.add('hidden');
+                readLessText.classList.remove('hidden');
+            } else {
+                rootCause.classList.add('line-clamp-3');
+                readMoreText.classList.remove('hidden');
+                readLessText.classList.add('hidden');
+
+                // Scroll the element into view if needed
+                rootCause.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // Auto-resize textareas
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('textarea').forEach(textarea => {
+                textarea.addEventListener('input', function () {
+                    this.style.height = 'auto';
+                    this.style.height = (this.scrollHeight) + 'px';
+                });
+            });
+        });
+    </script>
+
+    <script>
+        // Search/Filter incidents
+        function filterIncidents() {
+            const searchTerm = document.getElementById('incident-search').value.toLowerCase();
+            const cards = document.querySelectorAll('.incident-card');
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    card.style.display = '';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // Refresh incidents function
+        function refreshIncidents() {
+            const btn = event.target.closest('button');
+
+            // Show loading state
+            btn.disabled = true;
+            btn.innerHTML = '<div class="btn-spinner"></div> Refreshing...';
+
+            // Reload the page
+            setTimeout(() => {
+                location.reload();
+            }, 300);
+        }
+
+        // Attachment Viewer Functions
+        function openAttachmentViewer(fileUrl, fileName) {
+            const modal = document.getElementById('attachmentViewerModal');
+            const modalTitle = document.getElementById('attachmentViewerTitle');
+            const iframe = document.getElementById('attachmentViewerIframe');
+            const downloadLink = document.getElementById('attachmentDownloadLink');
+
+            // Set the modal title and iframe source
+            modalTitle.textContent = fileName;
+            iframe.src = fileUrl;
+            downloadLink.href = fileUrl;
+            downloadLink.download = fileName;
+
+            // Show the modal
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('attachmentViewerContent').classList.remove('scale-95', 'opacity-0');
+                document.getElementById('attachmentViewerContent').classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeAttachmentViewer() {
+            const modal = document.getElementById('attachmentViewerModal');
+            const modalContent = document.getElementById('attachmentViewerContent');
+            const iframe = document.getElementById('attachmentViewerIframe');
+
+            // Hide modal with animation
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                iframe.src = 'about:blank'; // Clear iframe
+            }, 300);
+        }
+    </script>
+    <!-- Attachment Viewer Modal -->
+    <div id="attachmentViewerModal"
+        class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl h-[90vh] transform transition-all duration-300 scale-95 opacity-0 flex flex-col"
+            id="attachmentViewerContent">
+            <!-- Modal Header -->
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-file text-blue-600 dark:text-blue-400 text-xl"></i>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white" id="attachmentViewerTitle"></h3>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <a id="attachmentDownloadLink" href="#" download
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i class="fas fa-download mr-2"></i>
+                        Download
+                    </a>
+                    <button type="button" onclick="closeAttachmentViewer()"
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i class="fas fa-times mr-2"></i>
+                        Close
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body with iframe -->
+            <div class="flex-1 p-4 overflow-hidden">
+                <iframe id="attachmentViewerIframe" class="w-full h-full border-0 rounded-lg"
+                    src="about:blank"></iframe>
+            </div>
+        </div>
+    </div>
 
     </div> <!-- End Content Wrapper -->
 </body>

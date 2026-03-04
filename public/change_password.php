@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $current_password = $_POST['current_password'] ?? '';
     $new_password = $_POST['new_password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
+    $phone = trim($_POST['phone'] ?? '');
 
     // Validation
     if (empty($current_password))
@@ -30,6 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'New password is required';
     if ($new_password !== $confirm_password)
         $errors[] = 'Passwords do not match';
+    if (empty($phone))
+        $errors[] = 'Phone number is required';
 
     // Verify current password
     if (!$errors) {
@@ -54,8 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$errors) {
         try {
             $new_hash = password_hash($new_password, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("UPDATE users SET password_hash = ?, changed_password = 1 WHERE user_id = ?");
-            $stmt->execute([$new_hash, $currentUser['user_id']]);
+            $stmt = $pdo->prepare("UPDATE users SET password_hash = ?, phone = ?, changed_password = 1 WHERE user_id = ?");
+            $stmt->execute([$new_hash, $phone, $currentUser['user_id']]);
 
             // Update session
             $_SESSION['changed_password'] = 1;
@@ -95,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
     <script>
         // Apply dark mode preference from localStorage immediately to avoid flash
-        if (localStorage.getItem('theme') === 'dark' || 
+        if (localStorage.getItem('theme') === 'dark' ||
             (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
         } else {
@@ -138,6 +141,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <form method="POST" class="space-y-6" x-data="{ showPasswords: false }">
                     <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phone
+                            Number(s)</label>
+                        <div class="relative">
+                            <input type="text" name="phone" placeholder="E.g. +23324..., +23320..." required
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Separate multiple numbers with commas.
+                        </p>
+                    </div>
+
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current
                             Password</label>
                         <div class="relative">
@@ -153,7 +167,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <input :type="showPasswords ? 'text' : 'password'" name="new_password" required
                                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Must be at least 8 characters with uppercase, lowercase,
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Must be at least 8 characters with
+                            uppercase, lowercase,
                             number, and special character.</p>
                     </div>
 
@@ -181,7 +196,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="text-center">
-                <a href="logout.php" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
+                <a href="logout.php"
+                    class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
                     <i class="fas fa-sign-out-alt mr-1"></i> Sign out
                 </a>
             </div>

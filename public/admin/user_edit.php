@@ -27,12 +27,14 @@ $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $full_name = trim($_POST['full_name'] ?? '');
+    $phone = trim($_POST['phone'] ?? '');
     $role = $_POST['role'] ?? 'user';
     $is_active = isset($_POST['is_active']) ? 1 : 0;
     
     // Validation
     if (empty($email)) $errors[] = 'Email is required';
     if (empty($full_name)) $errors[] = 'Full name is required';
+    if (empty($phone)) $errors[] = 'Phone number(s) is required';
     
     // Prevent changing own role
     if ($userId == $currentUser['user_id'] && $role !== $user['role']) {
@@ -47,6 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $changes = [];
             if ($email !== $user['email']) $changes['email'] = ['from' => $user['email'], 'to' => $email];
             if ($full_name !== $user['full_name']) $changes['full_name'] = ['from' => $user['full_name'], 'to' => $full_name];
+            if ($phone !== $user['phone']) $changes['phone'] = ['from' => $user['phone'], 'to' => $phone];
             if ($role !== $user['role']) $changes['role'] = ['from' => $user['role'], 'to' => $role];
             if ($is_active != $user['is_active']) $changes['is_active'] = ['from' => (bool)$user['is_active'], 'to' => (bool)$is_active];
             
@@ -54,10 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $stmt = $pdo->prepare("
                 UPDATE users 
-                SET email = ?, full_name = ?, role = ?, is_active = ?, changed_password = ?
+                SET email = ?, full_name = ?, phone = ?, role = ?, is_active = ?, changed_password = ?
                 WHERE user_id = ?
             ");
-            $stmt->execute([$email, $full_name, $role, $is_active, $changed_password, $userId]);
+            $stmt->execute([$email, $full_name, $phone, $role, $is_active, $changed_password, $userId]);
             
             // Log user update
             require_once __DIR__ . '/../../src/includes/activity_logger.php';
@@ -144,6 +147,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
 
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phone Number(s) *</label>
+                            <input type="text" name="phone" value="<?= htmlspecialchars($user['phone'] ?? '') ?>" 
+                                   placeholder="E.g. +23324..., +23320..." required
+                                   class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                        </div>
+                    </div>
 
                     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         <div>
