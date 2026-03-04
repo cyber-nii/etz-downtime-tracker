@@ -1,0 +1,2166 @@
+-- phpMyAdmin SQL Dump
+-- version 5.2.1
+-- https://www.phpmyadmin.net/
+--
+-- Host: 127.0.0.1
+-- Generation Time: Mar 04, 2026 at 03:24 PM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.2.12
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Database: `downtimedb`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `activity_logs`
+--
+
+CREATE TABLE `activity_logs` (
+  `log_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `action` varchar(100) NOT NULL,
+  `description` text NOT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `activity_logs`
+--
+
+INSERT INTO `activity_logs` (`log_id`, `user_id`, `action`, `description`, `ip_address`, `user_agent`, `created_at`) VALUES
+(4, 2, 'login_failed', 'Login attempt failed: Invalid password', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:05:18'),
+(5, 2, 'login_failed', 'Login attempt failed: Invalid password', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:05:57'),
+(6, 2, 'login_failed', 'Login attempt failed: Invalid password', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:07:53'),
+(7, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:13:11'),
+(8, 18, 'created_service', 'Created service: Mobile Money', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:20:11'),
+(9, 18, 'created_component', 'Created component: Credit for service ID 141', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:25:17'),
+(10, 18, 'created_component', 'Created component: Debit for service ID 141', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:25:17'),
+(11, 18, 'created_component', 'Created component: Reversal for service ID 141', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:25:17'),
+(12, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:37:28'),
+(13, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:37:30'),
+(14, 18, 'created_service', 'Created service: VAS', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:54:40'),
+(15, 18, 'updated_service', 'Updated service ID 142 to: VASGATE', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:54:47'),
+(16, 18, 'created_service', 'Created service: FUNDGATE', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:55:01'),
+(17, 18, 'created_service', 'Created service: MPAY', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:55:13'),
+(18, 18, 'created_service', 'Created service: JUSTPAY', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:55:57'),
+(19, 18, 'created_service', 'Created service: OVA', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:56:41'),
+(20, 18, 'created_component', 'Created component: Bills for service ID 142', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:57:42'),
+(21, 18, 'created_component', 'Created component: Topup for service ID 142', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-18 23:57:42'),
+(22, 18, 'login_failed', 'Login attempt failed: Invalid password', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:31:57'),
+(23, 18, 'login_failed', 'Login attempt failed: Invalid password', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:32:14'),
+(24, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-19 00:32:32'),
+(25, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:32:43'),
+(26, 18, 'incident_created', 'Reported multiple incidents: Multiple Services (1)', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:34:28'),
+(27, 18, 'used_template', 'Used incident template: FUNDGATE B2W Transfer Failure', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:46:04'),
+(28, 18, 'used_template', 'Used incident template: FUNDGATE Credit Processing Failure', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:46:21'),
+(29, 18, 'used_template', 'Used incident template: Insufficient Account Balance', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:46:56'),
+(30, 18, 'used_template', 'Used incident template: Insufficient Account Balance', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:51:11'),
+(31, 18, 'used_template', 'Used incident template: Application Not Responding', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:51:15'),
+(32, 18, 'used_template', 'Used incident template: FUNDGATE B2W Transfer Failure', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:51:17'),
+(33, 18, 'used_template', 'Used incident template: Application Not Responding', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:51:39'),
+(34, 18, 'used_template', 'Used incident template: Bank-to-Wallet (B2W) Failure', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:51:55'),
+(35, 18, 'updated_template', 'Updated incident template: Bank-to-Wallet (B2W) Failure', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:56:09'),
+(36, 18, 'used_template', 'Used incident template: Bank-to-Wallet (B2W) Failure', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 00:56:28'),
+(37, 18, 'used_template', 'Used incident template: Host Connectivity Issue', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 01:13:55'),
+(38, 18, 'used_template', 'Used incident template: Application Not Responding', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 01:14:03'),
+(39, 18, 'incident_created', 'Reported multiple incidents: Multiple Services (1)', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 01:14:32'),
+(40, 18, 'user_created', 'Created new user: jacobquarshie', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 01:17:34'),
+(41, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 01:17:38'),
+(42, 19, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 01:17:54'),
+(43, 19, 'password_changed', 'User changed their password on first login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 01:19:17'),
+(44, 19, 'used_template', 'Used incident template: Insufficient Account Balance', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 02:17:28'),
+(45, 19, 'incident_created', 'Reported multiple incidents: Multiple Services (1)', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 02:17:42'),
+(46, 19, 'analytics_exported', 'Exported analytics report (PDF)', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 02:27:13'),
+(47, 19, 'analytics_exported', 'Exported analytics report (PDF)', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 02:27:42'),
+(48, 19, 'analytics_exported', 'Exported analytics report (PDF)', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 02:28:25'),
+(49, 19, 'analytics_exported', 'Exported analytics report (PDF)', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 02:28:25'),
+(50, 19, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 07:00:33'),
+(51, 19, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 07:00:41'),
+(52, 19, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 08:16:25'),
+(53, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 08:16:33'),
+(54, 18, 'user_updated', 'Updated user: harry_opata', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 08:18:22'),
+(55, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 08:18:33'),
+(56, 2, 'login_failed', 'Login attempt failed: Invalid password', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 08:18:53'),
+(57, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 08:19:35'),
+(58, 18, 'user_created', 'Created new user: harry.opata', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 08:21:02'),
+(59, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36', '2026-02-19 08:21:09'),
+(60, 20, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36', '2026-02-19 08:23:50'),
+(61, 20, 'password_changed', 'User changed their password on first login', '::1', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36', '2026-02-19 08:24:28'),
+(62, 18, 'login_failed', 'Login attempt failed: Invalid password', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-19 16:27:12'),
+(63, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', '2026-02-19 16:28:27'),
+(64, 18, 'user_created', 'Created new user: eric.authur', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', '2026-02-19 16:32:23'),
+(65, 18, 'user_created', 'Created new user: test.admin', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', '2026-02-19 16:34:00'),
+(66, 18, 'login_failed', 'Login attempt failed: Invalid password', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', '2026-02-19 16:34:55'),
+(67, 21, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-19 22:58:14'),
+(68, 21, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-19 23:15:32'),
+(69, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-20 06:49:08'),
+(70, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-20 06:49:32'),
+(71, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-20 06:49:43'),
+(72, 18, 'login_failed', 'Login attempt failed: Invalid password', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', '2026-02-20 11:30:35'),
+(73, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-20 11:30:46'),
+(74, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-20 11:30:51'),
+(75, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-20 11:30:57'),
+(76, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-20 11:31:33'),
+(77, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-20 11:32:12'),
+(78, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-20 11:32:44'),
+(79, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-20 11:35:56'),
+(80, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-20 11:36:28'),
+(81, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36', '2026-02-21 15:37:27'),
+(82, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-23 09:12:10'),
+(83, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-23 11:45:01'),
+(84, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-23 11:45:02'),
+(85, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-26 09:11:37'),
+(86, 18, 'used_template', 'Used incident template: FUNDGATE B2W Transfer Failure', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-26 09:12:16'),
+(87, 18, 'incident_created', 'Reported multiple incidents: Multiple Services (1)', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-02-26 09:12:43'),
+(88, 18, 'login_failed', 'Login attempt failed: Invalid password', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 09:06:35'),
+(89, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 09:06:37'),
+(90, 18, 'used_template', 'Used incident template: JUSTPAY Bill Payment Failure', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 09:38:44'),
+(91, 18, 'incident_created', 'Reported multiple incidents: Multiple Services (1)', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 09:39:11'),
+(92, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 14:04:14'),
+(93, 18, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 14:04:18'),
+(94, 18, 'used_template', 'Used incident template: OVA Low Float / Insufficient Balance', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 14:05:24'),
+(95, 18, 'incident_created', 'Reported multiple incidents: Multiple Services (1)', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 14:05:47'),
+(96, 18, 'used_template', 'Used incident template: JUSTPAY Bill Payment Failure', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 14:10:21'),
+(97, 18, 'incident_created', 'Reported multiple incidents: Multiple Services (1)', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 14:10:41'),
+(98, 18, 'user_created', 'Created new user: Jacob', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 14:15:17'),
+(99, 18, 'logout', 'User logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 14:15:21'),
+(100, 23, 'login', 'User logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 14:15:34'),
+(101, 23, 'password_changed', 'User changed their password on first login', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0', '2026-03-04 14:16:17');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `companies`
+--
+
+CREATE TABLE `companies` (
+  `company_id` int(11) NOT NULL,
+  `company_name` varchar(255) NOT NULL,
+  `category` varchar(100) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `companies`
+--
+
+INSERT INTO `companies` (`company_id`, `company_name`, `category`, `created_at`, `updated_at`) VALUES
+(1, 'Abii National', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(2, 'AirtelTigo', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(3, 'All', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(4, 'Atwima', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(5, 'BOA', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(6, 'Bestpoint', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(7, 'ECG', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(8, 'GCB', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(9, 'MTN', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(10, 'Multi Choice', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(11, 'NIB', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(12, 'NLA', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(13, 'PBL', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(14, 'SISL', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(15, 'STCCU', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(16, 'Telecel', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(17, 'VisionFund', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05'),
+(18, 'eTranzact', NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `downtime_incidents`
+--
+
+CREATE TABLE `downtime_incidents` (
+  `downtime_id` int(11) NOT NULL,
+  `incident_id` int(11) NOT NULL,
+  `actual_start_time` datetime NOT NULL,
+  `actual_end_time` datetime DEFAULT NULL,
+  `downtime_minutes` int(11) DEFAULT NULL,
+  `is_planned` tinyint(1) DEFAULT 0,
+  `downtime_category` enum('Network','Server','Maintenance','Third-party','Other') DEFAULT 'Other',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `downtime_incidents`
+--
+
+INSERT INTO `downtime_incidents` (`downtime_id`, `incident_id`, `actual_start_time`, `actual_end_time`, `downtime_minutes`, `is_planned`, `downtime_category`, `created_at`, `updated_at`) VALUES
+(255, 260, '2026-02-16 02:46:00', '2026-02-16 09:00:00', 374, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(256, 261, '2026-02-16 00:58:00', '2026-02-16 01:43:00', 45, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(257, 262, '2026-02-15 22:10:00', '2026-02-15 22:45:00', 35, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(258, 263, '2026-02-15 19:37:00', '2026-02-15 20:09:00', 32, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(259, 264, '2026-02-14 22:00:00', '2026-02-15 10:00:00', 720, 1, 'Maintenance', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(260, 265, '2026-02-13 19:32:00', '2026-02-13 22:12:00', 160, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(261, 266, '2026-02-12 17:19:00', '2026-02-12 20:58:00', 219, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(262, 267, '2026-02-12 10:58:00', '2026-02-12 11:45:00', 47, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(263, 268, '2026-02-11 13:09:00', '2026-02-11 22:56:00', 587, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(264, 269, '2026-02-09 15:19:00', '2026-02-09 17:33:00', 134, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(265, 270, '2026-02-09 07:10:00', '2026-02-09 12:30:00', 320, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(266, 271, '2026-02-08 02:00:00', '2026-02-08 07:55:00', 355, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(267, 272, '2026-02-08 01:00:00', '2026-02-08 03:00:00', 120, 1, 'Maintenance', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(268, 273, '2026-02-05 11:13:00', '2026-02-05 13:17:00', 124, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(269, 274, '2026-02-04 11:30:00', '2026-02-04 14:33:00', 183, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(270, 275, '2026-02-02 23:16:00', '2026-02-03 12:14:00', 778, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(271, 276, '2026-02-02 18:40:00', '2026-02-02 21:15:00', 155, 1, 'Maintenance', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(272, 277, '2026-01-31 12:00:00', '2026-01-31 14:00:00', 120, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(273, 278, '2026-01-31 04:00:00', '2026-01-31 19:00:00', 900, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(274, 279, '2026-01-27 04:00:00', '2026-01-27 05:00:00', 60, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(275, 280, '2026-01-26 14:56:00', '2026-01-28 11:57:00', 2701, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(276, 281, '2026-01-25 17:37:00', '2026-01-26 00:00:00', 383, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(277, 282, '2026-01-24 19:43:00', '2026-01-25 01:31:00', 348, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(278, 283, '2026-01-23 11:50:00', '2026-01-23 17:45:00', 355, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(279, 285, '2026-01-20 21:00:00', '2026-01-20 23:25:00', 145, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(280, 286, '2026-01-19 11:00:00', '2026-01-20 05:00:00', 1080, 1, 'Maintenance', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(281, 287, '2026-01-19 09:00:00', '2026-01-20 05:00:00', 1200, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(282, 288, '2026-01-18 09:37:00', '2026-01-20 10:00:00', 2903, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(283, 289, '2026-01-17 05:32:00', '2026-01-17 06:42:00', 70, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(284, 290, '2026-01-17 00:00:00', '2026-01-17 02:00:00', 120, 1, 'Maintenance', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(285, 291, '2026-01-13 00:44:00', '2026-01-13 03:40:00', 176, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(286, 292, '2026-01-10 18:26:00', '2026-01-10 19:05:00', 39, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(287, 293, '2026-01-07 01:32:00', '2026-01-07 07:19:00', 347, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(288, 294, '2025-12-31 23:00:00', '2026-01-01 12:59:00', 839, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(289, 295, '2025-12-31 11:54:00', '2026-01-01 03:10:00', 916, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(290, 296, '2025-12-30 21:12:00', '2025-12-31 03:56:00', 404, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(291, 298, '2025-12-28 08:35:00', '2025-12-28 23:04:00', 869, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(292, 299, '2025-12-25 04:07:00', '2025-12-25 10:25:00', 378, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(293, 300, '2025-12-24 05:00:00', '2025-12-24 07:58:00', 178, 1, 'Maintenance', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(294, 301, '2025-12-23 17:06:00', '2025-12-23 20:06:00', 180, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(295, 302, '2025-12-20 17:49:00', '2025-12-22 17:07:00', 2838, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(296, 303, '2025-12-20 00:44:00', '2025-12-20 01:43:00', 59, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(297, 304, '2025-12-19 01:13:00', '2025-12-19 10:51:00', 578, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(298, 305, '2025-12-18 21:09:00', '2025-12-18 21:56:00', 47, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(299, 306, '2025-12-16 11:29:00', '2025-12-16 13:51:00', 142, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(300, 307, '2025-12-15 21:17:00', '2025-12-15 22:00:00', 43, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(301, 308, '2025-12-14 18:08:00', '2025-12-14 18:55:00', 47, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(302, 309, '2025-12-13 10:25:00', '2025-12-14 05:00:00', 1115, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(303, 310, '2025-12-04 22:29:00', '2025-12-08 16:14:00', 5385, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(304, 311, '2025-12-03 19:35:00', '2025-12-04 20:45:00', 1510, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(305, 312, '2025-12-03 10:24:00', '2025-12-03 19:14:00', 530, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(306, 313, '2025-12-02 09:53:00', '2025-12-02 10:17:00', 24, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(307, 314, '2025-11-30 22:58:00', '2025-12-01 05:12:00', 374, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(308, 315, '2025-11-30 22:02:00', '2025-12-01 11:33:00', 811, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(309, 316, '2025-11-25 01:00:00', '2025-11-25 01:40:00', 40, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(310, 317, '2025-11-20 23:00:00', '2025-11-21 05:00:00', 360, 1, 'Maintenance', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(311, 318, '2025-11-20 08:20:00', '2025-11-20 11:32:00', 192, 0, 'Server', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(312, 319, '2025-11-19 13:54:00', '2025-11-19 15:54:00', 120, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(313, 320, '2025-11-18 13:22:00', '2025-11-18 13:26:00', 4, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(314, 321, '2025-11-17 17:34:00', '2025-11-18 08:43:00', 909, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(315, 322, '2025-11-16 19:40:00', '2025-11-17 03:40:00', 480, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(316, 323, '2025-11-14 20:00:00', '2025-11-15 07:55:00', 715, 1, 'Maintenance', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(317, 324, '2025-11-14 17:30:00', '2025-11-14 18:55:00', 85, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(318, 325, '2025-11-10 23:00:00', '2025-11-11 05:00:00', 360, 1, 'Maintenance', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(319, 326, '2025-11-10 10:38:00', '2025-11-10 14:39:00', 241, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(320, 327, '2025-11-10 09:25:00', '2025-11-10 10:30:00', 65, 0, 'Server', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(321, 328, '2025-11-09 18:00:00', '2025-11-09 18:58:00', 58, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(322, 329, '2025-11-09 00:00:00', '2025-11-13 00:00:00', 5760, 0, 'Server', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(323, 330, '2025-11-08 22:19:00', '2025-11-11 17:40:00', 4041, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(324, 331, '2025-11-08 06:20:00', '2025-11-10 10:30:00', 3130, 0, 'Server', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(325, 332, '2025-11-07 14:17:00', '2025-11-07 15:52:00', 95, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(326, 333, '2025-11-03 21:25:00', '2025-11-03 23:00:00', 95, 1, 'Maintenance', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(327, 334, '2025-11-03 12:28:00', '2025-11-03 21:49:00', 561, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(328, 335, '2025-10-31 06:05:00', '2025-10-31 07:37:00', 92, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(329, 336, '2025-10-28 12:49:00', '2025-10-28 22:39:00', 590, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(330, 337, '2025-10-28 00:40:00', '2025-10-28 05:01:00', 261, 1, 'Maintenance', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(331, 338, '2025-10-22 13:21:00', '2025-10-22 16:34:00', 193, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(332, 339, '2025-10-18 21:43:00', '2025-10-19 00:15:00', 152, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(333, 340, '2025-10-17 00:48:00', '2025-10-17 10:31:00', 583, 0, 'Other', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(334, 341, '2025-10-15 07:04:00', '2025-10-15 11:50:00', 286, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(335, 343, '2025-10-13 16:49:00', '2025-10-13 17:19:00', 30, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(336, 344, '2025-10-12 14:45:00', '2025-10-12 16:07:00', 82, 0, 'Network', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(337, 345, '2025-10-12 00:05:00', '2025-10-12 05:21:00', 316, 1, 'Maintenance', '2026-02-19 02:08:09', '2026-02-19 02:08:09'),
+(338, 346, '2025-10-11 04:57:00', '2025-10-11 05:42:00', 45, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(339, 347, '2025-10-09 10:02:00', '2025-10-10 05:56:00', 1194, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(340, 348, '2025-10-08 18:54:00', '2025-10-08 22:16:00', 202, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(341, 349, '2025-10-08 18:54:00', '2025-10-08 22:16:00', 202, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(342, 350, '2025-10-07 16:42:00', '2025-10-07 17:10:00', 28, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(343, 351, '2025-10-06 21:05:00', '2025-10-07 01:12:00', 247, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(344, 352, '2025-10-06 11:31:00', '2025-10-06 16:37:00', 306, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(345, 353, '2025-09-27 00:09:00', '2025-09-27 01:09:00', 60, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(346, 354, '2025-09-17 20:11:00', '2025-09-18 01:22:00', 311, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(347, 355, '2025-09-14 11:59:00', '2025-09-14 13:37:00', 98, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(348, 356, '2025-08-28 20:31:00', '2025-08-28 21:39:00', 68, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(349, 357, '2025-08-26 18:53:00', '2025-08-26 20:17:00', 84, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(350, 358, '2025-08-25 22:49:00', '2025-08-25 23:47:00', 58, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(351, 359, '2025-08-22 23:01:00', '2025-08-23 00:35:00', 94, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(352, 360, '2025-08-22 12:48:00', '2025-08-22 20:33:00', 465, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(353, 361, '2025-08-21 00:00:00', '2025-08-21 01:08:00', 68, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(354, 362, '2025-08-15 09:45:00', '2025-08-15 14:46:00', 301, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(355, 363, '2025-08-14 17:30:00', '2025-08-14 20:23:00', 173, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(356, 364, '2025-08-14 17:22:00', '2025-08-14 21:00:00', 218, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(357, 365, '2025-08-14 17:22:00', '2025-08-14 21:00:00', 218, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(358, 366, '2025-08-08 19:05:00', '2025-08-09 14:12:00', 1147, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(359, 367, '2025-08-08 18:56:00', '2025-08-08 22:31:00', 215, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(360, 368, '2025-08-08 17:11:00', '2025-08-08 17:52:00', 41, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(361, 369, '2025-08-06 21:00:00', '2025-08-07 00:00:00', 180, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(362, 370, '2025-08-01 21:04:00', '2025-08-01 22:29:00', 85, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(363, 371, '2025-07-22 21:08:00', '2025-07-22 22:33:00', 85, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(364, 372, '2025-07-19 16:38:00', '2025-07-19 18:56:00', 138, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(365, 373, '2025-07-18 06:00:00', '2025-07-31 06:00:00', 18720, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(366, 374, '2025-07-16 20:28:00', '2025-07-17 19:45:00', 1397, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(367, 375, '2025-07-15 18:00:00', '2025-07-15 18:31:00', 31, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(368, 376, '2025-07-14 08:16:00', '2025-07-14 10:24:00', 128, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(369, 377, '2025-07-09 01:23:00', '2025-07-09 03:51:00', 148, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(370, 378, '2025-07-08 02:21:00', '2025-07-08 05:52:00', 211, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(371, 379, '2025-07-07 11:17:00', '2025-07-07 13:09:00', 112, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(372, 380, '2025-07-04 16:17:00', '2025-07-04 20:35:00', 258, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(373, 381, '2025-07-04 16:02:00', '2025-07-04 16:15:00', 13, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(374, 382, '2025-07-03 18:40:00', '2025-07-03 22:03:00', 203, 0, 'Network', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(375, 383, '2025-07-03 08:22:00', '2025-07-03 12:04:00', 222, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(376, 384, '2025-07-02 16:57:00', '2025-07-02 18:01:00', 64, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(377, 385, '2025-07-02 08:30:00', '2025-07-02 09:51:00', 81, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(378, 386, '2025-06-27 11:58:00', '2025-06-27 15:30:00', 212, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(379, 387, '2025-06-27 06:19:00', '2025-06-27 08:46:00', 147, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(380, 388, '2025-06-17 19:48:00', '2025-06-17 21:06:00', 78, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(381, 389, '2025-06-15 09:13:00', '2025-06-15 09:55:00', 42, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(382, 390, '2025-06-12 00:07:00', '2025-06-15 02:26:00', 4459, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(383, 391, '2025-06-11 17:17:00', '2025-06-12 15:19:00', 1322, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(384, 392, '2025-06-10 21:03:00', '2025-06-10 22:09:00', 66, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(385, 393, '2025-06-09 21:14:00', '2025-06-09 22:11:00', 57, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(386, 394, '2025-06-08 13:16:00', '2025-06-08 17:10:00', 234, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(387, 395, '2025-06-08 00:17:00', '2025-06-08 07:38:00', 441, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(388, 396, '2025-06-05 21:17:00', '2025-06-05 22:14:00', 57, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(389, 397, '2025-06-01 16:25:00', '2025-06-01 17:22:00', 57, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(390, 398, '2025-05-31 06:00:00', '2025-05-31 06:41:00', 41, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(391, 399, '2025-05-30 10:37:00', '2025-05-30 14:09:00', 212, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(392, 400, '2025-05-28 21:13:00', '2025-05-28 21:39:00', 26, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(393, 401, '2025-05-27 00:00:00', '2025-05-27 00:58:00', 58, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(394, 402, '2025-05-25 21:21:00', '2025-05-25 22:02:00', 41, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(395, 403, '2025-05-23 13:13:00', '2025-05-23 15:38:00', 145, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(396, 404, '2025-05-22 23:55:00', '2025-05-23 00:50:00', 55, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(397, 405, '2025-05-21 00:00:00', '2025-05-21 00:59:00', 59, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(398, 406, '2025-05-19 18:51:00', '2025-05-20 06:39:00', 708, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(399, 407, '2025-05-18 06:28:00', '2025-05-18 13:03:00', 395, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(400, 408, '2025-05-16 17:18:00', '2025-05-17 07:16:00', 838, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(401, 409, '2025-05-15 00:00:00', '2025-05-15 05:13:00', 313, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(402, 410, '2025-05-14 18:51:00', '2025-05-15 01:10:00', 379, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(403, 411, '2025-05-14 12:52:00', '2025-05-14 14:24:00', 92, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(404, 412, '2025-05-14 12:52:00', '2025-05-15 09:24:00', 1232, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(405, 413, '2025-05-13 08:22:00', '2025-05-13 12:47:00', 265, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(406, 414, '2025-05-13 06:24:00', '2025-05-13 12:45:00', 381, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(407, 415, '2025-05-12 22:31:00', '2025-05-12 23:16:00', 45, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(408, 416, '2025-05-12 21:22:00', '2025-05-12 21:53:00', 31, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(409, 417, '2025-05-11 00:00:00', '2025-05-11 02:27:00', 147, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(410, 418, '2025-05-09 07:07:00', '2025-05-09 08:10:00', 63, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(411, 419, '2025-05-06 23:29:00', '2025-05-07 00:06:00', 37, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(412, 420, '2025-05-06 17:06:00', '2025-05-06 21:21:00', 255, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(413, 421, '2025-05-04 21:44:00', '2025-05-05 05:09:00', 445, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(414, 422, '2025-05-04 11:25:00', '2025-05-04 13:08:00', 103, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(415, 423, '2025-05-03 23:25:00', '2025-05-04 00:19:00', 54, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(416, 424, '2025-04-28 21:26:00', '2025-04-28 22:00:00', 34, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(417, 425, '2025-04-26 14:12:00', '2025-04-26 17:50:00', 218, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(418, 426, '2025-04-26 08:07:00', '2025-04-26 15:21:00', 434, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(419, 427, '2025-04-25 00:18:00', '2025-04-25 00:49:00', 31, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(420, 428, '2025-04-23 09:31:00', '2025-04-23 12:33:00', 182, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(421, 429, '2025-04-23 06:35:00', '2025-04-23 08:31:00', 116, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(422, 430, '2025-04-23 00:45:00', '2025-04-23 02:31:00', 106, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(423, 431, '2025-04-20 00:00:00', '2025-04-23 16:30:00', 5310, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(424, 432, '2025-04-19 07:35:00', '2025-04-19 08:54:00', 79, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(425, 433, '2025-04-18 17:59:00', '2025-04-18 22:45:00', 286, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(426, 434, '2025-04-14 21:08:00', '2025-04-15 00:01:00', 173, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(427, 435, '2025-04-14 10:36:00', '2025-04-14 12:58:00', 142, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(428, 436, '2025-04-14 00:04:00', '2025-04-14 06:14:00', 370, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(429, 437, '2025-04-09 00:10:00', '2025-04-09 05:05:00', 295, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(430, 438, '2025-04-08 22:02:00', '2025-04-08 22:21:00', 19, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(431, 439, '2025-04-07 02:21:00', '2025-04-07 04:55:00', 154, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(432, 440, '2025-04-04 00:01:00', '2025-04-04 05:00:00', 299, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(433, 441, '2025-04-02 18:04:00', '2025-04-02 18:14:00', 10, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(434, 442, '2025-04-02 18:04:00', '2025-04-02 18:10:00', 6, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(435, 443, '2025-03-31 09:46:00', '2025-03-31 09:53:00', 7, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(436, 444, '2025-03-30 15:15:00', '2025-03-30 20:38:00', 323, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(437, 445, '2025-03-30 15:14:00', '2025-03-30 17:53:00', 159, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(438, 446, '2025-03-29 21:25:00', '2025-03-30 00:36:00', 191, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(439, 447, '2025-03-28 23:26:00', '2025-03-29 07:07:00', 461, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(440, 448, '2025-03-28 21:10:00', '2025-03-28 22:20:00', 70, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(441, 449, '2025-03-26 21:03:00', '2025-03-26 23:40:00', 157, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(442, 450, '2025-03-26 00:55:00', '2025-03-26 02:00:00', 65, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(443, 451, '2025-03-25 00:53:00', '2025-03-25 04:07:00', 194, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(444, 452, '2025-03-23 02:36:00', '2025-03-23 03:45:00', 69, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(445, 453, '2025-03-22 22:31:00', '2025-03-22 23:46:00', 75, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(446, 454, '2025-03-22 20:24:00', '2025-03-22 20:43:00', 19, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(447, 455, '2025-03-22 00:33:00', '2025-03-22 05:08:00', 275, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(448, 456, '2025-03-20 20:30:00', '2025-03-20 22:37:00', 127, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(449, 457, '2025-03-17 10:52:00', '2025-03-17 16:35:00', 343, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(450, 458, '2025-03-15 18:26:00', '2025-03-15 20:56:00', 150, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(451, 459, '2025-03-14 18:58:00', '2025-03-15 08:31:00', 813, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(452, 460, '2025-03-13 21:11:00', '2025-03-13 21:49:00', 38, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(453, 461, '2025-03-06 02:33:00', '2025-03-06 05:06:00', 153, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(454, 462, '2025-03-03 20:53:00', '2025-03-03 21:16:00', 23, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(455, 463, '2025-02-28 07:28:00', '2025-02-28 08:08:00', 40, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(456, 464, '2025-02-24 21:00:00', '2025-02-24 21:44:00', 44, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(457, 465, '2025-02-23 21:59:00', '2025-02-23 23:09:00', 70, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(458, 466, '2025-02-23 00:02:00', '2025-02-23 06:54:00', 412, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(459, 467, '2025-02-22 02:24:00', '2025-02-22 06:38:00', 254, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(460, 468, '2025-02-21 16:00:00', '2025-02-21 18:25:00', 145, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(461, 469, '2025-02-20 15:11:00', '2025-02-20 16:55:00', 104, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(462, 470, '2025-02-20 00:42:00', '2025-02-20 04:50:00', 248, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(463, 471, '2025-02-18 22:02:00', '2025-02-19 00:25:00', 143, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(464, 472, '2025-02-17 02:36:00', '2025-02-17 03:10:00', 34, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(465, 473, '2025-02-15 22:00:00', '2025-02-16 08:44:00', 644, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(466, 474, '2025-02-12 22:26:00', '2025-02-12 23:33:00', 67, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(467, 475, '2025-02-10 21:40:00', '2025-02-11 07:19:00', 579, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(468, 476, '2025-02-09 00:01:00', '2025-02-09 08:08:00', 487, 1, 'Maintenance', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(469, 477, '2025-02-07 15:24:00', '2025-02-07 15:36:00', 12, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(470, 478, '2025-02-07 11:49:00', '2025-02-07 12:00:00', 11, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(471, 479, '2025-02-05 07:00:00', '2025-02-05 07:38:00', 38, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(472, 480, '2025-02-04 17:00:00', '2025-02-04 17:37:00', 37, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(473, 481, '2025-02-04 14:48:00', '2025-02-04 15:53:00', 65, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(474, 482, '2025-02-04 09:47:00', '2025-02-04 10:11:00', 24, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(475, 483, '2025-01-31 11:24:00', '2025-01-31 11:37:00', 13, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(476, 484, '2025-01-30 18:28:00', '2025-02-03 17:34:00', 5706, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(477, 485, '2025-01-30 00:02:00', '2025-01-31 00:47:00', 1485, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(478, 486, '2025-01-30 00:02:00', '2025-01-31 16:38:00', 2436, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(479, 487, '2025-01-29 12:41:00', '2025-01-29 14:14:00', 93, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(480, 488, '2025-01-28 17:17:00', '2025-01-28 17:45:00', 28, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(481, 489, '2025-01-27 21:24:00', '2025-01-27 21:33:00', 9, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(482, 490, '2025-01-27 19:11:00', '2025-01-27 21:41:00', 150, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(483, 491, '2025-01-27 02:13:00', '2025-01-27 03:24:00', 71, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(484, 492, '2025-01-26 10:55:00', '2025-01-26 12:15:00', 80, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(485, 493, '2025-01-26 01:24:00', '2025-01-26 08:14:00', 410, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(486, 494, '2025-01-20 06:00:00', '2025-01-20 06:33:00', 33, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(487, 495, '2025-01-19 10:21:00', '2025-01-19 21:49:00', 688, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(488, 496, '2025-01-19 02:28:00', '2025-01-19 06:41:00', 253, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(489, 497, '2025-01-18 23:57:00', '2025-01-19 01:33:00', 96, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(490, 498, '2025-01-18 23:52:00', '2025-01-19 01:19:00', 87, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(491, 499, '2025-01-18 15:06:00', '2025-01-18 16:28:00', 82, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(492, 500, '2025-01-17 05:56:00', '2025-01-17 07:40:00', 104, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(493, 501, '2025-01-15 22:58:00', '2025-01-16 01:00:00', 122, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(494, 502, '2025-01-15 21:09:00', '2025-01-15 21:25:00', 16, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(495, 503, '2025-01-14 21:10:00', '2025-01-14 21:33:00', 23, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(496, 504, '2025-01-12 20:18:00', '2025-01-12 20:51:00', 33, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(497, 505, '2025-01-10 09:30:00', '2025-01-10 10:00:00', 30, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(498, 506, '2025-01-09 22:04:00', '2025-01-10 01:03:00', 179, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(499, 507, '2025-01-09 08:58:00', '2025-01-09 09:50:00', 52, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(500, 508, '2025-01-08 10:05:00', '2025-01-08 10:55:00', 50, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(501, 509, '2025-01-08 00:26:00', '2025-01-08 01:00:00', 34, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(502, 510, '2025-01-07 17:48:00', '2025-01-08 00:59:00', 431, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(503, 511, '2025-01-05 13:51:00', '2025-01-05 14:17:00', 26, 0, 'Other', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(504, 512, '2025-01-04 00:18:00', '2025-01-06 12:08:00', 3590, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(505, 513, '2025-01-03 20:52:00', '2025-01-03 21:16:00', 24, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(506, 514, '2025-01-03 19:49:00', '2025-01-04 07:08:00', 679, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(507, 515, '2025-01-01 19:31:00', '2025-01-01 21:05:00', 94, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(508, 516, '2025-01-01 09:18:00', '2025-01-01 11:50:00', 152, 0, 'Server', '2026-02-19 02:08:10', '2026-02-19 02:08:10'),
+(509, 518, '2026-02-26 09:12:00', NULL, NULL, 0, 'Network', '2026-02-26 09:12:43', '2026-02-26 09:12:43'),
+(510, 519, '2026-03-04 09:38:00', NULL, NULL, 0, 'Network', '2026-03-04 09:39:11', '2026-03-04 09:39:11');
+
+--
+-- Triggers `downtime_incidents`
+--
+DELIMITER $$
+CREATE TRIGGER `calculate_downtime_minutes` BEFORE UPDATE ON `downtime_incidents` FOR EACH ROW BEGIN
+        IF NEW.actual_end_time IS NOT NULL AND (OLD.actual_end_time IS NULL OR NEW.actual_end_time != OLD.actual_end_time) THEN
+            SET NEW.downtime_minutes = TIMESTAMPDIFF(MINUTE, NEW.actual_start_time, NEW.actual_end_time);
+        END IF;
+    END
+$$
+DELIMITER ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `incidents`
+--
+
+CREATE TABLE `incidents` (
+  `incident_id` int(11) NOT NULL,
+  `incident_ref` varchar(20) DEFAULT NULL,
+  `source` enum('Internal','External') DEFAULT NULL,
+  `category` varchar(100) DEFAULT NULL,
+  `service_id` int(11) NOT NULL,
+  `component_id` int(11) DEFAULT NULL,
+  `incident_type_id` int(11) DEFAULT NULL,
+  `description` text DEFAULT NULL COMMENT 'Detailed description of what happened during the incident',
+  `impact_level` enum('Low','Medium','High','Critical') NOT NULL DEFAULT 'Low',
+  `priority` enum('Low','Medium','High','Urgent') NOT NULL DEFAULT 'Medium',
+  `root_cause` text DEFAULT NULL,
+  `root_cause_file` varchar(255) DEFAULT NULL,
+  `lessons_learned` text DEFAULT NULL,
+  `lessons_learned_file` varchar(255) DEFAULT NULL,
+  `attachment_path` varchar(255) DEFAULT NULL,
+  `actual_start_time` datetime NOT NULL DEFAULT current_timestamp(),
+  `status` enum('pending','resolved') NOT NULL DEFAULT 'pending',
+  `reported_by` int(11) NOT NULL,
+  `resolved_by` int(11) DEFAULT NULL,
+  `resolved_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `incidents`
+--
+
+INSERT INTO `incidents` (`incident_id`, `incident_ref`, `source`, `category`, `service_id`, `component_id`, `incident_type_id`, `description`, `impact_level`, `priority`, `root_cause`, `root_cause_file`, `lessons_learned`, `lessons_learned_file`, `attachment_path`, `actual_start_time`, `status`, `reported_by`, `resolved_by`, `resolved_at`, `created_at`, `updated_at`) VALUES
+(260, 'INC_26_020136', 'External', 'System Downtime', 141, NULL, 1306, 'Transactions were failing because we could not connect to their host', 'High', 'High', 'we could not connect to their host', NULL, 'fdsdfsa', NULL, NULL, '2026-02-16 02:46:00', 'resolved', 2, 23, '2026-03-04 14:18:00', '2026-02-16 02:46:00', '2026-03-04 14:18:45'),
+(261, 'INC_26_020133', 'External', 'System Downtime', 141, NULL, 1308, 'Transactions were failing because we getting response 01 from their cba', 'Medium', 'Medium', 'We were getting response code 01 from their cba', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2026-02-16 00:58:00', 'resolved', 2, 2, '2026-02-16 01:43:00', '2026-02-16 00:58:00', '2026-02-16 00:58:00'),
+(262, 'INC_26_020134', 'External', 'System Downtime', 141, NULL, 1306, 'All Telecel Transactions were failing', 'Medium', 'Medium', 'All Telecel Transactions were failing', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2026-02-15 22:10:00', 'resolved', 2, 2, '2026-02-15 22:45:00', '2026-02-15 22:10:00', '2026-02-15 22:10:00'),
+(263, 'INC_26_020135', 'External', 'System Downtime', 142, NULL, 1312, 'Telecel airtime transactions were failing', 'Medium', 'Medium', 'All telecel airtime transactions were failing because of connectivity issue', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2026-02-15 19:37:00', 'resolved', 2, 2, '2026-02-15 20:09:00', '2026-02-15 19:37:00', '2026-02-15 19:37:00'),
+(264, 'INC_26_020132', 'External', 'System Downtime', 141, NULL, 1310, 'All MTN transactions were failing because of the maintenance', 'Critical', 'Urgent', 'System maintenance', NULL, 'Continuous monitoring and asking for updates till issue is resolved', NULL, NULL, '2026-02-14 22:00:00', 'resolved', 3, 3, '2026-02-15 10:00:00', '2026-02-14 22:00:00', '2026-02-14 22:00:00'),
+(265, 'INC_26_020131', 'Internal', 'System Downtime', 142, NULL, 1312, 'Server was down', 'High', 'High', 'Both SISL and PBL transactions were not coming through because the server 172.16.30.27 was down', NULL, 'Continous monitoring and reporting', NULL, NULL, '2026-02-13 19:32:00', 'resolved', 4, 4, '2026-02-13 22:12:00', '2026-02-13 19:32:00', '2026-02-13 19:32:00'),
+(266, 'INC_26_020130', 'External', 'System Downtime', 141, NULL, 1306, 'Transaction were not coming in because we could not connect to their server.', 'High', 'High', 'we could not connect to their server.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2026-02-12 17:19:00', 'resolved', 2, 2, '2026-02-12 20:58:00', '2026-02-12 17:19:00', '2026-02-12 17:19:00'),
+(267, 'INC_26_020129', 'External', 'System Downtime', 142, NULL, 1312, 'Error from PBL host', 'Medium', 'Medium', 'Difficulty connecting to PBL host', NULL, 'Continuous monitoring and reporting', NULL, NULL, '2026-02-12 10:58:00', 'resolved', 4, 4, '2026-02-12 11:45:00', '2026-02-12 10:58:00', '2026-02-12 10:58:00'),
+(268, 'INC_26_020128', 'External', 'System Downtime', 141, NULL, 1308, 'PBL\'s server and host were down which was causing transactions to fail', 'Critical', 'Urgent', 'Their host was down', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2026-02-11 13:09:00', 'resolved', 5, 5, '2026-02-11 22:56:00', '2026-02-11 13:09:00', '2026-02-11 13:09:00'),
+(269, 'INC_26_020127', 'External', 'System Downtime', 142, NULL, 1312, 'Inability to connect to NIB sever', 'High', 'High', 'NIB server was not accessible', NULL, 'Continuous monitoring and reporting', NULL, NULL, '2026-02-09 15:19:00', 'resolved', 4, 4, '2026-02-09 17:33:00', '2026-02-09 15:19:00', '2026-02-09 15:19:00'),
+(270, 'INC_26_020126', 'Internal', 'System Downtime', 142, NULL, 1312, 'Transactions wre not coming in due to binding issue', 'High', 'High', 'Their CMS went off and it was not able to communicate with the TMC on central (172.16.30.6).', NULL, 'Continues monitoring and reporting.', NULL, NULL, '2026-02-09 07:10:00', 'resolved', 4, 4, '2026-02-09 12:30:00', '2026-02-09 07:10:00', '2026-02-09 07:10:00'),
+(271, 'INC_26_020125', 'External', 'System Downtime', 142, NULL, 1312, 'NIB server was not accessible resulting in transactions not coming in.', 'High', 'High', 'NIB server was not accessible resulting in transactions not coming in.', NULL, 'Continues monitoring and seeking rapid updates until issue is resolved.', NULL, NULL, '2026-02-08 02:00:00', 'resolved', 4, 4, '2026-02-08 07:55:00', '2026-02-08 02:00:00', '2026-02-08 02:00:00'),
+(272, 'INC_26_020124', 'Internal', 'System Downtime', 141, NULL, 1310, 'All services were down because of the maintenance by the network team', 'Medium', 'Medium', 'Network team had maintenance to perform causing all transactions to fail', NULL, 'Continuous monitoring and asking for updates till issue is resolved', NULL, NULL, '2026-02-08 01:00:00', 'resolved', 3, 3, '2026-02-08 03:00:00', '2026-02-08 01:00:00', '2026-02-08 01:00:00'),
+(273, 'INC_26_020123', 'External', 'System Downtime', 141, NULL, 1306, 'Transactions were failing because we could not connect to their host', 'High', 'High', 'We could not connect to their host.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2026-02-05 11:13:00', 'resolved', 2, 2, '2026-02-05 13:17:00', '2026-02-05 11:13:00', '2026-02-05 11:13:00'),
+(274, 'INC_26_020122', 'Internal', 'System Downtime', 141, NULL, 1306, 'A limit was made on the NIB mobile transactions which was causing transactions to fail', 'High', 'High', 'Limit made on the NIB mobile transaction', NULL, 'Continuously verify service availability and coordinate with all relevant personnel to support the investigation and resolution of the issue.', NULL, NULL, '2026-02-04 11:30:00', 'resolved', 5, 5, '2026-02-04 14:33:00', '2026-02-04 11:30:00', '2026-02-04 11:30:00'),
+(275, 'INC_26_020121', 'Internal', 'System Downtime', 142, NULL, 1312, 'We lost connectivity to their service due to binding issues', 'Critical', 'Urgent', 'Binding issue', NULL, 'Continuous monitoring and asking for update till issue is resolved', NULL, NULL, '2026-02-02 23:16:00', 'resolved', 3, 3, '2026-02-03 12:14:00', '2026-02-02 23:16:00', '2026-02-02 23:16:00'),
+(276, 'INC_26_020120', 'External', 'System Downtime', 141, NULL, 1310, 'GHIPSS was down causing transactions to fail, so we switched to OVA for transactions to start processing fine', 'High', 'High', 'GHIPSS was down causing transactions to fail', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2026-02-02 18:40:00', 'resolved', 5, 5, '2026-02-02 21:15:00', '2026-02-02 18:40:00', '2026-02-02 18:40:00'),
+(277, 'INC_26_010118', 'External', 'System Downtime', 141, NULL, 1306, 'We couldn\'t connect to our ISP', 'Medium', 'Medium', 'Internet issue', NULL, 'We should monitor closely to detect such issues on time', NULL, NULL, '2026-01-31 12:00:00', 'resolved', 6, 6, '2026-01-31 14:00:00', '2026-01-31 12:00:00', '2026-01-31 12:00:00'),
+(278, 'INC_26_020119', 'Internal', 'System Downtime', 141, NULL, 1306, 'Transactions were throwing 96', 'Critical', 'Urgent', 'Binding', NULL, 'We should monitor closely to detect such issues on time', NULL, NULL, '2026-01-31 04:00:00', 'resolved', 2, 2, '2026-01-31 19:00:00', '2026-01-31 04:00:00', '2026-01-31 04:00:00'),
+(279, 'INC_26_010115', 'External', 'System Downtime', 141, NULL, 1306, 'All Transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'We could not connect to their Host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2026-01-27 04:00:00', 'resolved', 2, 2, '2026-01-27 05:00:00', '2026-01-27 04:00:00', '2026-01-27 04:00:00'),
+(280, 'INC_26_010117', 'External', 'System Downtime', 141, NULL, 1306, 'It was observed that transactions from Multichoice were no longer being received, while transactions from other merchants continued to process successfully through the same endpoint. This indicated that the issue was merchant-specific rather than a platform-wide outage.', 'Critical', 'Urgent', 'Cloudflare security rules automatically blocked Multichoice IP addresses, preventing their requests from reaching the proxy server.  As a result, Cloudflare returned HTTP 403 responses to Multichoice, causing transaction failures.', NULL, 'We should monitor continuously to detect such issues on time', NULL, NULL, '2026-01-26 14:56:00', 'resolved', 6, 6, '2026-01-28 11:57:00', '2026-01-26 14:56:00', '2026-01-26 14:56:00'),
+(281, 'INC_26_010116', 'External', 'System Downtime', 141, NULL, 1311, 'There were delays on debit transactions.', 'High', 'High', 'There were delays on debit transactions.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2026-01-25 17:37:00', 'resolved', 2, 2, '2026-01-26 00:00:00', '2026-01-25 17:37:00', '2026-01-25 17:37:00'),
+(282, 'INC_26_010114', 'External', 'System Downtime', 141, NULL, 1306, 'MTN Mobile money transactions were failing intermitently', 'High', 'High', 'MTN were experiencing technical issues from their end causing MoMo transactions to fail intermitently', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2026-01-24 19:43:00', 'resolved', 5, 5, '2026-01-25 01:31:00', '2026-01-24 19:43:00', '2026-01-24 19:43:00'),
+(283, 'INC_26_010113', 'External', 'System Downtime', 141, NULL, 1306, 'Credit transactions were failing intermittently', 'High', 'High', 'We could not connect to their host.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2026-01-23 11:50:00', 'resolved', 5, 5, '2026-01-23 17:45:00', '2026-01-23 11:50:00', '2026-01-23 11:50:00'),
+(284, 'INC_26_010112', 'Internal', 'System Downtime', 141, NULL, 1308, 'Their USSD went down', 'Low', 'Low', 'The USSD service went down', NULL, 'Continuous monitoring and asking for updates till issue is resolved', NULL, NULL, '2026-01-22 00:00:00', 'resolved', 3, 3, '2026-01-22 00:00:00', '2026-01-22 00:00:00', '2026-01-22 00:00:00'),
+(285, 'INC_26_010111', 'External', 'System Downtime', 142, NULL, 1312, 'Transactions were failing because we could not connect to their host', 'High', 'High', 'Their host went down', NULL, 'Continuous monitoring and asking for updates till issue is resolved', NULL, NULL, '2026-01-20 21:00:00', 'resolved', 3, 3, '2026-01-20 23:25:00', '2026-01-20 21:00:00', '2026-01-20 21:00:00'),
+(286, 'INC_26_010108', 'External', 'System Downtime', 141, NULL, 1310, 'MTN Planned Maintenance', 'Critical', 'Urgent', 'Planned Maintenance', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2026-01-19 11:00:00', 'resolved', 2, 2, '2026-01-20 05:00:00', '2026-01-19 11:00:00', '2026-01-19 11:00:00'),
+(287, 'INC_26_010109', 'External', 'System Downtime', 141, NULL, 1306, 'PBL had a middleware API downtime', 'Critical', 'Urgent', 'API downtime', NULL, 'We should monitor transactions closely to detect such issues on time', NULL, NULL, '2026-01-19 09:00:00', 'resolved', 6, 6, '2026-01-20 05:00:00', '2026-01-19 09:00:00', '2026-01-19 09:00:00'),
+(288, 'INC_26_010110', 'Internal', 'System Downtime', 141, NULL, 1311, 'All telecel debit on fundgate where failing due to wrong reference being sent to telco. We noticed that \"#0000\" was appended to all the references being sent to the telco causing failures.', 'Critical', 'Urgent', 'Still under investigation', NULL, 'We should monitor closely to detect such issues on time', NULL, NULL, '2026-01-18 09:37:00', 'resolved', 6, 6, '2026-01-20 10:00:00', '2026-01-18 09:37:00', '2026-01-18 09:37:00'),
+(289, 'INC_26_010107', 'External', 'System Downtime', 141, NULL, 1306, 'Transactions were failing because we could not connect to their host', 'Medium', 'Medium', 'We could not connect to their host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2026-01-17 05:32:00', 'resolved', 2, 2, '2026-01-17 06:42:00', '2026-01-17 05:32:00', '2026-01-17 05:32:00'),
+(290, 'INC_26_010106', 'Internal', 'System Downtime', 141, NULL, 1310, 'Transactions were not coming because the was a planned maintenance', 'Medium', 'Medium', 'Planned maintenance', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2026-01-17 00:00:00', 'resolved', 2, 2, '2026-01-17 02:00:00', '2026-01-17 00:00:00', '2026-01-17 00:00:00'),
+(291, 'INC_26_010105', 'Internal', 'System Downtime', 143, NULL, 1318, 'We were not receiving transaction request and traffick as at 12:45 am, Fundgate could not connect, AWS my sql could not connect, Vasgate could not connect, Virtual bank could not connect.', 'High', 'High', 'We were not receiving traffic as we could not connect to fundgate, AWS mysql, VASgate and Virtual Bank', NULL, 'Always monitor all services and reach out to the appropraite teams involved', NULL, NULL, '2026-01-13 00:44:00', 'resolved', 5, 5, '2026-01-13 03:40:00', '2026-01-13 00:44:00', '2026-01-13 00:44:00'),
+(292, 'INC_26_010103', 'External', 'System Downtime', 141, NULL, 1306, 'Transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'we could not connect to their host.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2026-01-10 18:26:00', 'resolved', 2, 2, '2026-01-10 19:05:00', '2026-01-10 18:26:00', '2026-01-10 18:26:00'),
+(293, 'INC_26_010102', 'External', 'System Downtime', 142, NULL, 1312, 'We could not connect to their host', 'High', 'High', 'We were unable to connect to their host causing their transactions to fail', NULL, 'Continuous monitoring and asking for update till issue has been resolved', NULL, NULL, '2026-01-07 01:32:00', 'resolved', 3, 3, '2026-01-07 07:19:00', '2026-01-07 01:32:00', '2026-01-07 01:32:00'),
+(294, 'INC_26_010101', 'External', 'System Downtime', 141, NULL, 1306, 'Transactions were failing because their host was down', 'Critical', 'Urgent', 'Their host was down.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-12-31 23:00:00', 'resolved', 5, 5, '2026-01-01 12:59:00', '2025-12-31 23:00:00', '2025-12-31 23:00:00'),
+(295, 'INC_26_010100', 'External', 'System Downtime', 141, NULL, 1306, 'Transactions were failing because we could not connect to their host.', 'Critical', 'Urgent', 'we could not connect to their host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-12-31 11:54:00', 'resolved', 2, 2, '2026-01-01 03:10:00', '2025-12-31 11:54:00', '2025-12-31 11:54:00'),
+(296, 'INC_25_120099', 'External', 'System Downtime', 141, NULL, 1306, 'All NIB transactions were failing because their host was down', 'High', 'High', 'We could not connect to their', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-12-30 21:12:00', 'resolved', 5, 5, '2025-12-31 03:56:00', '2025-12-30 21:12:00', '2025-12-30 21:12:00'),
+(297, 'INC_26_010104', 'Internal', 'System Downtime', 141, NULL, 1307, 'The 172.16.30.60 which has VMware hosting two virtual servers, that is the Active Directory and Atwima restsarted and was not able to reboot properly. This made it  difficult to access the servers remotely and also causing Atwima transactions not to process.', 'Low', 'Low', 'The server restarted and was not able to reboot properly.', NULL, 'Proactive monotoring of system and services.', NULL, NULL, '2025-12-29 11:13:00', 'resolved', 7, 7, '2025-12-29 11:13:00', '2025-12-29 11:13:00', '2025-12-29 11:13:00'),
+(298, 'INC_25_120098', 'Internal', 'System Downtime', 141, NULL, 1306, 'We were experiencing an issue with the cedar that caused the transactions to be failing', 'Critical', 'Urgent', 'Techhnical issue with the cedar', NULL, 'Always reach out to the appropriate teams involved to help resolve the issue', NULL, NULL, '2025-12-28 08:35:00', 'resolved', 5, 5, '2025-12-28 23:04:00', '2025-12-28 08:35:00', '2025-12-28 08:35:00'),
+(299, 'INC_25_120097', 'External', 'System Downtime', 141, NULL, 1306, 'We couldn\'t connect to their host', 'High', 'High', 'Connectivity issue', NULL, 'We should continuously monitor transactions in order to detect such issues on time', NULL, NULL, '2025-12-25 04:07:00', 'resolved', 6, 6, '2025-12-25 10:25:00', '2025-12-25 04:07:00', '2025-12-25 04:07:00'),
+(300, 'INC_25_120096', 'External', 'System Downtime', 141, NULL, 1310, 'Telecel cash transactions were failing due to a planned maintenance', 'High', 'High', 'Planned maintenance', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-12-24 05:00:00', 'resolved', 5, 5, '2025-12-24 07:58:00', '2025-12-24 05:00:00', '2025-12-24 05:00:00'),
+(301, 'INC_25_120095', 'External', 'System Downtime', 141, NULL, 1308, 'Transactions were failing because we could not connect to their host', 'High', 'High', 'We could not connect to their host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-12-23 17:06:00', 'resolved', 2, 2, '2025-12-23 20:06:00', '2025-12-23 17:06:00', '2025-12-23 17:06:00'),
+(302, 'INC_25_120094', 'Internal', 'System Downtime', 141, NULL, 1309, 'ECG transactions were failing due to an Insufficient Account Balance', 'Critical', 'Urgent', 'Insufficient Account Balance was the reason for all ECG transactions failing', NULL, 'The balance for ECG should be always monitored and the appropriate teams must be informed to help top it up before the balance is all used up.', NULL, NULL, '2025-12-20 17:49:00', 'resolved', 5, 5, '2025-12-22 17:07:00', '2025-12-20 17:49:00', '2025-12-20 17:49:00'),
+(303, 'INC_25_120093', 'External', 'System Downtime', 141, NULL, 1308, 'All transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'We could not  to their Host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-12-20 00:44:00', 'resolved', 2, 2, '2025-12-20 01:43:00', '2025-12-20 00:44:00', '2025-12-20 00:44:00'),
+(304, 'INC_25_120092', 'External', 'System Downtime', 141, NULL, 1306, 'We couldn\'t coonect to their host', 'Critical', 'Urgent', 'Connectivity issue', NULL, 'We should monitor frequently so we can detect such issues on time', NULL, NULL, '2025-12-19 01:13:00', 'resolved', 6, 6, '2025-12-19 10:51:00', '2025-12-19 01:13:00', '2025-12-19 01:13:00'),
+(305, 'INC_25_120091', 'External', 'System Downtime', 142, NULL, 1312, 'Their transactions were failing because we couldn\'t connect to their host', 'Medium', 'Medium', 'We could not connect to their host', NULL, 'Continuous monitoring and asking for update until issue is resolved', NULL, NULL, '2025-12-18 21:09:00', 'resolved', 3, 3, '2025-12-18 21:56:00', '2025-12-18 21:09:00', '2025-12-18 21:09:00'),
+(306, 'INC_25_120090', 'External', 'System Downtime', 142, NULL, 1312, 'Their transactions were failing because we couldn\'t connce to their host', 'High', 'High', 'We could not connect to their host', NULL, 'Continuous monitoring and asking for update till isuue is resolved', NULL, NULL, '2025-12-16 11:29:00', 'resolved', 3, 3, '2025-12-16 13:51:00', '2025-12-16 11:29:00', '2025-12-16 11:29:00'),
+(307, 'INC_25_120089', 'External', 'System Downtime', 141, NULL, 1306, 'B2W & Topup transactions were failing because of an error we were getting from their host', 'Medium', 'Medium', 'We could not connect to their host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-12-15 21:17:00', 'resolved', 5, 5, '2025-12-15 22:00:00', '2025-12-15 21:17:00', '2025-12-15 21:17:00'),
+(308, 'INC_25_120088', 'External', 'System Downtime', 142, NULL, 1312, 'Transactions were failing because we couldn\'t connect to their host', 'Medium', 'Medium', 'We couldn\'t connect to their host', NULL, 'Continuous monitoring and asking for update till issue is resolved', NULL, NULL, '2025-12-14 18:08:00', 'resolved', 3, 3, '2025-12-14 18:55:00', '2025-12-14 18:08:00', '2025-12-14 18:08:00'),
+(309, 'INC_25_120087', 'External', 'System Downtime', 141, NULL, 1306, 'We could\'t reach the banks servers', 'Critical', 'Urgent', 'we couldnt connect to the banks servers', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-12-13 10:25:00', 'resolved', 8, 8, '2025-12-14 05:00:00', '2025-12-13 10:25:00', '2025-12-13 10:25:00'),
+(310, 'INC_25_120086', 'External', 'System Downtime', 141, NULL, 1308, 'Transaction were failing because we could not connect to thier host', 'Critical', 'Urgent', 'We could not connect to their host and also informed of a system migration', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-12-04 22:29:00', 'resolved', 2, 2, '2025-12-08 16:14:00', '2025-12-04 22:29:00', '2025-12-04 22:29:00'),
+(311, 'INC_25_120084', 'External', 'System Downtime', 141, NULL, 1306, 'We could not connect to their host', 'Critical', 'Urgent', 'Their host was down', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-12-03 19:35:00', 'resolved', 5, 5, '2025-12-04 20:45:00', '2025-12-03 19:35:00', '2025-12-03 19:35:00'),
+(312, 'INC_25_120085', 'External', 'System Downtime', 141, NULL, 1308, 'Credit transactions were failing because we could not connect to their host', 'Critical', 'Urgent', 'We could not connect to their host.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-12-03 10:24:00', 'resolved', 2, 2, '2025-12-03 19:14:00', '2025-12-03 10:24:00', '2025-12-03 10:24:00'),
+(313, 'INC_25_120083', 'External', 'System Downtime', 142, NULL, 1312, 'We couldn\'t connect to their host', 'Low', 'Low', 'Transactions were failing because we couldn\'t connect to their host', NULL, 'Continuous monitoring and asking for update till issue is resolved', NULL, NULL, '2025-12-02 09:53:00', 'resolved', 3, 3, '2025-12-02 10:17:00', '2025-12-02 09:53:00', '2025-12-02 09:53:00'),
+(314, 'INC_25_120081', 'Internal', 'System Downtime', 141, NULL, 1309, 'MTN DATA BALNACE WAS LOW ON FUNDS.', 'High', 'High', 'MTN DATA BALNACE WAS LOW ON FUNDS.', NULL, 'Active monitoring to detect issues on time.', NULL, NULL, '2025-11-30 22:58:00', 'resolved', 10, 10, '2025-12-01 05:12:00', '2025-11-30 22:58:00', '2025-11-30 22:58:00'),
+(315, 'INC_25_120082', 'External', 'System Downtime', 141, NULL, 1309, 'ECG Ova was low on funds', 'Critical', 'Urgent', 'Insufficient Balance', NULL, 'We should continue monitoring to detect such issues on time', NULL, NULL, '2025-11-30 22:02:00', 'resolved', 6, 6, '2025-12-01 11:33:00', '2025-11-30 22:02:00', '2025-11-30 22:02:00'),
+(316, 'INC_25_110078', 'Internal', 'System Downtime', 141, NULL, 1308, 'Transactions were not coming through because there was a database test activity on their server.', 'Medium', 'Medium', 'Maintenance', NULL, 'Proactive monitoring to dectect downtime on time.', NULL, NULL, '2025-11-25 01:00:00', 'resolved', 2, 2, '2025-11-25 01:40:00', '2025-11-25 01:00:00', '2025-11-25 01:00:00'),
+(317, 'INC_25_110077', 'External', 'System Downtime', 141, NULL, 1310, 'Maintenance', 'High', 'High', 'MTN had an emergency maintenance activity.', NULL, 'Proactive monitoring to dectect downtime on time.', NULL, NULL, '2025-11-20 23:00:00', 'resolved', 7, 7, '2025-11-21 05:00:00', '2025-11-20 23:00:00', '2025-11-20 23:00:00'),
+(318, 'INC_25_110079', 'Internal', 'System Downtime', 141, NULL, 1307, 'Our main ISP which is Main One;  went down however the network team tried to switch to the backup which is Comsys but it wasn\'t successful, because the COMSYS\'s routing.We had to remove and reinsert the cable to the Main One device at our end,  as per their communications we did that and it was resolved.', 'High', 'High', 'Network issue', NULL, 'We should pay attention to such issues to detect and resolve them on time', NULL, NULL, '2025-11-20 08:20:00', 'resolved', 6, 6, '2025-11-20 11:32:00', '2025-11-20 08:20:00', '2025-11-20 08:20:00'),
+(319, 'INC_25_110076', 'External', 'System Downtime', 141, NULL, 1309, 'NLA Card fundgate balance is low on funds', 'Medium', 'Medium', 'NLA Card fundgate balance is low on funds', NULL, 'Proactive monitoring to detect downtimes on time', NULL, NULL, '2025-11-19 13:54:00', 'resolved', 10, 10, '2025-11-19 15:54:00', '2025-11-19 13:54:00', '2025-11-19 13:54:00'),
+(320, 'INC_25_110074', 'External', 'System Downtime', 141, NULL, 1308, 'We could not connect to their host', 'Low', 'Low', 'Transactions were failing because we could not connect to their host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-11-18 13:22:00', 'resolved', 2, 2, '2025-11-18 13:26:00', '2025-11-18 13:22:00', '2025-11-18 13:22:00'),
+(321, 'INC_25_110075', 'External', 'System Downtime', 141, NULL, 1309, 'Insufficient card balance', 'Critical', 'Urgent', 'Insufficient card balance', NULL, 'We should monitor thoroughly to detect such issues on time', NULL, NULL, '2025-11-17 17:34:00', 'resolved', 6, 6, '2025-11-18 08:43:00', '2025-11-17 17:34:00', '2025-11-17 17:34:00'),
+(322, 'INC_25_110073', 'External', 'System Downtime', 141, NULL, 1308, 'We could not connect to their Host', 'High', 'High', 'Transactions were failing because we could not connect to their host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-11-16 19:40:00', 'resolved', 2, 2, '2025-11-17 03:40:00', '2025-11-16 19:40:00', '2025-11-16 19:40:00'),
+(323, 'INC_25_110072', 'External', 'System Downtime', 141, NULL, 1310, 'Planned Sysytem Maintenance', 'Critical', 'Urgent', 'Planned Sysytem Maintenance', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-11-14 20:00:00', 'resolved', 2, 2, '2025-11-15 07:55:00', '2025-11-14 20:00:00', '2025-11-14 20:00:00'),
+(324, 'INC_25_110071', 'External', 'System Downtime', 141, NULL, 1306, 'We are not able to access their server.', 'Medium', 'Medium', 'We were not able to access their server', NULL, 'Proactive monitoring to be able to detect incident quick.', NULL, NULL, '2025-11-14 17:30:00', 'resolved', 7, 7, '2025-11-14 18:55:00', '2025-11-14 17:30:00', '2025-11-14 17:30:00'),
+(325, 'INC_25_110067', 'External', 'System Downtime', 141, NULL, 1310, 'Planned Sysytem Maintenance', 'High', 'High', 'Sysytem Maintenance', NULL, 'We should regularly monitor transactions to detect any abnormalities on time', NULL, NULL, '2025-11-10 23:00:00', 'resolved', 6, 6, '2025-11-11 05:00:00', '2025-11-10 23:00:00', '2025-11-10 23:00:00'),
+(326, 'INC_25_110069', 'External', 'System Downtime', 141, NULL, 1308, 'BOA ELEVY', 'High', 'High', '- IOException Calling HTTPS server. Possibly server is down or not accepting the request', NULL, 'Proactive monitoring', NULL, NULL, '2025-11-10 10:38:00', 'resolved', 11, 11, '2025-11-10 14:39:00', '2025-11-10 10:38:00', '2025-11-10 10:38:00'),
+(327, 'INC_25_110065', 'Internal', 'System Downtime', 143, NULL, 1319, 'The 172.16.30.16 server was down due to a system update', 'Medium', 'Medium', 'System Update', NULL, 'We should monitor intensively to detect failures on time', NULL, NULL, '2025-11-10 09:25:00', 'resolved', 6, 6, '2025-11-10 10:30:00', '2025-11-10 09:25:00', '2025-11-10 09:25:00'),
+(328, 'INC_25_110064', 'External', 'System Downtime', 141, NULL, 1308, 'Transactions were failing because we could not connect to their host', 'Medium', 'Medium', 'Host downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-11-09 18:00:00', 'resolved', 2, 2, '2025-11-09 18:58:00', '2025-11-09 18:00:00', '2025-11-09 18:00:00'),
+(329, 'INC_25_110080', 'Internal', 'System Downtime', 144, NULL, 1325, 'The server 30.9 server was not been stable', 'Critical', 'Urgent', 'The was unstable and we could not access it.', NULL, 'Continuous monitoring of server memory and CPU utilization ensures that the server runs optimally without disruptions.', NULL, NULL, '2025-11-09 00:00:00', 'resolved', 11, 11, '2025-11-13 00:00:00', '2025-11-09 00:00:00', '2025-11-09 00:00:00'),
+(330, 'INC_25_110068', 'External', 'System Downtime', 142, NULL, 1312, 'Transactions were failing because we could not connect to their host', 'Critical', 'Urgent', 'We couldn\'t connect to their host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-11-08 22:19:00', 'resolved', 3, 3, '2025-11-11 17:40:00', '2025-11-08 22:19:00', '2025-11-08 22:19:00'),
+(331, 'INC_25_110066', 'Internal', 'System Downtime', 144, NULL, 1325, 'The 172.16.30.9 server was down due to a sysytem update', 'Critical', 'Urgent', 'Sysytem Update', NULL, 'We should monitor intensively to detect failures on time', NULL, NULL, '2025-11-08 06:20:00', 'resolved', 6, 6, '2025-11-10 10:30:00', '2025-11-08 06:20:00', '2025-11-08 06:20:00'),
+(332, 'INC_25_110063', 'External', 'System Downtime', 141, NULL, 1306, 'Both B2W and W2B  transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-11-07 14:17:00', 'resolved', 5, 5, '2025-11-07 15:52:00', '2025-11-07 14:17:00', '2025-11-07 14:17:00'),
+(333, 'INC_25_110070', 'External', 'System Downtime', 141, NULL, 1310, 'MTN Planned Maintenance', 'Medium', 'Medium', 'Planned maintenance', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-11-03 21:25:00', 'resolved', 5, 5, '2025-11-03 23:00:00', '2025-11-03 21:25:00', '2025-11-03 21:25:00'),
+(334, 'INC_25_110062', 'External', 'System Downtime', 141, NULL, 1308, 'Intermittent failures with MTN transactions due to an issue from their end', 'Critical', 'Urgent', 'Connectivity issues with MTN', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-11-03 12:28:00', 'resolved', 5, 5, '2025-11-03 21:49:00', '2025-11-03 12:28:00', '2025-11-03 12:28:00'),
+(335, 'INC_25_100061', 'External', 'System Downtime', 142, NULL, 1312, 'Telecel airtime transactions were failing', 'Medium', 'Medium', 'All telecel airtime transactions were failing because of connectivity issue', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-10-31 06:05:00', 'resolved', 3, 3, '2025-10-31 07:37:00', '2025-10-31 06:05:00', '2025-10-31 06:05:00'),
+(336, 'INC_25_100060', 'External', 'System Downtime', 142, NULL, 1312, 'We could not connect to their host which was causing credit transactions to fail.', 'Critical', 'Urgent', 'NIB Host downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-10-28 12:49:00', 'resolved', 3, 3, '2025-10-28 22:39:00', '2025-10-28 12:49:00', '2025-10-28 12:49:00'),
+(337, 'INC_25_100059', 'External', 'System Downtime', 141, NULL, 1310, 'All MTN transactions were failing because of the maintenance', 'High', 'High', 'System Maintenance', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-10-28 00:40:00', 'resolved', 2, 2, '2025-10-28 05:01:00', '2025-10-28 00:40:00', '2025-10-28 00:40:00'),
+(338, 'INC_25_100058', 'Internal', 'System Downtime', 141, NULL, 1311, 'The BOA (ATU) general fees payment for the product \"Student Project Work Binding\" was incorrectly routed through GCB OVA', 'High', 'High', 'Configuration Error', NULL, 'UATs must be completed and well documented.\r\nRegular configuration review.', NULL, NULL, '2025-10-22 13:21:00', 'resolved', 11, 11, '2025-10-22 16:34:00', '2025-10-22 13:21:00', '2025-10-22 13:21:00'),
+(339, 'INC_25_100056', 'External', 'System Downtime', 142, NULL, 1312, 'AirtelTigo Top up transactions were failing because of the connectivity issue which was causing transactions fail', 'High', 'High', 'AirtelTigo Top up service went down.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue till it is resolved', NULL, NULL, '2025-10-18 21:43:00', 'resolved', 3, 3, '2025-10-19 00:15:00', '2025-10-18 21:43:00', '2025-10-18 21:43:00'),
+(340, 'INC_25_100055', 'External', 'System Downtime', 141, NULL, 1308, 'There was an issue with their payment note causing transactions to fail', 'Critical', 'Urgent', 'Their payment node was not responding', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-10-17 00:48:00', 'resolved', 5, 5, '2025-10-17 10:31:00', '2025-10-17 00:48:00', '2025-10-17 00:48:00'),
+(341, 'INC_25_100054', 'Internal', 'System Downtime', 141, NULL, 1306, 'SISL CMS was not able to bind with TMC central, which caused transactions to not come in.', 'High', 'High', 'Binding issue with TMC', NULL, 'continuous monitoring of transactions and document the incident resolution process. Share this documentation with the team to support faster resolution in case a similar incident occurs in the future.', NULL, NULL, '2025-10-15 07:04:00', 'resolved', 11, 11, '2025-10-15 11:50:00', '2025-10-15 07:04:00', '2025-10-15 07:04:00'),
+(342, 'INC_25_100053', 'External', 'System Downtime', 141, NULL, 1306, 'Telecel data transactions were failing due to a connectivity issue', 'Low', 'Low', 'Connectivity issue', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-10-14 08:37:00', 'resolved', 2, 2, '2025-10-14 08:37:00', '2025-10-14 08:37:00', '2025-10-14 08:37:00'),
+(343, 'INC_25_100052', 'External', 'System Downtime', 141, NULL, 1306, 'All PBL transactions were failing because we could not connect to their host', 'Low', 'Low', 'PBL Host downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-10-13 16:49:00', 'resolved', 5, 5, '2025-10-13 17:19:00', '2025-10-13 16:49:00', '2025-10-13 16:49:00'),
+(344, 'INC_25_100051', 'External', 'System Downtime', 141, NULL, 1306, 'All NIB transactions were failing because we could not reach their host', 'Medium', 'Medium', 'Host Connectivity issue', NULL, 'We should actively monitor to detect issues on time', NULL, NULL, '2025-10-12 14:45:00', 'resolved', 3, 3, '2025-10-12 16:07:00', '2025-10-12 14:45:00', '2025-10-12 14:45:00'),
+(345, 'INC_25_100050', 'External', 'System Downtime', 142, NULL, 1316, 'All MTN transactions were failing because of the maintenance', 'High', 'High', 'System Maintenance', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-10-12 00:05:00', 'resolved', 3, 3, '2025-10-12 05:21:00', '2025-10-12 00:05:00', '2025-10-12 00:05:00'),
+(346, 'INC_25_100049', 'External', 'System Downtime', 142, NULL, 1314, 'All transactions were failing because we couldnâ€™t connect to their host', 'Medium', 'Medium', 'NIB HOST DOWNTIME', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-10-11 04:57:00', 'resolved', 2, 2, '2025-10-11 05:42:00', '2025-10-11 04:57:00', '2025-10-11 04:57:00'),
+(347, 'INC_25_100048', 'External', 'System Downtime', 141, NULL, 1306, 'We couldn\'t connect to their host', 'Critical', 'Urgent', 'Connectivity issue', NULL, 'We should actively monitor transaction to spot issues on time', NULL, NULL, '2025-10-09 10:02:00', 'resolved', 6, 6, '2025-10-10 05:56:00', '2025-10-09 10:02:00', '2025-10-09 10:02:00'),
+(348, 'INC_25_100047', 'External', 'System Downtime', 142, NULL, 1312, 'All transactions were failing because we could not connect to their host', 'High', 'High', 'Their CMS was off', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-10-08 18:54:00', 'resolved', 3, 3, '2025-10-08 22:16:00', '2025-10-08 18:54:00', '2025-10-08 18:54:00'),
+(349, 'INC_25_100057', 'External', 'System Downtime', 142, NULL, 1312, 'All transactions were failing because we could not connect to their host', 'High', 'High', 'Their CMS was off', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-10-08 18:54:00', 'resolved', 3, 3, '2025-10-08 22:16:00', '2025-10-08 18:54:00', '2025-10-08 18:54:00'),
+(350, 'INC_25_100046', 'External', 'System Downtime', 142, NULL, 1314, 'All transactions were failing because we could not connect to their host.', 'Low', 'Low', 'Their host went down', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-10-07 16:42:00', 'resolved', 3, 3, '2025-10-07 17:10:00', '2025-10-07 16:42:00', '2025-10-07 16:42:00'),
+(351, 'INC_25_100045', 'External', 'System Downtime', 141, NULL, 1306, 'transactions were failing because we could not connect to their host', 'High', 'High', 'NIB\'s host was down', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-10-06 21:05:00', 'resolved', 5, 5, '2025-10-07 01:12:00', '2025-10-06 21:05:00', '2025-10-06 21:05:00'),
+(352, 'INC_25_100044', 'External', 'System Downtime', 141, NULL, 1306, 'All Bestpoint transactions were failing', 'High', 'High', 'Account lookup was failing', NULL, 'Continuous monitoring to detect such issues on time', NULL, NULL, '2025-10-06 11:31:00', 'resolved', 6, 6, '2025-10-06 16:37:00', '2025-10-06 11:31:00', '2025-10-06 11:31:00'),
+(353, 'INC_25_090043', 'External', 'System Downtime', 142, NULL, 1314, 'All transactions were failing because we couldnâ€™t connect to their host', 'Medium', 'Medium', 'SISL HOST DOWNTIME', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-09-27 00:09:00', 'resolved', 2, 2, '2025-09-27 01:09:00', '2025-09-27 00:09:00', '2025-09-27 00:09:00'),
+(354, 'INC_25_090042', 'External', 'System Downtime', 142, NULL, 1314, 'All transactions were failing because we couldnâ€™t connect to their host', 'High', 'High', 'PBL HOST DOWNTIME', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-09-17 20:11:00', 'resolved', 2, 2, '2025-09-18 01:22:00', '2025-09-17 20:11:00', '2025-09-17 20:11:00'),
+(355, 'INC_25_090041', 'External', 'System Downtime', 142, NULL, 1314, 'All transactions were failing because we couldnâ€™t connect to their host', 'Medium', 'Medium', 'SISL Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-09-14 11:59:00', 'resolved', 3, 3, '2025-09-14 13:37:00', '2025-09-14 11:59:00', '2025-09-14 11:59:00'),
+(356, 'INC_25_080037', 'External', 'System Downtime', 141, NULL, 1306, 'All Credit and Top up transaction are failing', 'Medium', 'Medium', 'We could not connect to their host', NULL, 'Should always be continuous monitoring', NULL, NULL, '2025-08-28 20:31:00', 'resolved', 12, 12, '2025-08-28 21:39:00', '2025-08-28 20:31:00', '2025-08-28 20:31:00'),
+(357, 'INC_25_080036', 'External', 'System Downtime', 141, NULL, 1306, 'All NIB transactions were failing because we could not connect to their host', 'Medium', 'Medium', 'We were unable to connect to their host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-08-26 18:53:00', 'resolved', 5, 5, '2025-08-26 20:17:00', '2025-08-26 18:53:00', '2025-08-26 18:53:00'),
+(358, 'INC_25_080035', 'External', 'System Downtime', 141, NULL, 1306, 'All credit and top up transaction were failing.', 'Medium', 'Medium', 'All credit and top up transaction were failing because we could not connect to their host.', NULL, 'There should be a continuous monitoring of transactions', NULL, NULL, '2025-08-25 22:49:00', 'resolved', 12, 12, '2025-08-25 23:47:00', '2025-08-25 22:49:00', '2025-08-25 22:49:00'),
+(359, 'INC_25_080034', 'External', 'System Downtime', 141, NULL, 1310, 'MTN Planned System Maintenance', 'Medium', 'Medium', 'There was a planned maintenance', NULL, 'There should be a continuous monitoring of transactions.', NULL, NULL, '2025-08-22 23:01:00', 'resolved', 12, 12, '2025-08-23 00:35:00', '2025-08-22 23:01:00', '2025-08-22 23:01:00'),
+(360, 'INC_25_080038', 'Internal', 'System Downtime', 143, NULL, 1319, 'VBANK server shutdown', 'High', 'High', 'Services running at their peak over used RAM allocation which led to CPU usage spiked causing server downtime', NULL, 'Always track CPU and memory usage of services to detect abnormal behavior early.\r\nRegularly audit important resources capacity to review allocation and usage of system resources', NULL, NULL, '2025-08-22 12:48:00', 'resolved', 13, 13, '2025-08-22 20:33:00', '2025-08-22 12:48:00', '2025-08-22 12:48:00'),
+(361, 'INC_25_080033', 'External', 'System Downtime', 141, NULL, 1306, 'All transactions were failing because we could not connect to their host', 'Medium', 'Medium', 'PBL Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-08-21 00:00:00', 'resolved', 5, 5, '2025-08-21 01:08:00', '2025-08-21 00:00:00', '2025-08-21 00:00:00'),
+(362, 'INC_25_080030', 'Internal', 'System Downtime', 141, NULL, 1309, 'MTN topup transactions were failing due to low balance and also we had to change the password', 'High', 'High', 'Low balance and password change', NULL, 'We should always make sure there is enoungh money in the topup bucket', NULL, NULL, '2025-08-15 09:45:00', 'resolved', 6, 6, '2025-08-15 14:46:00', '2025-08-15 09:45:00', '2025-08-15 09:45:00'),
+(363, 'INC_25_080032', 'External', 'System Downtime', 141, NULL, 1308, 'Transactions were failing because we could not connect to their host', 'High', 'High', 'NIB Host downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-08-14 17:30:00', 'resolved', 2, 2, '2025-08-14 20:23:00', '2025-08-14 17:30:00', '2025-08-14 17:30:00'),
+(364, 'INC_25_080031', 'Internal', 'System Downtime', 141, NULL, 1308, 'Transactions were not received as we experienced connectivity issues with their server', 'High', 'High', 'Bestpoint server/host downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-08-14 17:22:00', 'resolved', 2, 2, '2025-08-14 21:00:00', '2025-08-14 17:22:00', '2025-08-14 17:22:00'),
+(365, 'INC_25_080039', 'External', 'System Downtime', 141, NULL, 1308, 'Transactions were not received as we experienced connectivity issues with their server', 'High', 'High', 'Bestpoint server/host downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-08-14 17:22:00', 'resolved', 2, 2, '2025-08-14 21:00:00', '2025-08-14 17:22:00', '2025-08-14 17:22:00'),
+(366, 'INC_25_080029', 'External', 'System Downtime', 141, NULL, 1306, 'We were unable to access Bestpoint server', 'Critical', 'Urgent', 'Bestpoint was having netork challenges with COMSYS', NULL, 'Continuous monitoring of transactions to detect such issues on time', NULL, NULL, '2025-08-08 19:05:00', 'resolved', 6, 6, '2025-08-09 14:12:00', '2025-08-08 19:05:00', '2025-08-08 19:05:00'),
+(367, 'INC_25_080028', 'External', 'System Downtime', 141, NULL, 1306, 'Telecel data transactions were failing due to a connectivity issue', 'High', 'High', 'Connectivity issue', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-08-08 18:56:00', 'resolved', 5, 5, '2025-08-08 22:31:00', '2025-08-08 18:56:00', '2025-08-08 18:56:00'),
+(368, 'INC_25_080027', 'External', 'System Downtime', 141, NULL, 1308, 'Transaction were failing because we could not connect their host', 'Medium', 'Medium', 'We could not connect to their host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-08-08 17:11:00', 'resolved', 2, 2, '2025-08-08 17:52:00', '2025-08-08 17:11:00', '2025-08-08 17:11:00'),
+(369, 'INC_25_080026', 'External', 'System Downtime', 141, NULL, 1308, 'Transaction were failing because we could not connect to their host', 'High', 'High', 'We could not connect to their host', NULL, 'There should be continous monitoring of transactions', NULL, NULL, '2025-08-06 21:00:00', 'resolved', 2, 2, '2025-08-07 00:00:00', '2025-08-06 21:00:00', '2025-08-06 21:00:00'),
+(370, 'INC_25_080024', 'External', 'System Downtime', 141, NULL, 1306, 'All top up and credit transaction were failling because we could not connect to their host.', 'Medium', 'Medium', 'NIB Host Downtime', NULL, 'There should be continous monitoring of transactions', NULL, NULL, '2025-08-01 21:04:00', 'resolved', 12, 12, '2025-08-01 22:29:00', '2025-08-01 21:04:00', '2025-08-01 21:04:00'),
+(371, 'INC_25_070023', 'External', 'System Downtime', 141, NULL, 1308, 'All transactions were failing because we could not connect to their host', 'Medium', 'Medium', 'We could not connect to their host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-07-22 21:08:00', 'resolved', 2, 2, '2025-07-22 22:33:00', '2025-07-22 21:08:00', '2025-07-22 21:08:00'),
+(372, 'INC_25_070021', 'Internal', 'System Downtime', 141, NULL, 1308, 'Wildfly application service was down causing STCCU transactions to fail', 'High', 'High', 'Wildfly application service was down', NULL, 'Regulary monitoring of system services', NULL, NULL, '2025-07-19 16:38:00', 'resolved', 2, 2, '2025-07-19 18:56:00', '2025-07-19 16:38:00', '2025-07-19 16:38:00'),
+(373, 'INC_25_080025', 'Internal', 'System Downtime', 141, NULL, 1308, 'Failed telecel debit transactions were updated as successful due to a system update carried out by the development team.', 'Critical', 'Urgent', 'System update', NULL, 'A key lesson learned is for the operations team to be in loop with the development team to closely monitor transactions and give updateswhenever a system update is deployed', NULL, NULL, '2025-07-18 06:00:00', 'resolved', 6, 6, '2025-07-31 06:00:00', '2025-07-18 06:00:00', '2025-07-18 06:00:00'),
+(374, 'INC_25_070022', 'External', 'System Downtime', 141, NULL, 1308, 'All Atwima transactions were failing because we could not connect to their host', 'Critical', 'Urgent', 'Atwima Host Downtime', NULL, NULL, NULL, NULL, '2025-07-16 20:28:00', 'resolved', 5, 5, '2025-07-17 19:45:00', '2025-07-16 20:28:00', '2025-07-16 20:28:00'),
+(375, 'INC_25_070020', 'External', 'System Downtime', 141, NULL, 1308, 'Transactions were failing because we could not connect to SISL Host', 'Medium', 'Medium', 'SISL Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-07-15 18:00:00', 'resolved', 2, 2, '2025-07-15 18:31:00', '2025-07-15 18:00:00', '2025-07-15 18:00:00'),
+(376, 'INC_25_070019', 'External', 'System Downtime', 141, NULL, 1306, 'NIB E-levy service was down causing transactions to fail', 'High', 'High', 'NIB E-levy service downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-07-14 08:16:00', 'resolved', 5, 5, '2025-07-14 10:24:00', '2025-07-14 08:16:00', '2025-07-14 08:16:00'),
+(377, 'INC_25_070016', 'Internal', 'System Downtime', 141, NULL, 1306, 'All top up and credit transactions were failing.', 'High', 'High', 'There was a disconnection with the CBA and CMS', NULL, 'There must be a continuous monitoring of transactions.', NULL, NULL, '2025-07-09 01:23:00', 'resolved', 12, 12, '2025-07-09 03:51:00', '2025-07-09 01:23:00', '2025-07-09 01:23:00'),
+(378, 'INC_25_070017', 'External', 'System Downtime', 141, NULL, 1308, 'All transactions were failing because we could not connect to their CMS', 'High', 'High', 'SISL CMS Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-07-08 02:21:00', 'resolved', 2, 2, '2025-07-08 05:52:00', '2025-07-08 02:21:00', '2025-07-08 02:21:00'),
+(379, 'INC_25_070015', 'Internal', 'System Downtime', 142, NULL, 1314, 'MTN AIRTIME WAS FAILING', 'Medium', 'Medium', 'Requests were timing out on the node', NULL, 'There should be continuous monitoring of transaction', NULL, NULL, '2025-07-07 11:17:00', 'resolved', 12, 12, '2025-07-07 13:09:00', '2025-07-07 11:17:00', '2025-07-07 11:17:00'),
+(380, 'INC_25_0700009', 'External', 'System Downtime', 141, NULL, 1308, 'NIB transactions failing due to E-levy service was down.', 'High', 'High', 'E-Levy service downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-07-04 16:17:00', 'resolved', 2, 2, '2025-07-04 20:35:00', '2025-07-04 16:17:00', '2025-07-04 16:17:00');
+INSERT INTO `incidents` (`incident_id`, `incident_ref`, `source`, `category`, `service_id`, `component_id`, `incident_type_id`, `description`, `impact_level`, `priority`, `root_cause`, `root_cause_file`, `lessons_learned`, `lessons_learned_file`, `attachment_path`, `actual_start_time`, `status`, `reported_by`, `resolved_by`, `resolved_at`, `created_at`, `updated_at`) VALUES
+(381, 'INC_25_070014', 'Internal', 'System Downtime', 141, NULL, 1306, 'All Top up and credit transaction were failing .', 'Low', 'Low', 'There was a disconnection with CBA and CMS.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-07-04 16:02:00', 'resolved', 12, 12, '2025-07-04 16:15:00', '2025-07-04 16:02:00', '2025-07-04 16:02:00'),
+(382, 'INC_25_0700008', 'External', 'System Downtime', 141, NULL, 1306, 'All Telecel data transactions were failing because of an internet connectivity challenge.', 'High', 'High', 'Internet connectivity', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-07-03 18:40:00', 'resolved', 5, 5, '2025-07-03 22:03:00', '2025-07-03 18:40:00', '2025-07-03 18:40:00'),
+(383, 'INC_25_070013', 'External', 'System Downtime', 141, NULL, 1308, 'All transactions were failing due to a database column limitation. Specifically, the column was not configured to accommodate the volume or size of values being inserted, which resulted in continuous transaction failures.', 'High', 'High', 'A column in the database reached its capacity or limit, preventing new values from being inserted. This led to the failure of all incoming transactions until the issue was identified and resolved.', NULL, 'Introducing automated alerts when a column is nearing its data limit can prevent unexpected failures.', NULL, NULL, '2025-07-03 08:22:00', 'resolved', 8, 8, '2025-07-03 12:04:00', '2025-07-03 08:22:00', '2025-07-03 08:22:00'),
+(384, 'INC_25_0700007', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-07-02 16:57:00', 'resolved', 5, 5, '2025-07-02 18:01:00', '2025-07-02 16:57:00', '2025-07-02 16:57:00'),
+(385, 'INC_25_0700006', 'External', 'System Downtime', 141, NULL, 1307, 'BOA transactions were failing because we are unable to reach their host.', 'Medium', 'Medium', 'BOA Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-07-02 08:30:00', 'resolved', 5, 5, '2025-07-02 09:51:00', '2025-07-02 08:30:00', '2025-07-02 08:30:00'),
+(386, 'INC_25_0600125', 'External', 'System Downtime', 141, NULL, 1307, 'All Bestpoint B2W transactions were not coming in because we could not connect to their host.', 'High', 'High', 'Bestpoint Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-06-27 11:58:00', 'resolved', 2, 2, '2025-06-27 15:30:00', '2025-06-27 11:58:00', '2025-06-27 11:58:00'),
+(387, 'INC_25_0600124', 'External', 'System Downtime', 141, NULL, 1307, 'All Bestpoint B2W transactions were not coming in because we could not connect to their host.', 'High', 'High', 'Bestpoint Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-06-27 06:19:00', 'resolved', 2, 2, '2025-06-27 08:46:00', '2025-06-27 06:19:00', '2025-06-27 06:19:00'),
+(388, 'INC_25_060124', 'External', 'System Downtime', 141, NULL, 1308, 'All Telecel Top Up transactions were failing.', 'Medium', 'Medium', 'Telecel Billing system was down.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-06-17 19:48:00', 'resolved', 12, 12, '2025-06-17 21:06:00', '2025-06-17 19:48:00', '2025-06-17 19:48:00'),
+(389, 'INC_25_060123', 'External', 'System Downtime', 141, NULL, 1310, 'All MTN Credit and Debit transactions were failing.', 'Medium', 'Medium', 'Planned maintenance.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-06-15 09:13:00', 'resolved', 2, 2, '2025-06-15 09:55:00', '2025-06-15 09:13:00', '2025-06-15 09:13:00'),
+(390, 'INC_25_060122', 'External', 'System Downtime', 141, NULL, 1310, 'All MTN Credit and Debit transactions were failing.', 'Critical', 'Urgent', 'Planned Maintenance.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-06-12 00:07:00', 'resolved', 12, 12, '2025-06-15 02:26:00', '2025-06-12 00:07:00', '2025-06-12 00:07:00'),
+(391, 'INC_25_060121', 'External', 'System Downtime', 141, NULL, 1307, 'All BOA transactions were not coming through because we could not connect to their server.', 'Critical', 'Urgent', 'BOA Server Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-06-11 17:17:00', 'resolved', 2, 2, '2025-06-12 15:19:00', '2025-06-11 17:17:00', '2025-06-11 17:17:00'),
+(392, 'INC_25_060120', 'External', 'System Downtime', 141, NULL, 1307, 'All B2W transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-06-10 21:03:00', 'resolved', 2, 2, '2025-06-10 22:09:00', '2025-06-10 21:03:00', '2025-06-10 21:03:00'),
+(393, 'INC_25_060119', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB B2W transactions were failing because we could not connect to their host', 'Medium', 'Medium', 'NIB Host Downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-06-09 21:14:00', 'resolved', 5, 5, '2025-06-09 22:11:00', '2025-06-09 21:14:00', '2025-06-09 21:14:00'),
+(394, 'INC_25_060118', 'External', 'System Downtime', 141, NULL, 1307, 'All Abii National transactions were failing because we could not connect to their host.', 'High', 'High', 'ABII National Host Downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-06-08 13:16:00', 'resolved', 12, 12, '2025-06-08 17:10:00', '2025-06-08 13:16:00', '2025-06-08 13:16:00'),
+(395, 'INC_25_060117', 'External', 'System Downtime', 141, NULL, 1310, 'All AT Credit and Debit transactions were failing because of planned maintenance.', 'High', 'High', 'Planned maintenance activity', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-06-08 00:17:00', 'resolved', 5, 5, '2025-06-08 07:38:00', '2025-06-08 00:17:00', '2025-06-08 00:17:00'),
+(396, 'INC_25_060116', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB credit and top up transactions were failing because we couldnâ€™t connect to their host.', 'Medium', 'Medium', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-06-05 21:17:00', 'resolved', 12, 12, '2025-06-05 22:14:00', '2025-06-05 21:17:00', '2025-06-05 21:17:00'),
+(397, 'INC_25_060115', 'External', 'System Downtime', 141, NULL, 1307, 'All Bestpoint credit transactions were failing we couldnâ€™t connect to their host', 'Medium', 'Medium', 'Bestpoint system host downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-06-01 16:25:00', 'resolved', 12, 12, '2025-06-01 17:22:00', '2025-06-01 16:25:00', '2025-06-01 16:25:00'),
+(398, 'INC_25_050114', 'External', 'System Downtime', 141, NULL, 1307, 'All transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'ABII National Server Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-31 06:00:00', 'resolved', 12, 12, '2025-05-31 06:41:00', '2025-05-31 06:00:00', '2025-05-31 06:00:00'),
+(399, 'INC_25_050113', 'External', 'System Downtime', 141, NULL, 1307, 'All B2W transactions were failing because we could not connect to their host.', 'High', 'High', 'NIB Host downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-30 10:37:00', 'resolved', 5, 5, '2025-05-30 14:09:00', '2025-05-30 10:37:00', '2025-05-30 10:37:00'),
+(400, 'INC_25_050112', 'External', 'System Downtime', 141, NULL, 1307, 'All transactions were failing because we could not connect to their host.', 'Low', 'Low', 'NIB Host downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-28 21:13:00', 'resolved', 5, 5, '2025-05-28 21:39:00', '2025-05-28 21:13:00', '2025-05-28 21:13:00'),
+(401, 'INC_25_050111', 'External', 'System Downtime', 141, NULL, 1307, 'All B2W transactions were failing because we could not connect to their host', 'Medium', 'Medium', 'SISL Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-27 00:00:00', 'resolved', 5, 5, '2025-05-27 00:58:00', '2025-05-27 00:00:00', '2025-05-27 00:00:00'),
+(402, 'INC_25_050110', 'External', 'System Downtime', 141, NULL, 1307, 'All B2W transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-25 21:21:00', 'resolved', 5, 5, '2025-05-25 22:02:00', '2025-05-25 21:21:00', '2025-05-25 21:21:00'),
+(403, 'INC_25_050109', 'External', 'System Downtime', 141, NULL, 1307, 'All credit and top up transactions were failing because we couldnâ€™t connect to their host.', 'High', 'High', 'NIB host downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-23 13:13:00', 'resolved', 12, 12, '2025-05-23 15:38:00', '2025-05-23 13:13:00', '2025-05-23 13:13:00'),
+(404, 'INC_25_050108', 'External', 'System Downtime', 141, NULL, 1307, 'All B2W transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'SISL Server downtime', NULL, 'Tere must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-22 23:55:00', 'resolved', 5, 5, '2025-05-23 00:50:00', '2025-05-22 23:55:00', '2025-05-22 23:55:00'),
+(405, 'INC_25_050107', 'External', 'System Downtime', 141, NULL, 1307, 'All transactions were not coming in because we could not connect to their host.', 'Medium', 'Medium', 'SISL Server downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-21 00:00:00', 'resolved', 2, 2, '2025-05-21 00:59:00', '2025-05-21 00:00:00', '2025-05-21 00:00:00'),
+(406, 'INC_25_050106', 'External', 'System Downtime', 141, NULL, 1308, 'All BOA CREDIT transactions were failing because we could not connect to their E-levy service.', 'Critical', 'Urgent', 'BOA E-levy service downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-05-19 18:51:00', 'resolved', 5, 5, '2025-05-20 06:39:00', '2025-05-19 18:51:00', '2025-05-19 18:51:00'),
+(407, 'INC_25_050105', 'External', 'System Downtime', 141, NULL, 1307, 'All PBL Credit transactions were failing because their host was down.', 'High', 'High', 'PBL Host Downtime', NULL, NULL, NULL, NULL, '2025-05-18 06:28:00', 'resolved', 5, 5, '2025-05-18 13:03:00', '2025-05-18 06:28:00', '2025-05-18 06:28:00'),
+(408, 'INC_25_050104', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB B2W transactions were failing because we could not connect to their host.', 'Critical', 'Urgent', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-16 17:18:00', 'resolved', 5, 5, '2025-05-17 07:16:00', '2025-05-16 17:18:00', '2025-05-16 17:18:00'),
+(409, 'INC_25_050101', 'External', 'System Downtime', 141, NULL, 1308, 'All PBL transactions were failing because we were getting intermediate errors from the CMS.', 'High', 'High', 'Error from PBL CMS.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-15 00:00:00', 'resolved', 2, 2, '2025-05-15 05:13:00', '2025-05-15 00:00:00', '2025-05-15 00:00:00'),
+(410, 'INC_25_050103', 'External', 'System Downtime', 141, NULL, 1309, 'All Telecel data transactions were failing because the gateway was down.', 'High', 'High', 'Telecel internet bundle gateway was down.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-05-14 18:51:00', 'resolved', 2, 2, '2025-05-15 01:10:00', '2025-05-14 18:51:00', '2025-05-14 18:51:00'),
+(411, 'INC_25_050100', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing because we couldnâ€™t connect to their host.', 'Medium', 'Medium', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-14 12:52:00', 'resolved', 12, 12, '2025-05-14 14:24:00', '2025-05-14 12:52:00', '2025-05-14 12:52:00'),
+(412, 'INC_25_050102', 'External', 'System Downtime', 141, NULL, 1307, 'BOA Transactions were not coming in because we could not connect to their server.', 'Critical', 'Urgent', 'BOA Server Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-14 12:52:00', 'resolved', 2, 2, '2025-05-15 09:24:00', '2025-05-14 12:52:00', '2025-05-14 12:52:00'),
+(413, 'INC_25_050099', 'External', 'System Downtime', 141, NULL, 1307, 'All BOA transactions were failing because we could not connect to their host.', 'High', 'High', 'BOA Host Downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-13 08:22:00', 'resolved', 2, 2, '2025-05-13 12:47:00', '2025-05-13 08:22:00', '2025-05-13 08:22:00'),
+(414, 'INC_25_050098', 'External', 'System Downtime', 141, NULL, 1309, 'All Telecel data transactions were failing.', 'High', 'High', 'Telecel internet bundle gateway was down.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-13 06:24:00', 'resolved', 2, 2, '2025-05-13 12:45:00', '2025-05-13 06:24:00', '2025-05-13 06:24:00'),
+(415, 'INC_25_050097', 'External', 'System Downtime', 141, NULL, 1307, 'All SISL Credit and top up Transactions were failing.', 'Medium', 'Medium', 'SISL Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-12 22:31:00', 'resolved', 12, 12, '2025-05-12 23:16:00', '2025-05-12 22:31:00', '2025-05-12 22:31:00'),
+(416, 'INC_25_050096', 'External', 'System Downtime', 141, NULL, 1307, 'All credit and top up transactions were failing because we couldnâ€™t connect to their host.', 'Medium', 'Medium', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-12 21:22:00', 'resolved', 12, 12, '2025-05-12 21:53:00', '2025-05-12 21:22:00', '2025-05-12 21:22:00'),
+(417, 'INC_25_050095', 'External', 'System Downtime', 141, NULL, 1310, 'All Telecel transactions were failing because of a planned maintenance.', 'High', 'High', 'Telecel Planned Maintenance.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-11 00:00:00', 'resolved', 5, 5, '2025-05-11 02:27:00', '2025-05-11 00:00:00', '2025-05-11 00:00:00'),
+(418, 'INC_25_050094', 'Internal', 'System Downtime', 141, NULL, 1308, 'All PBL, SISL and NIB credit transactions were not coming in.', 'Medium', 'Medium', 'An Internal Database Service Downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-09 07:07:00', 'resolved', 2, 2, '2025-05-09 08:10:00', '2025-05-09 07:07:00', '2025-05-09 07:07:00'),
+(419, 'INC_25_050093', 'External', 'System Downtime', 141, NULL, 1307, 'All SISL transactions were not coming in because we could not connect to their host', 'Medium', 'Medium', 'SISL Server Downtime', NULL, 'here must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-06 23:29:00', 'resolved', 12, 12, '2025-05-07 00:06:00', '2025-05-06 23:29:00', '2025-05-06 23:29:00'),
+(420, 'INC_25_050092', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB credit and top up transactions were failing because we couldnâ€™t connect to their host', 'High', 'High', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-06 17:06:00', 'resolved', 12, 12, '2025-05-06 21:21:00', '2025-05-06 17:06:00', '2025-05-06 17:06:00'),
+(421, 'INC_25_050091', 'External', 'System Downtime', 141, NULL, 1307, 'All PBL transactions were failing because we could not connect to their host.', 'High', 'High', 'PBL Host Downtime.', NULL, 'Regular monitoring of clientsâ€™ transaction to detect downtime events early and resolve them', NULL, NULL, '2025-05-04 21:44:00', 'resolved', 5, 5, '2025-05-05 05:09:00', '2025-05-04 21:44:00', '2025-05-04 21:44:00'),
+(422, 'INC_25_050090', 'External', 'System Downtime', 141, NULL, 1308, 'All NIB B2W transactions were failing because their e-levy service was down.', 'Medium', 'Medium', 'NIB E-levy Service Downtime', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-04 11:25:00', 'resolved', 14, 14, '2025-05-04 13:08:00', '2025-05-04 11:25:00', '2025-05-04 11:25:00'),
+(423, 'INC_25_050089', 'External', 'System Downtime', 141, NULL, 1307, 'SISL Credit and top up Transactions were failing.', 'Medium', 'Medium', 'SISL Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-05-03 23:25:00', 'resolved', 12, 12, '2025-05-04 00:19:00', '2025-05-03 23:25:00', '2025-05-03 23:25:00'),
+(424, 'INC_25_040088', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB B2W transactions were not coming in because we could not connect to their host.', 'Medium', 'Medium', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-28 21:26:00', 'resolved', 5, 5, '2025-04-28 22:00:00', '2025-04-28 21:26:00', '2025-04-28 21:26:00'),
+(425, 'INC_25_040086', 'External', 'System Downtime', 141, NULL, 1307, 'All SISL transactions were failing.', 'High', 'High', 'SISL Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-26 14:12:00', 'resolved', 2, 2, '2025-04-26 17:50:00', '2025-04-26 14:12:00', '2025-04-26 14:12:00'),
+(426, 'INC_25_040087', 'External', 'System Downtime', 141, NULL, 1307, 'NIB credit(B2W) transactions were failing because their e-levy service was down.', 'High', 'High', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-04-26 08:07:00', 'resolved', 2, 2, '2025-04-26 15:21:00', '2025-04-26 08:07:00', '2025-04-26 08:07:00'),
+(427, 'INC_25_040085', 'External', 'System Downtime', 141, NULL, 1307, 'All SISL Credit and top up Transactions were failing.', 'Medium', 'Medium', 'SISL Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-25 00:18:00', 'resolved', 12, 12, '2025-04-25 00:49:00', '2025-04-25 00:18:00', '2025-04-25 00:18:00'),
+(428, 'INC_25_040084', 'External', 'System Downtime', 141, NULL, 1307, 'All BESTPOINT transactions were not coming in because we could not connect to their host', 'High', 'High', 'BESTPOINT Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-23 09:31:00', 'resolved', 2, 2, '2025-04-23 12:33:00', '2025-04-23 09:31:00', '2025-04-23 09:31:00'),
+(429, 'INC_25_040083', 'External', 'System Downtime', 141, NULL, 1307, 'All BestPoint B2W transactions were not coming in because we could not connect to their host', 'Medium', 'Medium', 'BESTPOINT Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-23 06:35:00', 'resolved', 5, 5, '2025-04-23 08:31:00', '2025-04-23 06:35:00', '2025-04-23 06:35:00'),
+(430, 'INC_25_0400101', 'Internal', 'System Downtime', 141, NULL, 1308, 'Xcel Wallet API went down causing wallet balances to show zero in all accounts', 'Medium', 'Medium', 'Xcel Wallet API was down.', NULL, '1.	Real-time monitoring help detect issues early before they escalate into extended downtime.\r\n2.	Ensure critical systems have backup servers, load balancing, and failover mechanisms to maintain availability during outages.', NULL, NULL, '2025-04-23 00:45:00', 'resolved', 5, 5, '2025-04-23 02:31:00', '2025-04-23 00:45:00', '2025-04-23 00:45:00'),
+(431, 'INC_25_0400100', 'Internal', 'System Downtime', 141, NULL, 1309, 'Microsoft office 365 subscription expired.', 'Critical', 'Urgent', 'Refunding of Virtual Account used for Payment failed.', NULL, 'Multiple payment channels must be employed for payments for crucial services.', NULL, NULL, '2025-04-20 00:00:00', 'resolved', 15, 15, '2025-04-23 16:30:00', '2025-04-20 00:00:00', '2025-04-20 00:00:00'),
+(432, 'INC_25_040082', 'External', 'System Downtime', 141, NULL, 1308, 'All credit transactions were failing because their E-levy system was down', 'Medium', 'Medium', 'BOA E-Levy service downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-19 07:35:00', 'resolved', 6, 6, '2025-04-19 08:54:00', '2025-04-19 07:35:00', '2025-04-19 07:35:00'),
+(433, 'INC_25_040081', 'External', 'System Downtime', 141, NULL, 1307, 'All BOA transactions were failing because we could not connect to their host.', 'High', 'High', 'BOA Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-18 17:59:00', 'resolved', 2, 2, '2025-04-18 22:45:00', '2025-04-18 17:59:00', '2025-04-18 17:59:00'),
+(434, 'INC_25_040080', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing because we could not connect to their host.', 'High', 'High', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue', NULL, NULL, '2025-04-14 21:08:00', 'resolved', 14, 14, '2025-04-15 00:01:00', '2025-04-14 21:08:00', '2025-04-14 21:08:00'),
+(435, 'INC_25_040079', 'External', 'System Downtime', 141, NULL, 1307, 'All BestPoint credit transactions were failing to process.', 'High', 'High', 'Bestpoint Host server disk space was full.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-14 10:36:00', 'resolved', 2, 2, '2025-04-14 12:58:00', '2025-04-14 10:36:00', '2025-04-14 10:36:00'),
+(436, 'INC_25_040078', 'External', 'System Downtime', 141, NULL, 1310, 'All AT transactions were failing because of planned maintenance.', 'High', 'High', 'Maintenance Activity', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-14 00:04:00', 'resolved', 5, 5, '2025-04-14 06:14:00', '2025-04-14 00:04:00', '2025-04-14 00:04:00'),
+(437, 'INC_25_040077', 'External', 'System Downtime', 141, NULL, 1307, 'All ABII National transactions were failing because we could not connect to their host.', 'High', 'High', 'ABII National Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-09 00:10:00', 'resolved', 14, 14, '2025-04-09 05:05:00', '2025-04-09 00:10:00', '2025-04-09 00:10:00'),
+(438, 'INC_25_040076', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing because we could not connect to their host.', 'Low', 'Low', 'NIB Host downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-08 22:02:00', 'resolved', 14, 14, '2025-04-08 22:21:00', '2025-04-08 22:02:00', '2025-04-08 22:02:00'),
+(439, 'INC_25_040075', 'External', 'System Downtime', 141, NULL, 1308, 'GCB transactions were not coming through.', 'High', 'High', 'GCB Host Memory full and E-levy Service Downtime', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-07 02:21:00', 'resolved', 2, 2, '2025-04-07 04:55:00', '2025-04-07 02:21:00', '2025-04-07 02:21:00'),
+(440, 'INC_25_040074', 'External', 'System Downtime', 141, NULL, 1310, 'All MTN transactions were failing because of service maintenance activity.', 'High', 'High', 'Planned maintenance.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-04 00:01:00', 'resolved', 12, 12, '2025-04-04 05:00:00', '2025-04-04 00:01:00', '2025-04-04 00:01:00'),
+(441, 'INC_25_040073', 'External', 'System Downtime', 141, NULL, 1307, 'SISL Credit and top up Transactions were failing', 'Low', 'Low', 'SISL Server downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-04-02 18:04:00', 'resolved', 12, 12, '2025-04-02 18:14:00', '2025-04-02 18:04:00', '2025-04-02 18:04:00'),
+(442, 'INC_25_0400102', 'Internal', 'Fraud', 141, NULL, 1311, 'On April 5, 2025, MTN submitted a reversal request (Ticket #13988) concerning a GHS 2,700.00 Mobile Money transaction alleged to have been initiated in error by a customer. Upon investigation, it was confirmed that the transaction was a successful â€œMoMo to Walletâ€ transfer processed through the Xcel platform.', 'Low', 'Low', 'Social engineering fraud â€“ customer manipulated into initiating a transaction under false pretenses.', NULL, '1.	Strengthening public education on impersonation scams and fraud tactics.\r\n2.	Rapid escalation and multi-party engagement helped clarify the issue efficiently.', NULL, NULL, '2025-04-02 18:04:00', 'resolved', 16, 16, '2025-04-02 18:10:00', '2025-04-02 18:04:00', '2025-04-02 18:04:00'),
+(443, 'INC_25_030072', 'External', 'System Downtime', 141, NULL, 1308, 'All GCB transactions were failing we could not connect to their host.', 'Low', 'Low', 'GCB E-Levy Service Downtime', NULL, 'There must be continuous monitoring and checks to see if transactions are up', NULL, NULL, '2025-03-31 09:46:00', 'resolved', 5, 5, '2025-03-31 09:53:00', '2025-03-31 09:46:00', '2025-03-31 09:46:00'),
+(444, 'INC_25_030071', 'External', 'System Downtime', 141, NULL, 1307, 'All SISL transactions were not coming through because there was a server certification issue.', 'High', 'High', 'SISL Host certification failure', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-30 15:15:00', 'resolved', 2, 2, '2025-03-30 20:38:00', '2025-03-30 15:15:00', '2025-03-30 15:15:00'),
+(445, 'INC_25_030070', 'External', 'System Downtime', 141, NULL, 1307, 'All PBL transactions were not coming through because there was a server certification issue.', 'High', 'High', 'PBL Host Server Certificate Failure.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-30 15:14:00', 'resolved', 12, 12, '2025-03-30 17:53:00', '2025-03-30 15:14:00', '2025-03-30 15:14:00'),
+(446, 'INC_25_030069', 'External', 'System Downtime', 141, NULL, 1310, 'All Telecel top-up and bill transactions were failing because of a service maintenance activity.', 'High', 'High', 'Planned Maintenance.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-29 21:25:00', 'resolved', 5, 5, '2025-03-30 00:36:00', '2025-03-29 21:25:00', '2025-03-29 21:25:00'),
+(447, 'INC_25_030068', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing because there was a connection timeout.', 'High', 'High', 'Unsuccessful Connection to NIB Host', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-28 23:26:00', 'resolved', 12, 12, '2025-03-29 07:07:00', '2025-03-28 23:26:00', '2025-03-28 23:26:00'),
+(448, 'INC_25_030067', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB credit transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-28 21:10:00', 'resolved', 2, 2, '2025-03-28 22:20:00', '2025-03-28 21:10:00', '2025-03-28 21:10:00'),
+(449, 'INC_25_030066', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB credit transactions were failing because we could not connect to their host.', 'High', 'High', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-26 21:03:00', 'resolved', 5, 5, '2025-03-26 23:40:00', '2025-03-26 21:03:00', '2025-03-26 21:03:00'),
+(450, 'INC_25_030065', 'External', 'System Downtime', 141, NULL, 1307, 'All transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'GCB Host Downtime.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-26 00:55:00', 'resolved', 12, 12, '2025-03-26 02:00:00', '2025-03-26 00:55:00', '2025-03-26 00:55:00'),
+(451, 'INC_25_030064', 'External', 'System Downtime', 141, NULL, 1308, 'All GCB credit and Debit transactions were failing because their E-levy service was down', 'High', 'High', 'GCB E-levy service downtime', NULL, 'There must be a continuous monitoring and to check to see if transactions are processing.', NULL, NULL, '2025-03-25 00:53:00', 'resolved', 14, 14, '2025-03-25 04:07:00', '2025-03-25 00:53:00', '2025-03-25 00:53:00'),
+(452, 'INC_25_030063', 'External', 'System Downtime', 141, NULL, 1310, 'Top up transactions were failing because there was a planned maintenance.', 'Medium', 'Medium', 'Planned Maintenance', NULL, NULL, NULL, NULL, '2025-03-23 02:36:00', 'resolved', 12, 12, '2025-03-23 03:45:00', '2025-03-23 02:36:00', '2025-03-23 02:36:00'),
+(453, 'INC_25_030062', 'External', 'System Downtime', 141, NULL, 1310, 'All Telecel transactions were failing due to planned maintenance.', 'Medium', 'Medium', 'Planned Maintenance', NULL, NULL, NULL, NULL, '2025-03-22 22:31:00', 'resolved', 2, 2, '2025-03-22 23:46:00', '2025-03-22 22:31:00', '2025-03-22 22:31:00'),
+(454, 'INC_25_030061', 'External', 'System Downtime', 141, NULL, 1310, 'All transactions were failing due to planned maintenance.', 'Low', 'Low', 'Planned maintenance', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-22 20:24:00', 'resolved', 12, 12, '2025-03-22 20:43:00', '2025-03-22 20:24:00', '2025-03-22 20:24:00'),
+(455, 'INC_25_030060', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing because we could not connect to their host.', 'High', 'High', 'NIB Host Downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-22 00:33:00', 'resolved', 14, 14, '2025-03-22 05:08:00', '2025-03-22 00:33:00', '2025-03-22 00:33:00'),
+(456, 'INC_25_030059', 'External', 'System Downtime', 141, NULL, 1307, 'All Bestpoint transactions  were failing because we could not connect to their host.', 'High', 'High', 'Bestpoint system host downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-20 20:30:00', 'resolved', 5, 5, '2025-03-20 22:37:00', '2025-03-20 20:30:00', '2025-03-20 20:30:00'),
+(457, 'INC_25_030058', 'External', 'System Downtime', 141, NULL, 1308, 'BOA credit(B2W) transactions were failing because their e-levy service was down', 'High', 'High', 'BOA E-Levy service downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-17 10:52:00', 'resolved', 14, 14, '2025-03-17 16:35:00', '2025-03-17 10:52:00', '2025-03-17 10:52:00'),
+(458, 'INC_25_030057', 'External', 'System Downtime', 141, NULL, 1308, 'All NIB B2W transactions were failing because their e-levy service went down.', 'High', 'High', 'NIB E-Levy Service Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-15 18:26:00', 'resolved', 14, 14, '2025-03-15 20:56:00', '2025-03-15 18:26:00', '2025-03-15 18:26:00'),
+(459, 'INC_25_030056', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB credit and Top up transactions were failing because we could not connect to their host.', 'Critical', 'Urgent', 'NIB Host Downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-14 18:58:00', 'resolved', 5, 5, '2025-03-15 08:31:00', '2025-03-14 18:58:00', '2025-03-14 18:58:00'),
+(460, 'INC_25_030055', 'External', 'System Downtime', 141, NULL, 1307, 'All SISL transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'SISL Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-13 21:11:00', 'resolved', 2, 2, '2025-03-13 21:49:00', '2025-03-13 21:11:00', '2025-03-13 21:11:00'),
+(461, 'INC_25_030054', 'External', 'System Downtime', 141, NULL, 1308, 'All GCB credit and Debit transactions were failing because their E-levy service was down:', 'High', 'High', 'GCB E-LEVY service was showing an error â€œ500 Internal Server Error.â€', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-06 02:33:00', 'resolved', 5, 5, '2025-03-06 05:06:00', '2025-03-06 02:33:00', '2025-03-06 02:33:00'),
+(462, 'INC_25_030053', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing.', 'Low', 'Low', 'NIB Host Downtime.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-03-03 20:53:00', 'resolved', 14, 14, '2025-03-03 21:16:00', '2025-03-03 20:53:00', '2025-03-03 20:53:00'),
+(463, 'INC_25_020052', 'Internal', 'System Downtime', 141, NULL, 1308, 'PBL and SISL transaction were not coming due to buffer space which affected ussdgate, engine and ussd helper.', 'Medium', 'Medium', 'Insufficient buffer space caused USSD service failures on 172.16.30.27', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-28 07:28:00', 'resolved', 2, 2, '2025-02-28 08:08:00', '2025-02-28 07:28:00', '2025-02-28 07:28:00'),
+(464, 'INC_25_020051', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing.', 'Medium', 'Medium', 'NIB Host Downtime.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-24 21:00:00', 'resolved', 2, 2, '2025-02-24 21:44:00', '2025-02-24 21:00:00', '2025-02-24 21:00:00'),
+(465, 'INC_25_020050', 'External', 'System Downtime', 141, NULL, 1307, 'All GCB  transactions were failing.', 'Medium', 'Medium', 'Network connectivity issue caused server connection timeout failure.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-23 21:59:00', 'resolved', 12, 12, '2025-02-23 23:09:00', '2025-02-23 21:59:00', '2025-02-23 21:59:00'),
+(466, 'INC_25_020049', 'External', 'System Downtime', 141, NULL, 1310, 'Planned maintenance for MTN', 'High', 'High', 'Planned MTN maintenance on all systems', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-23 00:02:00', 'resolved', 14, 14, '2025-02-23 06:54:00', '2025-02-23 00:02:00', '2025-02-23 00:02:00'),
+(467, 'INC_25_020048', 'Internal', 'System Downtime', 141, NULL, 1308, 'B2W transactions were failing due to wrong parameter in the payload \"receiveInstitutionID instead of receiverInstitutionID\"', 'High', 'High', 'Incorrect payload parameter caused B2W transaction failures', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-22 02:24:00', 'resolved', 2, 2, '2025-02-22 06:38:00', '2025-02-22 02:24:00', '2025-02-22 02:24:00'),
+(468, 'INC_25_020047', 'External', 'System Downtime', 141, NULL, 1308, 'E-levy service went off because the CPU utilization was high.', 'High', 'High', 'High CPU utilization caused E-levy service outage.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-21 16:00:00', 'resolved', 14, 14, '2025-02-21 18:25:00', '2025-02-21 16:00:00', '2025-02-21 16:00:00'),
+(469, 'INC_25_020046', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing.', 'Medium', 'Medium', 'NIB Host Downtime.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-20 15:11:00', 'resolved', 2, 2, '2025-02-20 16:55:00', '2025-02-20 15:11:00', '2025-02-20 15:11:00'),
+(470, 'INC_25_020045', 'External', 'System Downtime', 141, NULL, 1310, 'Planned maintenance for MTN', 'High', 'High', 'Planned MTN maintenance on all systems', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-20 00:42:00', 'resolved', 14, 14, '2025-02-20 04:50:00', '2025-02-20 00:42:00', '2025-02-20 00:42:00'),
+(471, 'INC_25_020044', 'External', 'System Downtime', 141, NULL, 1307, 'All SISL transactions were failing because we could not connect to their host.', 'High', 'High', 'SISL host downtime', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-18 22:02:00', 'resolved', 5, 5, '2025-02-19 00:25:00', '2025-02-18 22:02:00', '2025-02-18 22:02:00'),
+(472, 'INC_25_020043', 'External', 'System Downtime', 141, NULL, 1308, 'All GCB credit and debit transactions were failing.', 'Medium', 'Medium', 'GCB E-levy service downtime', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-17 02:36:00', 'resolved', 14, 14, '2025-02-17 03:10:00', '2025-02-17 02:36:00', '2025-02-17 02:36:00'),
+(473, 'INC_25_020042', 'External', 'System Downtime', 141, NULL, 1309, 'All Telecel transactions were failing', 'Critical', 'Urgent', 'Insufficient balance in Telecel bucket', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-15 22:00:00', 'resolved', 2, 2, '2025-02-16 08:44:00', '2025-02-15 22:00:00', '2025-02-15 22:00:00'),
+(474, 'INC_25_020041', 'External', 'System Downtime', 141, NULL, 1307, 'All SISL transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'SISL host downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-12 22:26:00', 'resolved', 5, 5, '2025-02-12 23:33:00', '2025-02-12 22:26:00', '2025-02-12 22:26:00'),
+(475, 'INC_25_020040', 'External', 'System Downtime', 141, NULL, 1310, 'All BESTPOINT credit transactions were failing because of the maintenance', 'Critical', 'Urgent', 'System Maintenance', NULL, NULL, NULL, NULL, '2025-02-10 21:40:00', 'resolved', 14, 14, '2025-02-11 07:19:00', '2025-02-10 21:40:00', '2025-02-10 21:40:00'),
+(476, 'INC_25_020039', 'External', 'System Downtime', 141, NULL, 1310, 'All AirtelTigo transactions were failing.', 'Critical', 'Urgent', 'Server maintenance.', NULL, NULL, NULL, NULL, '2025-02-09 00:01:00', 'resolved', 12, 12, '2025-02-09 08:08:00', '2025-02-09 00:01:00', '2025-02-09 00:01:00'),
+(477, 'INC_25_020038', 'External', 'System Downtime', 141, NULL, 1308, 'All GCB transactions were failing.', 'Low', 'Low', 'Services (CBA and CMS) were not binding and TMC was down.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-07 15:24:00', 'resolved', 12, 12, '2025-02-07 15:36:00', '2025-02-07 15:24:00', '2025-02-07 15:24:00'),
+(478, 'INC_25_020037', 'External', 'System Downtime', 141, NULL, 1308, 'All GCB credit transactions were failing.', 'Low', 'Low', 'Application (CBA, CMS and TMC) Services downtime.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-07 11:49:00', 'resolved', 12, 12, '2025-02-07 12:00:00', '2025-02-07 11:49:00', '2025-02-07 11:49:00'),
+(479, 'INC_25_020036', 'External', 'System Downtime', 141, NULL, 1308, 'All transactions were failing because the DB Service went downtime', 'Medium', 'Medium', 'DB Service downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-05 07:00:00', 'resolved', 14, 14, '2025-02-05 07:38:00', '2025-02-05 07:00:00', '2025-02-05 07:00:00'),
+(480, 'INC_25_020035', 'External', 'System Downtime', 141, NULL, 1307, 'All PBL transactions were not coming through', 'Medium', 'Medium', 'PBL server downtime.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-04 17:00:00', 'resolved', 12, 12, '2025-02-04 17:37:00', '2025-02-04 17:00:00', '2025-02-04 17:00:00'),
+(481, 'INC_25_020034', 'External', 'System Downtime', 141, NULL, 1307, 'All PBL transactions were not coming through', 'Medium', 'Medium', 'PBL Server Downtime', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-04 14:48:00', 'resolved', 12, 12, '2025-02-04 15:53:00', '2025-02-04 14:48:00', '2025-02-04 14:48:00'),
+(482, 'INC_25_020033', 'External', 'System Downtime', 141, NULL, 1307, 'All Bestponit transactions were failing because we could not connect to their server. They had network connectivity issues with ISP', 'Low', 'Low', 'Network Connectivity Down at BestPoint', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-02-04 09:47:00', 'resolved', 6, 6, '2025-02-04 10:11:00', '2025-02-04 09:47:00', '2025-02-04 09:47:00'),
+(483, 'INC_25_010031', 'External', 'System Downtime', 141, NULL, 1308, 'All GCB mobile money transactions were failing because e-levy was down', 'Low', 'Low', 'GCB Elevy service downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-31 11:24:00', 'resolved', 6, 6, '2025-01-31 11:37:00', '2025-01-31 11:24:00', '2025-01-31 11:24:00'),
+(484, 'INC_25_010032', 'External', 'System Downtime', 141, NULL, 1309, 'All ECG Bill transactions were failing because of insufficient balance', 'Critical', 'Urgent', 'Insufficient account balance', NULL, 'There must be a continuous monitoring and check of the balance buckets of various banks.', NULL, NULL, '2025-01-30 18:28:00', 'resolved', 5, 5, '2025-02-03 17:34:00', '2025-01-30 18:28:00', '2025-01-30 18:28:00'),
+(485, 'INC_25_010029', 'External', 'System Downtime', 141, NULL, 1307, 'All PBL transactions were failing.', 'Critical', 'Urgent', 'We were not able to access the application server (10.170.1.3) and DB server (10.170.2.67)', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-30 00:02:00', 'resolved', 2, 2, '2025-01-31 00:47:00', '2025-01-30 00:02:00', '2025-01-30 00:02:00'),
+(486, 'INC_25_010030', 'External', 'System Downtime', 141, NULL, 1307, 'All PBL transactions were failing because we could not connect to their live DB server', 'Critical', 'Urgent', 'PBL live Database server connection failed.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-30 00:02:00', 'resolved', 14, 14, '2025-01-31 16:38:00', '2025-01-30 00:02:00', '2025-01-30 00:02:00'),
+(487, 'INC_25_010028', 'External', 'System Downtime', 141, NULL, 1307, 'All GCB credit transactions were failing.', 'Medium', 'Medium', 'GCB host not accessible', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-29 12:41:00', 'resolved', 12, 12, '2025-01-29 14:14:00', '2025-01-29 12:41:00', '2025-01-29 12:41:00'),
+(488, 'INC_25_010027', 'External', 'System Downtime', 141, NULL, 1307, 'All transactions were failing because we could not connect to their host', 'Low', 'Low', 'PBL host downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-28 17:17:00', 'resolved', 14, 14, '2025-01-28 17:45:00', '2025-01-28 17:17:00', '2025-01-28 17:17:00'),
+(489, 'INC_25_010025', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing.', 'Low', 'Low', 'NIB Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-27 21:24:00', 'resolved', 12, 12, '2025-01-27 21:33:00', '2025-01-27 21:24:00', '2025-01-27 21:24:00'),
+(490, 'INC_25_010026', 'External', 'System Downtime', 141, NULL, 1307, 'All ABII National credit and top up transactions were failing.', 'High', 'High', 'ABII National Host Downtime.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-27 19:11:00', 'resolved', 2, 2, '2025-01-27 21:41:00', '2025-01-27 19:11:00', '2025-01-27 19:11:00'),
+(491, 'INC_25_010024', 'External', 'System Downtime', 141, NULL, 1308, 'Both Credit and Debit GCB transactions were failing because their E-levy service was down', 'Medium', 'Medium', 'GCB E-levy service was downtime.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-27 02:13:00', 'resolved', 14, 14, '2025-01-27 03:24:00', '2025-01-27 02:13:00', '2025-01-27 02:13:00'),
+(492, 'INC_25_010023', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing.', 'Medium', 'Medium', 'Connection to NIB CBS host refused.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-26 10:55:00', 'resolved', 12, 12, '2025-01-26 12:15:00', '2025-01-26 10:55:00', '2025-01-26 10:55:00'),
+(493, 'INC_25_010022', 'External', 'System Downtime', 141, NULL, 1307, 'All ABII National transactions were failing because we could not connect to their host.', 'High', 'High', 'ABII National Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-26 01:24:00', 'resolved', 5, 5, '2025-01-26 08:14:00', '2025-01-26 01:24:00', '2025-01-26 01:24:00'),
+(494, 'INC_25_010019', 'External', 'System Downtime', 141, NULL, 1307, 'All SISL Credit transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'SISL Host Downtime', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-20 06:00:00', 'resolved', 5, 5, '2025-01-20 06:33:00', '2025-01-20 06:00:00', '2025-01-20 06:00:00'),
+(495, 'INC_25_010018', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB credit and Top up transactions were failing because we could not connect to their host', 'Critical', 'Urgent', 'Failure connection to NIB host.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-19 10:21:00', 'resolved', 5, 5, '2025-01-19 21:49:00', '2025-01-19 10:21:00', '2025-01-19 10:21:00'),
+(496, 'INC_25_010021', 'External', 'System Downtime', 141, NULL, 1309, 'All ABII National credit and top up transactions were failing', 'High', 'High', 'Low balance on account.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-19 02:28:00', 'resolved', 12, 12, '2025-01-19 06:41:00', '2025-01-19 02:28:00', '2025-01-19 02:28:00'),
+(497, 'INC_25_010017', 'External', 'System Downtime', 141, NULL, 1308, 'All GCB credit transactions were failing.', 'Medium', 'Medium', 'GCB E-levy service downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-18 23:57:00', 'resolved', 12, 12, '2025-01-19 01:33:00', '2025-01-18 23:57:00', '2025-01-18 23:57:00'),
+(498, 'INC_25_010020', 'External', 'System Downtime', 141, NULL, 1309, 'All Abii National transactions were failing because account balance less than minimum balance.', 'Medium', 'Medium', 'Low balance on account.', NULL, 'There must be continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-18 23:52:00', 'resolved', 12, 12, '2025-01-19 01:19:00', '2025-01-18 23:52:00', '2025-01-18 23:52:00');
+INSERT INTO `incidents` (`incident_id`, `incident_ref`, `source`, `category`, `service_id`, `component_id`, `incident_type_id`, `description`, `impact_level`, `priority`, `root_cause`, `root_cause_file`, `lessons_learned`, `lessons_learned_file`, `attachment_path`, `actual_start_time`, `status`, `reported_by`, `resolved_by`, `resolved_at`, `created_at`, `updated_at`) VALUES
+(499, 'INC_25_010016', 'External', 'System Downtime', 141, NULL, 1308, 'All GCB credit transactions were failing because the major services went off(E-levy,CBA,CMS,APL)', 'Medium', 'Medium', 'Major services went off (E-levy,CBA,CMS,APL)', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-18 15:06:00', 'resolved', 6, 6, '2025-01-18 16:28:00', '2025-01-18 15:06:00', '2025-01-18 15:06:00'),
+(500, 'INC_25_010015', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB credit transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'NIB Host Downtime.', NULL, 'There must be a continuous monitoring and asking of update from their team on the issue.', NULL, NULL, '2025-01-17 05:56:00', 'resolved', 5, 5, '2025-01-17 07:40:00', '2025-01-17 05:56:00', '2025-01-17 05:56:00'),
+(501, 'INC_25_010014', 'External', 'System Downtime', 141, NULL, 1308, 'All SISL transactions were failing because we could not connect to their E-levy service.', 'High', 'High', 'SISL E-levy service downtime.', NULL, NULL, NULL, NULL, '2025-01-15 22:58:00', 'resolved', 2, 2, '2025-01-16 01:00:00', '2025-01-15 22:58:00', '2025-01-15 22:58:00'),
+(502, 'INC_25_010013', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB Top up and credit transactions were failing.', 'Low', 'Low', 'NIB host connection timeout.', NULL, NULL, NULL, NULL, '2025-01-15 21:09:00', 'resolved', 12, 12, '2025-01-15 21:25:00', '2025-01-15 21:09:00', '2025-01-15 21:09:00'),
+(503, 'INC_25_010012', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing because we could not connect to their host.', 'Low', 'Low', 'NIB Host Downtime', NULL, NULL, NULL, NULL, '2025-01-14 21:10:00', 'resolved', 14, 14, '2025-01-14 21:33:00', '2025-01-14 21:10:00', '2025-01-14 21:10:00'),
+(504, 'INC_25_010011', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB transactions were failing because we could not connect to their server.', 'Medium', 'Medium', 'NIB Host Downtime.', NULL, NULL, NULL, NULL, '2025-01-12 20:18:00', 'resolved', 12, 12, '2025-01-12 20:51:00', '2025-01-12 20:18:00', '2025-01-12 20:18:00'),
+(505, 'INC_25_0100101', 'Internal', 'System Downtime', 143, NULL, 1319, 'The Internet went down.', 'Low', 'Low', 'ETZ wifi controller downtime.', NULL, 'Regular patches and reboot of wifi controllers', NULL, NULL, '2025-01-10 09:30:00', 'resolved', 17, 17, '2025-01-10 10:00:00', '2025-01-10 09:30:00', '2025-01-10 09:30:00'),
+(506, 'INC_25_010010', 'External', 'System Downtime', 141, NULL, 1308, 'All SISL transactions were failing because we could not connect to their E-levy service.', 'High', 'High', 'SISL E-Levy Service Downtime.', NULL, NULL, NULL, NULL, '2025-01-09 22:04:00', 'resolved', 12, 12, '2025-01-10 01:03:00', '2025-01-09 22:04:00', '2025-01-09 22:04:00'),
+(507, 'INC_25_0100100', 'Internal', 'System Downtime', 143, NULL, 1320, 'The Internet went down.', 'Medium', 'Medium', 'Global DNS not resolving', NULL, 'The internet can go down anytime so we need to have a reliable backup ISP.', NULL, NULL, '2025-01-09 08:58:00', 'resolved', 17, 17, '2025-01-09 09:50:00', '2025-01-09 08:58:00', '2025-01-09 08:58:00'),
+(508, 'INC_25_010009', 'External', 'System Downtime', 141, NULL, 1307, 'All PBL Credit transactions were Failing', 'Medium', 'Medium', 'The drive E of the server run out of space', NULL, NULL, NULL, NULL, '2025-01-08 10:05:00', 'resolved', 2, 2, '2025-01-08 10:55:00', '2025-01-08 10:05:00', '2025-01-08 10:05:00'),
+(509, 'INC_25_010008', 'External', 'System Downtime', 141, NULL, 1307, 'All SISL Credit transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'SISL service host downtime.', NULL, NULL, NULL, NULL, '2025-01-08 00:26:00', 'resolved', 5, 5, '2025-01-08 01:00:00', '2025-01-08 00:26:00', '2025-01-08 00:26:00'),
+(510, 'INC_25_010007', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB credit transactions were failing because we could not connect to their host.', 'High', 'High', 'NIB Host Downtime', NULL, NULL, NULL, NULL, '2025-01-07 17:48:00', 'resolved', 5, 5, '2025-01-08 00:59:00', '2025-01-07 17:48:00', '2025-01-07 17:48:00'),
+(511, 'INC_25_010005', 'External', 'System Downtime', 141, NULL, 1308, 'All GCB credit and debit transactions were failing', 'Low', 'Low', 'GCB e-levy downtime.', NULL, NULL, NULL, NULL, '2025-01-05 13:51:00', 'resolved', 12, 12, '2025-01-05 14:17:00', '2025-01-05 13:51:00', '2025-01-05 13:51:00'),
+(512, 'INC_25_010006', 'External', 'System Downtime', 141, NULL, 1307, 'All Bestpoint Credit transactions were failing because we could not connect to their host.', 'Critical', 'Urgent', 'Bestpoint host downtime.', NULL, NULL, NULL, NULL, '2025-01-04 00:18:00', 'resolved', 5, 5, '2025-01-06 12:08:00', '2025-01-04 00:18:00', '2025-01-04 00:18:00'),
+(513, 'INC_25_010003', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB Top up and credit transactions were failing.', 'Low', 'Low', 'Connection timeout with NIB host.', NULL, NULL, NULL, NULL, '2025-01-03 20:52:00', 'resolved', 12, 12, '2025-01-03 21:16:00', '2025-01-03 20:52:00', '2025-01-03 20:52:00'),
+(514, 'INC_25_010004', 'External', 'System Downtime', 141, NULL, 1307, 'All ABII transactions were failing because we could not connect to their host.', 'Critical', 'Urgent', 'ABII National Host Downtime', NULL, NULL, NULL, NULL, '2025-01-03 19:49:00', 'resolved', 12, 12, '2025-01-04 07:08:00', '2025-01-03 19:49:00', '2025-01-03 19:49:00'),
+(515, 'INC_25_010002', 'External', 'System Downtime', 141, NULL, 1307, 'All NIB credit transactions were failing because we could not connect to their host.', 'Medium', 'Medium', 'NIB Host Downtime', NULL, NULL, NULL, NULL, '2025-01-01 19:31:00', 'resolved', 5, 5, '2025-01-01 21:05:00', '2025-01-01 19:31:00', '2025-01-01 19:31:00'),
+(516, 'INC_25_010001', 'External', 'System Downtime', 141, NULL, 1307, 'All ABII transactions were failing because we could not connect to their host.', 'High', 'High', 'ABII Host downtime', NULL, NULL, NULL, NULL, '2025-01-01 09:18:00', 'resolved', 14, 14, '2025-01-01 11:50:00', '2025-01-01 09:18:00', '2025-01-01 09:18:00'),
+(517, 'ETZ-IN#260219088', NULL, NULL, 143, 142, 1318, 'Service has been suspended due to insufficient float/account balance. Transaction processing has halted.', 'Critical', 'Medium', 'The float/settlement account balance fell below the required threshold. Transactions cannot be processed until the account is topped up.', NULL, 'fdf', NULL, NULL, '2026-02-19 02:17:00', 'resolved', 19, 23, '2026-03-04 14:18:00', '2026-02-19 02:17:42', '2026-03-04 14:18:41'),
+(518, 'ETZ-IN#260226752', NULL, NULL, 143, 142, 1320, 'Bank-to-Wallet fund transfers via FUNDGATE are failing. Customers cannot move bank funds to wallets.', 'High', 'Medium', 'FUNDGATE B2W pipeline is experiencing host connectivity issues or the processing service is down.', NULL, 'Everyyhing', NULL, 'uploads/incidents/c8a900c58f319c5bc8bd419a2f688750.jpg', '2026-02-26 09:12:00', 'resolved', 18, 18, '2026-02-26 09:13:00', '2026-02-26 09:12:43', '2026-02-26 09:13:11'),
+(519, NULL, NULL, NULL, 145, 156, 1330, 'Bill payments via JUSTPAY are failing. Customers cannot pay bills using the JUSTPAY platform.', 'High', 'Medium', 'Biller API connectivity issue on the JUSTPAY bill payment processing pipeline.', NULL, 'gdfs', NULL, NULL, '2026-03-04 09:38:00', 'resolved', 18, 23, '2026-03-04 14:18:00', '2026-03-04 09:39:11', '2026-03-04 14:18:30'),
+(520, NULL, NULL, NULL, 146, 160, 1339, 'OVA service has been halted due to insufficient float balance. Wallet transactions cannot be processed.', 'Critical', 'Medium', 'The OVA settlement account/float balance is insufficient to process transactions. Account top-up required immediately.', NULL, 'gggdd', NULL, NULL, '2026-03-04 14:05:00', 'resolved', 18, 23, '2026-03-04 14:18:00', '2026-03-04 14:05:47', '2026-03-04 14:18:24'),
+(521, NULL, NULL, NULL, 145, 154, 1334, 'Bill payments via JUSTPAY are failing. Customers cannot pay bills using the JUSTPAY platform.', 'High', 'Medium', 'Biller API connectivity issue on the JUSTPAY bill payment processing pipeline.', NULL, 'ggg', NULL, 'uploads/incidents/d4c2ffcfdcfb8344d6bc3c17ae146fe0.pdf', '2026-03-04 14:10:00', 'resolved', 18, 23, '2026-03-04 14:18:00', '2026-03-04 14:10:41', '2026-03-04 14:18:16');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `incident_affected_companies`
+--
+
+CREATE TABLE `incident_affected_companies` (
+  `incident_id` int(11) NOT NULL,
+  `company_id` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `incident_affected_companies`
+--
+
+INSERT INTO `incident_affected_companies` (`incident_id`, `company_id`) VALUES
+(260, 13),
+(261, 13),
+(262, 16),
+(263, 16),
+(264, 9),
+(265, 13),
+(265, 14),
+(266, 11),
+(267, 13),
+(268, 13),
+(269, 11),
+(270, 4),
+(271, 11),
+(272, 3),
+(273, 6),
+(274, 11),
+(275, 4),
+(276, 1),
+(276, 4),
+(276, 5),
+(276, 6),
+(276, 11),
+(276, 13),
+(276, 14),
+(276, 17),
+(277, 3),
+(278, 4),
+(279, 1),
+(280, 10),
+(281, 9),
+(282, 9),
+(283, 11),
+(284, 13),
+(284, 14),
+(285, 11),
+(286, 9),
+(287, 13),
+(288, 16),
+(289, 1),
+(290, 3),
+(291, 3),
+(292, 1),
+(293, 11),
+(294, 13),
+(295, 1),
+(296, 11),
+(297, 4),
+(298, 7),
+(299, 13),
+(300, 16),
+(301, 4),
+(302, 7),
+(303, 11),
+(304, 11),
+(305, 11),
+(306, 1),
+(307, 11),
+(308, 1),
+(309, 1),
+(309, 5),
+(309, 6),
+(309, 11),
+(310, 11),
+(311, 11),
+(312, 4),
+(313, 11),
+(314, 3),
+(315, 7),
+(316, 11),
+(317, 9),
+(318, 3),
+(319, 12),
+(320, 14),
+(321, 12),
+(322, 1),
+(323, 5),
+(324, 11),
+(325, 9),
+(326, 5),
+(327, 18),
+(328, 1),
+(329, 5),
+(329, 12),
+(329, 13),
+(329, 18),
+(330, 4),
+(331, 12),
+(331, 13),
+(332, 11),
+(333, 9),
+(334, 9),
+(335, 16),
+(336, 11),
+(337, 9),
+(338, 5),
+(339, 2),
+(340, 5),
+(341, 14),
+(342, 16),
+(343, 13),
+(344, 11),
+(345, 9),
+(346, 11),
+(347, 5),
+(348, 11),
+(349, 6),
+(350, 11),
+(351, 11),
+(352, 6),
+(353, 14),
+(354, 13),
+(355, 14),
+(356, 11),
+(357, 11),
+(358, 11),
+(359, 1),
+(359, 4),
+(359, 5),
+(359, 6),
+(359, 11),
+(359, 13),
+(359, 14),
+(359, 15),
+(359, 17),
+(360, 18),
+(361, 13),
+(362, 9),
+(363, 11),
+(364, 6),
+(365, 6),
+(366, 6),
+(367, 16),
+(368, 13),
+(369, 11),
+(370, 11),
+(371, 11),
+(372, 15),
+(373, 5),
+(373, 6),
+(373, 10),
+(373, 13),
+(373, 14),
+(373, 16),
+(373, 18),
+(374, 4),
+(375, 14),
+(376, 11),
+(377, 6),
+(378, 14),
+(379, 9),
+(380, 11),
+(381, 11),
+(382, 16),
+(383, 6),
+(384, 11),
+(385, 5),
+(386, 6),
+(387, 6),
+(388, 16),
+(389, 9),
+(390, 9),
+(391, 5),
+(392, 11),
+(393, 11),
+(394, 1),
+(395, 2),
+(396, 11),
+(397, 6),
+(398, 1),
+(399, 11),
+(400, 11),
+(401, 14),
+(402, 11),
+(403, 11),
+(404, 14),
+(405, 14),
+(406, 5),
+(407, 13),
+(408, 11),
+(409, 13),
+(410, 16),
+(411, 11),
+(412, 5),
+(413, 5),
+(414, 16),
+(415, 14),
+(416, 11),
+(417, 16),
+(418, 11),
+(418, 13),
+(418, 14),
+(419, 14),
+(420, 11),
+(421, 13),
+(422, 11),
+(423, 14),
+(424, 11),
+(425, 14),
+(426, 11),
+(427, 14),
+(428, 6),
+(429, 6),
+(430, 18),
+(431, 18),
+(432, 5),
+(433, 5),
+(434, 11),
+(435, 6),
+(436, 2),
+(437, 1),
+(438, 11),
+(439, 8),
+(440, 9),
+(441, 14),
+(442, 18),
+(443, 8),
+(444, 14),
+(445, 13),
+(446, 16),
+(447, 11),
+(448, 11),
+(449, 11),
+(450, 8),
+(451, 8),
+(452, 16),
+(453, 16),
+(454, 18),
+(455, 11),
+(456, 6),
+(457, 5),
+(458, 11),
+(459, 11),
+(460, 14),
+(461, 8),
+(462, 11),
+(463, 13),
+(463, 14),
+(464, 11),
+(465, 8),
+(466, 9),
+(467, 18),
+(468, 18),
+(469, 11),
+(470, 9),
+(471, 14),
+(472, 8),
+(473, 16),
+(474, 14),
+(475, 6),
+(476, 2),
+(477, 8),
+(478, 8),
+(479, 18),
+(480, 13),
+(481, 13),
+(482, 6),
+(483, 8),
+(484, 7),
+(485, 13),
+(486, 13),
+(487, 8),
+(488, 13),
+(489, 11),
+(490, 1),
+(491, 8),
+(492, 11),
+(493, 1),
+(494, 14),
+(495, 11),
+(496, 1),
+(497, 8),
+(498, 1),
+(499, 8),
+(500, 11),
+(501, 14),
+(502, 11),
+(503, 11),
+(504, 11),
+(505, 18),
+(506, 14),
+(507, 18),
+(508, 13),
+(509, 14),
+(510, 11),
+(511, 8),
+(512, 6),
+(513, 11),
+(514, 1),
+(515, 11),
+(516, 1),
+(517, 2),
+(518, 3),
+(519, 1),
+(519, 2),
+(520, 15),
+(521, 6);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `incident_attachments`
+--
+
+CREATE TABLE `incident_attachments` (
+  `attachment_id` int(11) NOT NULL,
+  `incident_id` int(11) NOT NULL,
+  `file_path` varchar(255) NOT NULL,
+  `file_name` varchar(255) NOT NULL,
+  `file_type` varchar(50) DEFAULT NULL,
+  `file_size` int(11) DEFAULT NULL,
+  `uploaded_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `incident_attachments`
+--
+
+INSERT INTO `incident_attachments` (`attachment_id`, `incident_id`, `file_path`, `file_name`, `file_type`, `file_size`, `uploaded_at`) VALUES
+(1, 518, 'uploads/incidents/c8a900c58f319c5bc8bd419a2f688750.jpg', 'aboodi-vesakaran-KOIevPtL26s-unsplash.jpg', 'image/jpeg', 916972, '2026-02-26 09:12:43'),
+(2, 521, 'uploads/incidents/d4c2ffcfdcfb8344d6bc3c17ae146fe0.pdf', 'CertificateOfCompletion_Microsoft Security Essentials Professional Certificate by Microsoft and LinkedIn.pdf', 'application/pdf', 80110, '2026-03-04 14:10:41');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `incident_company_history`
+--
+
+CREATE TABLE `incident_company_history` (
+  `history_id` int(11) NOT NULL,
+  `incident_id` int(11) NOT NULL,
+  `company_id` int(11) NOT NULL,
+  `action` enum('added','removed') NOT NULL,
+  `changed_by` int(11) NOT NULL,
+  `changed_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `incident_templates`
+--
+
+CREATE TABLE `incident_templates` (
+  `template_id` int(11) NOT NULL,
+  `template_name` varchar(255) NOT NULL,
+  `service_id` int(11) DEFAULT NULL,
+  `component_id` int(11) DEFAULT NULL,
+  `incident_type_id` int(11) DEFAULT NULL,
+  `impact_level` enum('low','medium','high','critical') DEFAULT 'medium',
+  `description` text NOT NULL,
+  `root_cause` text DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
+  `usage_count` int(11) DEFAULT 0,
+  `created_by` int(11) NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `incident_templates`
+--
+
+INSERT INTO `incident_templates` (`template_id`, `template_name`, `service_id`, `component_id`, `incident_type_id`, `impact_level`, `description`, `root_cause`, `is_active`, `usage_count`, `created_by`, `created_at`, `updated_at`) VALUES
+(61, 'Host Connectivity Issue', NULL, NULL, NULL, 'high', 'Service is unreachable due to a connectivity failure with the host provider. Transactions are failing and customers are unable to complete operations.', 'Connectivity issue with the third-party host provider. Loss of network connectivity between our gateway and the external host.', 1, 1, 1, '2026-02-19 00:50:57', '2026-02-19 01:13:55'),
+(62, 'Server Failure / System Down', NULL, NULL, NULL, 'critical', 'The service server has gone down unexpectedly, causing a complete service outage. All transactions are affected.', 'Server failure due to hardware fault or OS-level crash. Services are completely unavailable.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(63, 'Application Not Responding', NULL, NULL, NULL, 'high', 'The application or service API is not responding to requests. Customers are experiencing timeouts and failed transactions.', 'Application process has hung or crashed. The service endpoint is unresponsive and requires a restart.', 1, 3, 1, '2026-02-19 00:50:57', '2026-02-19 01:14:03'),
+(64, 'Insufficient Account Balance', NULL, NULL, NULL, 'critical', 'Service has been suspended due to insufficient float/account balance. Transaction processing has halted.', 'The float/settlement account balance fell below the required threshold. Transactions cannot be processed until the account is topped up.', 1, 2, 1, '2026-02-19 00:50:57', '2026-02-19 02:17:28'),
+(65, 'Scheduled System Maintenance', NULL, NULL, NULL, 'medium', 'Planned system maintenance is currently underway. Service will be temporarily unavailable during this window.', 'Scheduled maintenance window for system upgrades, patches, or infrastructure improvements.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(66, 'MoMo Credit Transaction Failure', 141, NULL, 1306, 'high', 'Mobile Money credit transactions are failing. Customers are unable to receive funds into their Mobile Money wallets.', 'Connectivity issue or application failure on the Mobile Money credit processing pipeline. Host response timeout on credit requests.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(67, 'MoMo Debit Transaction Failure', 141, NULL, 1306, 'high', 'Mobile Money debit transactions are failing. Customers are unable to send or withdraw funds from their wallets.', 'Debit processing failure due to host connectivity timeout or insufficient settlement balance.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(68, 'Bank-to-Wallet (B2W) Failure', 141, 133, 1308, 'high', 'Bank-to-Wallet transfers are failing. Customers cannot move funds from their bank accounts to their Mobile Money wallets.', 'Third-party bank host is unreachable or the B2W processing service has gone down.', 1, 2, 1, '2026-02-19 00:50:57', '2026-02-19 00:56:28'),
+(69, 'Wallet-to-Bank (W2B) Failure', 141, NULL, 1308, 'high', 'Wallet-to-Bank transfers are failing. Customers cannot transfer funds from their Mobile Money wallet to their linked bank accounts.', 'W2B processing service connectivity failure or bank host downtime.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(70, 'Bill Payment Processing Failure', 142, NULL, 1312, 'high', 'Bill payment transactions on VASGATE are failing. Customers are unable to pay utility bills, subscriptions, or service charges.', 'VASGATE bill payment gateway is experiencing connectivity issues with the bill aggregator or biller APIs.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(71, 'Airtime Top-Up Failure', 142, NULL, 1314, 'medium', 'Airtime top-up purchases are failing on VASGATE. Customers are unable to purchase airtime for their mobile networks.', 'Airtime vendor API is unresponsive or the VASGATE airtime processing service is down.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(72, 'Data Bundle Purchase Failure', 142, NULL, 1314, 'medium', 'Data bundle purchases are failing on VASGATE. Customers cannot purchase mobile data bundles.', 'Data bundle vendor API connectivity issue or inventory stock depletion on the aggregator side.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(73, 'FUNDGATE Credit Processing Failure', 143, NULL, 1318, 'high', 'FUNDGATE credit transactions are failing. Fund credits into accounts are not being processed.', 'FUNDGATE credit processing engine connectivity failure or timeout with the receiving bank host.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(74, 'FUNDGATE B2W Transfer Failure', 143, NULL, 1320, 'high', 'Bank-to-Wallet fund transfers via FUNDGATE are failing. Customers cannot move bank funds to wallets.', 'FUNDGATE B2W pipeline is experiencing host connectivity issues or the processing service is down.', 1, 2, 1, '2026-02-19 00:50:57', '2026-02-26 09:12:16'),
+(75, 'MPAY Transaction Processing Failure', 144, NULL, 1324, 'high', 'MPAY payment transactions are failing. Customers are unable to complete mobile payments through the MPAY platform.', 'MPAY transaction processing service is down or the payment gateway is experiencing connectivity issues.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(76, 'MPAY Server Downtime', 144, NULL, 1325, 'critical', 'The MPAY server has gone down completely. All MPAY payment processing is unavailable.', 'MPAY server failure due to infrastructure issue or application crash. Full service restoration required.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(77, 'JUSTPAY Payment Gateway Failure', 145, NULL, 1330, 'high', 'JUSTPAY payment processing is unavailable. Customers cannot complete payments through the JUSTPAY gateway.', 'JUSTPAY gateway connectivity failure with the acquiring bank or payment processor.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(78, 'JUSTPAY Bill Payment Failure', 145, NULL, 1332, 'high', 'Bill payments via JUSTPAY are failing. Customers cannot pay bills using the JUSTPAY platform.', 'Biller API connectivity issue on the JUSTPAY bill payment processing pipeline.', 1, 2, 1, '2026-02-19 00:50:57', '2026-03-04 14:10:21'),
+(79, 'OVA Wallet Credit Failure', 146, NULL, 1336, 'high', 'OVA wallet credit transactions are failing. Customers cannot receive funds into their OVA wallets.', 'OVA wallet credit processing failure due to host connectivity issue or service downtime.', 1, 0, 1, '2026-02-19 00:50:57', '2026-02-19 00:50:57'),
+(80, 'OVA Low Float / Insufficient Balance', 146, NULL, 1339, 'critical', 'OVA service has been halted due to insufficient float balance. Wallet transactions cannot be processed.', 'The OVA settlement account/float balance is insufficient to process transactions. Account top-up required immediately.', 1, 1, 1, '2026-02-19 00:50:57', '2026-03-04 14:05:24');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `incident_types`
+--
+
+CREATE TABLE `incident_types` (
+  `type_id` int(11) NOT NULL,
+  `service_id` int(11) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `incident_types`
+--
+
+INSERT INTO `incident_types` (`type_id`, `service_id`, `name`, `is_active`) VALUES
+(1306, 141, 'Connectivity Issue', 1),
+(1307, 141, 'Server Failure / Shut Down', 1),
+(1308, 141, 'Service / Application not responding', 1),
+(1309, 141, 'Insufficient Account Balance', 1),
+(1310, 141, 'System Maintenance', 1),
+(1311, 141, 'Others', 1),
+(1312, 142, 'Connectivity Issue', 1),
+(1313, 142, 'Server Failure / Shut Down', 1),
+(1314, 142, 'Service / Application not responding', 1),
+(1315, 142, 'Insufficient Account Balance', 1),
+(1316, 142, 'System Maintenance', 1),
+(1317, 142, 'Others', 1),
+(1318, 143, 'Connectivity Issue', 1),
+(1319, 143, 'Server Failure / Shut Down', 1),
+(1320, 143, 'Service / Application not responding', 1),
+(1321, 143, 'Insufficient Account Balance', 1),
+(1322, 143, 'System Maintenance', 1),
+(1323, 143, 'Others', 1),
+(1324, 144, 'Connectivity Issue', 1),
+(1325, 144, 'Server Failure / Shut Down', 1),
+(1326, 144, 'Service / Application not responding', 1),
+(1327, 144, 'Insufficient Account Balance', 1),
+(1328, 144, 'System Maintenance', 1),
+(1329, 144, 'Others', 1),
+(1330, 145, 'Connectivity Issue', 1),
+(1331, 145, 'Server Failure / Shut Down', 1),
+(1332, 145, 'Service / Application not responding', 1),
+(1333, 145, 'Insufficient Account Balance', 1),
+(1334, 145, 'System Maintenance', 1),
+(1335, 145, 'Others', 1),
+(1336, 146, 'Connectivity Issue', 1),
+(1337, 146, 'Server Failure / Shut Down', 1),
+(1338, 146, 'Service / Application not responding', 1),
+(1339, 146, 'Insufficient Account Balance', 1),
+(1340, 146, 'System Maintenance', 1),
+(1341, 146, 'Others', 1);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `incident_updates`
+--
+
+CREATE TABLE `incident_updates` (
+  `update_id` int(11) NOT NULL,
+  `incident_id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `user_name` varchar(255) NOT NULL,
+  `update_text` text NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `incident_updates`
+--
+
+INSERT INTO `incident_updates` (`update_id`, `incident_id`, `user_id`, `user_name`, `update_text`, `created_at`) VALUES
+(474, 260, 2, 'Harry Opata', 'Issue was esclated to the pbl team via mail', '2026-02-19 02:08:10'),
+(475, 261, 2, 'Harry Opata', 'A call was made to a member of the pbl team', '2026-02-19 02:08:10'),
+(476, 261, 2, 'Harry Opata', 'A message containg the error was sent to their Teams page', '2026-02-19 02:08:10'),
+(477, 262, 2, 'Harry Opata', 'A mail was sent to all clients', '2026-02-19 02:08:10'),
+(478, 262, 2, 'Harry Opata', 'Telecel restored service from their end', '2026-02-19 02:08:10'),
+(479, 263, 2, 'Harry Opata', 'A message was sent to Rancard', '2026-02-19 02:08:10'),
+(480, 263, 2, 'Harry Opata', 'Rancard resolved the issue from their end', '2026-02-19 02:08:10'),
+(481, 264, 3, 'Maxwell Eshun', 'Connection was restored by MTN tech team', '2026-02-19 02:08:10'),
+(482, 265, 4, 'Eric Fillipe Arthur', 'Banks involved were notified', '2026-02-19 02:08:10'),
+(483, 265, 4, 'Eric Fillipe Arthur', 'The server was restarted to resolve the issue', '2026-02-19 02:08:10'),
+(484, 266, 2, 'Harry Opata', 'A mail was sent to the NIB team', '2026-02-19 02:08:10'),
+(485, 267, 4, 'Eric Fillipe Arthur', 'Issue was escalated to PBL team', '2026-02-19 02:08:10'),
+(486, 267, 4, 'Eric Fillipe Arthur', 'PBL team resolved the issue', '2026-02-19 02:08:10'),
+(487, 268, 5, 'Fredrick Hanson', 'PBL tech team was contacted via Teams & mail', '2026-02-19 02:08:10'),
+(488, 269, 4, 'Eric Fillipe Arthur', 'Issue was escalated to the NIB team', '2026-02-19 02:08:10'),
+(489, 269, 4, 'Eric Fillipe Arthur', 'The NIB team resolved the issue', '2026-02-19 02:08:10'),
+(490, 270, 4, 'Eric Fillipe Arthur', 'We restarted the CBA and the CMS', '2026-02-19 02:08:10'),
+(491, 271, 4, 'Eric Fillipe Arthur', 'Issue was escalated to the NIB team', '2026-02-19 02:08:10'),
+(492, 271, 4, 'Eric Fillipe Arthur', 'Issue was resolved by the NIB team', '2026-02-19 02:08:10'),
+(493, 272, 3, 'Maxwell Eshun', 'An Email was sent to clients regarding the maintenance', '2026-02-19 02:08:10'),
+(494, 273, 2, 'Harry Opata', 'Issue was esclated to the Bestpoint team', '2026-02-19 02:08:10'),
+(495, 273, 2, 'Harry Opata', 'Issue was resolved at their end', '2026-02-19 02:08:10'),
+(496, 274, 5, 'Fredrick Hanson', 'We communicated with NIB via WhatsApp', '2026-02-19 02:08:10'),
+(497, 275, 3, 'Maxwell Eshun', 'Issue was escalated tO technical operations team', '2026-02-19 02:08:10'),
+(498, 275, 3, 'Maxwell Eshun', 'Issue was resolved by the same team', '2026-02-19 02:08:10'),
+(499, 276, 5, 'Fredrick Hanson', 'Transactions were switched to OVA and finance was informed', '2026-02-19 02:08:10'),
+(500, 277, 6, 'Mary Asante', 'The issue was escalated to Comsis', '2026-02-19 02:08:10'),
+(501, 278, 2, 'Harry Opata', 'The issue was resolved by our technical team', '2026-02-19 02:08:10'),
+(502, 279, 2, 'Harry Opata', 'The Issue was escalated to the ABII team via whatsapp.', '2026-02-19 02:08:10'),
+(503, 279, 2, 'Harry Opata', 'The issue was resolved at their end', '2026-02-19 02:08:10'),
+(504, 280, 6, 'Mary Asante', 'Cloudflare Routing / Security Rules were updated to explicitly allow Multichoice IP addresses.', '2026-02-19 02:08:10'),
+(505, 280, 6, 'Mary Asante', 'The rule change was applied successfully.', '2026-02-19 02:08:10'),
+(506, 280, 6, 'Mary Asante', 'Issue was escalated to the Multichoice team', '2026-02-19 02:08:10'),
+(507, 281, 2, 'Harry Opata', 'The Issue was escalated to the MTN team.', '2026-02-19 02:08:10'),
+(508, 281, 2, 'Harry Opata', 'The issue was resolved by the MTN team', '2026-02-19 02:08:10'),
+(509, 282, 5, 'Fredrick Hanson', 'A mail was sent to various clients', '2026-02-19 02:08:10'),
+(510, 282, 5, 'Fredrick Hanson', 'All clients were informed via whatsApp as well', '2026-02-19 02:08:10'),
+(511, 283, 5, 'Fredrick Hanson', 'We contacted the NIB team via WhatsApp', '2026-02-19 02:08:10'),
+(512, 283, 5, 'Fredrick Hanson', 'We contacted the NIB Tech team via mail', '2026-02-19 02:08:10'),
+(513, 284, 3, 'Maxwell Eshun', 'Issue was escalated to the DEVOPS team', '2026-02-19 02:08:10'),
+(514, 284, 3, 'Maxwell Eshun', 'DEVOPS team resolved the issue', '2026-02-19 02:08:10'),
+(515, 285, 3, 'Maxwell Eshun', 'Issue was ecalated to NIB team via Whatsapp and Mail', '2026-02-19 02:08:10'),
+(516, 285, 3, 'Maxwell Eshun', 'NIB team restored conncetion from their end', '2026-02-19 02:08:10'),
+(517, 286, 2, 'Harry Opata', 'A mail was sent to all client', '2026-02-19 02:08:10'),
+(518, 286, 2, 'Harry Opata', 'The issue was resolved by Team Mtn', '2026-02-19 02:08:10'),
+(519, 287, 6, 'Mary Asante', 'We escalated the issue to the PBL team', '2026-02-19 02:08:10'),
+(520, 287, 6, 'Mary Asante', 'We blocked all their USSD services', '2026-02-19 02:08:10'),
+(521, 288, 6, 'Mary Asante', 'A fix was deployed to both fundgate application', '2026-02-19 02:08:10'),
+(522, 289, 2, 'Harry Opata', 'The Issue was escalated to the ABII team.', '2026-02-19 02:08:10'),
+(523, 289, 2, 'Harry Opata', 'The issue was resolved at their end', '2026-02-19 02:08:10'),
+(524, 290, 2, 'Harry Opata', 'Mails were sent to client', '2026-02-19 02:08:10'),
+(525, 290, 2, 'Harry Opata', 'Issue was resolved by etz team', '2026-02-19 02:08:10'),
+(526, 291, 5, 'Fredrick Hanson', 'A mail was sent to all clients', '2026-02-19 02:08:10'),
+(527, 291, 5, 'Fredrick Hanson', 'All Clients were informed on various pages', '2026-02-19 02:08:10'),
+(528, 292, 2, 'Harry Opata', 'The Issue was escalated to the ABII team.', '2026-02-19 02:08:10'),
+(529, 292, 2, 'Harry Opata', 'The issue was resolved by the ABII team.', '2026-02-19 02:08:10'),
+(530, 293, 3, 'Maxwell Eshun', 'Issue was escalated to NIB team', '2026-02-19 02:08:10'),
+(531, 293, 3, 'Maxwell Eshun', 'NIB team restored connection from their end', '2026-02-19 02:08:10'),
+(532, 294, 5, 'Fredrick Hanson', 'PBL team was contacted via teams on the issue', '2026-02-19 02:08:10'),
+(533, 295, 2, 'Harry Opata', 'The Issue was escalated to the ABII team.', '2026-02-19 02:08:10'),
+(534, 295, 2, 'Harry Opata', 'The issue was resolved at their end', '2026-02-19 02:08:10'),
+(535, 296, 5, 'Fredrick Hanson', 'NIB TECH Team was contacted via WhatsApp and Mail', '2026-02-19 02:08:10'),
+(536, 297, 7, 'Takyi Owusu Mensah', 'A manual restart was done on the server.', '2026-02-19 02:08:10'),
+(537, 298, 5, 'Fredrick Hanson', 'Mail was sent to the team.', '2026-02-19 02:08:10'),
+(538, 298, 5, 'Fredrick Hanson', 'All clients were informed', '2026-02-19 02:08:10'),
+(539, 298, 5, 'Fredrick Hanson', 'DevOps team was engaged', '2026-02-19 02:08:10'),
+(540, 299, 6, 'Mary Asante', 'We escalated the issue to the PBL team', '2026-02-19 02:08:10'),
+(541, 300, 5, 'Fredrick Hanson', 'Notice was sent to all clients and blanks on the maintenance', '2026-02-19 02:08:10'),
+(542, 301, 2, 'Harry Opata', 'The Issue was escalated to the AKRB team.', '2026-02-19 02:08:10'),
+(543, 301, 2, 'Harry Opata', 'The issue was resolved at thie end', '2026-02-19 02:08:10'),
+(544, 302, 5, 'Fredrick Hanson', 'The finance team was informed (Dr Nat)', '2026-02-19 02:08:10'),
+(545, 303, 2, 'Harry Opata', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:10'),
+(546, 303, 2, 'Harry Opata', 'The issue was resolved at their end', '2026-02-19 02:08:10'),
+(547, 304, 6, 'Mary Asante', 'We escalated the issue to the NIB team', '2026-02-19 02:08:10'),
+(548, 304, 6, 'Mary Asante', 'We restored our services and the NIB team also did same', '2026-02-19 02:08:10'),
+(549, 305, 3, 'Maxwell Eshun', 'Issue was escalated to NIB team via whatsapp and Email', '2026-02-19 02:08:10'),
+(550, 305, 3, 'Maxwell Eshun', 'NIB team resolved issue from their end', '2026-02-19 02:08:10'),
+(551, 306, 3, 'Maxwell Eshun', 'Issue was escalated to Abii team via Whatsapp', '2026-02-19 02:08:10'),
+(552, 306, 3, 'Maxwell Eshun', 'Connection was restored by Abii team', '2026-02-19 02:08:10'),
+(553, 307, 5, 'Fredrick Hanson', 'NIB team was contacted via mail', '2026-02-19 02:08:10'),
+(554, 307, 5, 'Fredrick Hanson', 'NIB team was contacted via WhatsApp', '2026-02-19 02:08:10'),
+(555, 308, 3, 'Maxwell Eshun', 'Issue was escalated to the Abii Team via Whatsapp', '2026-02-19 02:08:10'),
+(556, 308, 3, 'Maxwell Eshun', 'Abii team restored connection from their end', '2026-02-19 02:08:10'),
+(557, 309, 8, 'Simon Owusu Ansah', 'the issue was resolved by the banks', '2026-02-19 02:08:10'),
+(558, 310, 2, 'Harry Opata', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:10'),
+(559, 310, 2, 'Harry Opata', 'The issue was resolved by the NIB Team and Etz Team', '2026-02-19 02:08:10'),
+(560, 311, 5, 'Fredrick Hanson', 'NIB team was contacted via WhatsApp', '2026-02-19 02:08:10'),
+(561, 312, 2, 'Harry Opata', 'The issue was escalated to the AKRB Team via whatsapp and mail', '2026-02-19 02:08:10'),
+(562, 312, 2, 'Harry Opata', 'The issue was resolved by the AKRB Team', '2026-02-19 02:08:10'),
+(563, 313, 3, 'Maxwell Eshun', 'Issue was ecalated to NIB team', '2026-02-19 02:08:10'),
+(564, 313, 3, 'Maxwell Eshun', 'NIB team resolved from their end', '2026-02-19 02:08:10'),
+(565, 314, 10, 'Takyi Owusu-Mensah', 'The issue was reported to the finance team and the account was credited.', '2026-02-19 02:08:10'),
+(566, 315, 6, 'Mary Asante', 'The issue as escalated to the GCB team and they went ahead to fund the OVA', '2026-02-19 02:08:10'),
+(567, 316, 2, 'Harry Opata', 'We informed the clients about the maintenance activity.', '2026-02-19 02:08:10'),
+(568, 317, 7, 'Takyi Owusu Mensah', 'We informed the clients about the maintenance activity.', '2026-02-19 02:08:10'),
+(569, 318, 6, 'Mary Asante', 'We had to remove and reinsert the cable to the Main One device at our end, as per their communications we did that and it was resolved.', '2026-02-19 02:08:10'),
+(570, 319, 10, 'Takyi Owusu-Mensah', 'The issue was escalated to Finance team and NLA team.', '2026-02-19 02:08:10'),
+(571, 320, 2, 'Harry Opata', 'The Issue was escalated to the SISL team', '2026-02-19 02:08:10'),
+(572, 320, 2, 'Harry Opata', 'SISL Team restored connection from their ends .', '2026-02-19 02:08:10'),
+(573, 321, 6, 'Mary Asante', 'We reported the issue to NLA in order for them to fund their card', '2026-02-19 02:08:10'),
+(574, 322, 2, 'Harry Opata', 'The Issue was escalated to the ABII team', '2026-02-19 02:08:10'),
+(575, 322, 2, 'Harry Opata', 'ABII Team restored connection from their ends', '2026-02-19 02:08:10'),
+(576, 323, 2, 'Harry Opata', 'BOA Team restored connection from their ends', '2026-02-19 02:08:10'),
+(577, 324, 7, 'Takyi Owusu Mensah', 'Excalated to the NIB team', '2026-02-19 02:08:10'),
+(578, 325, 6, 'Mary Asante', 'We monitored their transactions intensively', '2026-02-19 02:08:10'),
+(579, 326, 11, 'Japheth Boateng', 'Please the issue was escalated to BOA team to check and revert.', '2026-02-19 02:08:10'),
+(580, 327, 6, 'Mary Asante', 'The physical server was restarted', '2026-02-19 02:08:10'),
+(581, 327, 6, 'Mary Asante', 'Verified all services on the server are running', '2026-02-19 02:08:10'),
+(582, 328, 2, 'Harry Opata', 'The Issue was escalated to the ABII NATIONAL team', '2026-02-19 02:08:10'),
+(583, 328, 2, 'Harry Opata', 'ABII Team restored connection from their ends', '2026-02-19 02:08:10'),
+(584, 329, 11, 'Japheth Boateng', 'A new server was provided for the migration from the old environment, and the IP address of the old server was reassigned to the new one.', '2026-02-19 02:08:10'),
+(585, 330, 3, 'Maxwell Eshun', 'The issue was escalated to the Atwimaa Tech Team', '2026-02-19 02:08:10'),
+(586, 330, 3, 'Maxwell Eshun', 'Connection was restored by the Atwimaa Tech team', '2026-02-19 02:08:10'),
+(587, 331, 6, 'Mary Asante', 'The physical server was restarted', '2026-02-19 02:08:10'),
+(588, 332, 5, 'Fredrick Hanson', 'The dowmtime issue was communicated to NIB Tech Team', '2026-02-19 02:08:10'),
+(589, 332, 5, 'Fredrick Hanson', 'NIB Team restore the host at their end', '2026-02-19 02:08:10'),
+(590, 333, 5, 'Fredrick Hanson', 'Share with Clients via mail', '2026-02-19 02:08:10'),
+(591, 334, 5, 'Fredrick Hanson', 'A mail was sent to all clients notifying everyone on the issue', '2026-02-19 02:08:10'),
+(592, 334, 5, 'Fredrick Hanson', 'The MTN tech team was connected via Teams concering the issue', '2026-02-19 02:08:10'),
+(593, 334, 5, 'Fredrick Hanson', 'MTN Tech team resolve the issue', '2026-02-19 02:08:10'),
+(594, 335, 3, 'Maxwell Eshun', 'A message was sent to Rancard', '2026-02-19 02:08:10'),
+(595, 335, 3, 'Maxwell Eshun', 'Rancard resolved the issue from their end', '2026-02-19 02:08:10'),
+(596, 336, 3, 'Maxwell Eshun', 'The issue was escalated to the NIB team', '2026-02-19 02:08:10'),
+(597, 336, 3, 'Maxwell Eshun', 'NIB team restored connection from their end', '2026-02-19 02:08:10'),
+(598, 337, 2, 'Harry Opata', 'Message was sent to all client', '2026-02-19 02:08:10'),
+(599, 337, 2, 'Harry Opata', 'Services tested after the maintenance', '2026-02-19 02:08:10'),
+(600, 338, 11, 'Japheth Boateng', 'Change management initiated to update config file.', '2026-02-19 02:08:10'),
+(601, 338, 11, 'Japheth Boateng', 'Configuration updated with route changed from GCB OVA to ETRANZACT OVA.', '2026-02-19 02:08:11'),
+(602, 338, 11, 'Japheth Boateng', 'UAT perform to confirm correct routing BOA (ATU) general fees payments', '2026-02-19 02:08:11'),
+(603, 339, 3, 'Maxwell Eshun', 'A mail was sent to AirtelTigo team', '2026-02-19 02:08:11'),
+(604, 339, 3, 'Maxwell Eshun', 'AirtelTigo team restored connection from their end', '2026-02-19 02:08:11'),
+(605, 340, 5, 'Fredrick Hanson', 'The error logs and issue was sent to them via Teams and Mail', '2026-02-19 02:08:11'),
+(606, 341, 11, 'Japheth Boateng', 'The CBA and CMS services were stopped on the server.', '2026-02-19 02:08:11'),
+(607, 341, 11, 'Japheth Boateng', 'We restarted the TMC on the central server \"30.6\", and later restarted the CBA and CMS services', '2026-02-19 02:08:11'),
+(608, 341, 11, 'Japheth Boateng', 'After that, we were able to establish a key connection.', '2026-02-19 02:08:11'),
+(609, 342, 2, 'Harry Opata', 'Telecel team notified', '2026-02-19 02:08:11'),
+(610, 342, 2, 'Harry Opata', 'Connection restored by Telecel team.', '2026-02-19 02:08:11'),
+(611, 343, 5, 'Fredrick Hanson', 'We accessed their sever and logs were checked to help do further checks', '2026-02-19 02:08:11'),
+(612, 343, 5, 'Fredrick Hanson', 'PBL Team notified and restored connection', '2026-02-19 02:08:11'),
+(613, 344, 3, 'Maxwell Eshun', 'The issue was escalated to the NIB team via whatsapp', '2026-02-19 02:08:11'),
+(614, 344, 3, 'Maxwell Eshun', 'The NIB team restored connection from their end', '2026-02-19 02:08:11'),
+(615, 345, 3, 'Maxwell Eshun', 'A mail was sent to clients informing them about the maintenance', '2026-02-19 02:08:11'),
+(616, 346, 2, 'Harry Opata', 'NIB team resolve the downtime from their end', '2026-02-19 02:08:11'),
+(617, 346, 2, 'Harry Opata', 'We tested the transactions and monitor for sometime to ensure that everything is stable', '2026-02-19 02:08:11'),
+(618, 347, 6, 'Mary Asante', 'We sent the error to the BOA team via teams and mail', '2026-02-19 02:08:11'),
+(619, 347, 6, 'Mary Asante', 'BOA team worked on the connectivity issue to resolve it', '2026-02-19 02:08:11'),
+(620, 348, 3, 'Maxwell Eshun', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(621, 348, 3, 'Maxwell Eshun', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(622, 349, 3, 'Maxwell Eshun', 'The Issue was escalated to the Bestpoint team.', '2026-02-19 02:08:11'),
+(623, 349, 3, 'Maxwell Eshun', 'Bestpoint Team restored the connection from their end', '2026-02-19 02:08:11'),
+(624, 350, 3, 'Maxwell Eshun', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(625, 350, 3, 'Maxwell Eshun', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(626, 351, 5, 'Fredrick Hanson', 'The issue was escalated to the NIB team on whatsApp', '2026-02-19 02:08:11'),
+(627, 352, 6, 'Mary Asante', 'Escalated to Bestpoint\'s tech team', '2026-02-19 02:08:11'),
+(628, 352, 6, 'Mary Asante', 'The bestpoint tech team resolve the issue at their end', '2026-02-19 02:08:11'),
+(629, 353, 2, 'Harry Opata', 'SISL team resolve the downtime from their end', '2026-02-19 02:08:11'),
+(630, 353, 2, 'Harry Opata', 'We tested the transactions and monitor for sometime to ensure that everything is stable', '2026-02-19 02:08:11'),
+(631, 354, 2, 'Harry Opata', 'Sent a mail to the bank when i noticed their transactions were failing', '2026-02-19 02:08:11'),
+(632, 354, 2, 'Harry Opata', 'SISL team resolve the downtime from their end', '2026-02-19 02:08:11'),
+(633, 354, 2, 'Harry Opata', 'We tested the transactions and monitor for sometime to ensure that everything is stable', '2026-02-19 02:08:11'),
+(634, 355, 3, 'Maxwell Eshun', 'Sent a mail to the bank when i noticed their transactions were failing', '2026-02-19 02:08:11'),
+(635, 355, 3, 'Maxwell Eshun', 'SISL team resolve the downtime from their end', '2026-02-19 02:08:11'),
+(636, 355, 3, 'Maxwell Eshun', 'We tested the transactions and monitor for sometime to ensure that everything is stable', '2026-02-19 02:08:11'),
+(637, 356, 12, 'Prince Brako Ofori', 'The issue was escalated to NIB through Whatsapp', '2026-02-19 02:08:11'),
+(638, 356, 12, 'Prince Brako Ofori', 'NIB Team restore the connection', '2026-02-19 02:08:11'),
+(639, 357, 5, 'Fredrick Hanson', 'NIB Team was sent a message on the downtime via WhatsApp with the error we were encountering with their host', '2026-02-19 02:08:11'),
+(640, 358, 12, 'Prince Brako Ofori', 'The error was sent to NIB through whatsapp', '2026-02-19 02:08:11'),
+(641, 358, 12, 'Prince Brako Ofori', 'NIB Team resolve the incident at their end', '2026-02-19 02:08:11'),
+(642, 359, 12, 'Prince Brako Ofori', 'A mail was sent to all clients informing them of MTN\'s planned maintenance', '2026-02-19 02:08:11'),
+(643, 360, 13, 'Japthet Boateng', 'Install new server from snapshot', '2026-02-19 02:08:11'),
+(644, 360, 13, 'Japthet Boateng', 'Unstalled services consuming space', '2026-02-19 02:08:11'),
+(645, 361, 5, 'Fredrick Hanson', 'A mail was sent to the PBL team concerning the issue', '2026-02-19 02:08:11'),
+(646, 361, 5, 'Fredrick Hanson', 'We contacted the PBL team via teams as well', '2026-02-19 02:08:11'),
+(647, 361, 5, 'Fredrick Hanson', 'PBL team resolve the issues', '2026-02-19 02:08:11'),
+(648, 362, 6, 'Mary Asante', 'The bucket was funded and password was changed', '2026-02-19 02:08:11'),
+(649, 363, 2, 'Harry Opata', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(650, 363, 2, 'Harry Opata', 'NIB Team restored connection from their ends', '2026-02-19 02:08:11'),
+(651, 364, 2, 'Harry Opata', 'The Issue was escalated to Bestpoint team', '2026-02-19 02:08:11'),
+(652, 364, 2, 'Harry Opata', 'Bestpoint Team restored connection from their ends', '2026-02-19 02:08:11'),
+(653, 365, 2, 'Harry Opata', 'The Issue was escalated to Bestpoint team', '2026-02-19 02:08:11'),
+(654, 365, 2, 'Harry Opata', 'Bestpoint Team restored connection from their ends', '2026-02-19 02:08:11'),
+(655, 366, 6, 'Mary Asante', 'We reported the issue to bestpoint for them to work on it', '2026-02-19 02:08:11'),
+(656, 367, 5, 'Fredrick Hanson', 'Service was temporary blocked to prevent further errors', '2026-02-19 02:08:11'),
+(657, 367, 5, 'Fredrick Hanson', 'Connection restored by ETZ operations team', '2026-02-19 02:08:11'),
+(658, 368, 2, 'Harry Opata', 'The Issue was escalated to the PBL team.', '2026-02-19 02:08:11'),
+(659, 368, 2, 'Harry Opata', 'PBL Team restored connection from their ends .', '2026-02-19 02:08:11'),
+(660, 369, 2, 'Harry Opata', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(661, 369, 2, 'Harry Opata', 'NIB team resolve the issue at their end', '2026-02-19 02:08:11'),
+(662, 370, 12, 'Prince Brako Ofori', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(663, 370, 12, 'Prince Brako Ofori', 'NIB team resolve the issue at their end', '2026-02-19 02:08:11'),
+(664, 371, 2, 'Harry Opata', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(665, 371, 2, 'Harry Opata', 'NIB Team restored connection from their ends .', '2026-02-19 02:08:11'),
+(666, 372, 2, 'Harry Opata', 'The Issue was escalated to the STCCU team.', '2026-02-19 02:08:11'),
+(667, 372, 2, 'Harry Opata', 'Operations Team restored the connection', '2026-02-19 02:08:11'),
+(668, 373, 6, 'Mary Asante', 'We first confirmed the true status of these transactions.', '2026-02-19 02:08:11'),
+(669, 373, 6, 'Mary Asante', 'We reported to the developers to roll back the update that was done on the 18th of July', '2026-02-19 02:08:11'),
+(670, 374, 5, 'Fredrick Hanson', 'The Issue was escalated to the ATWIMA team.', '2026-02-19 02:08:11'),
+(671, 374, 5, 'Fredrick Hanson', 'ATWIMA Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(672, 375, 2, 'Harry Opata', 'The Issue was escalated to the SISL team', '2026-02-19 02:08:11'),
+(673, 375, 2, 'Harry Opata', 'SISL Tech team restore connection', '2026-02-19 02:08:11'),
+(674, 376, 5, 'Fredrick Hanson', 'We communicated to the NIB team', '2026-02-19 02:08:11'),
+(675, 376, 5, 'Fredrick Hanson', 'NIB team restored the service', '2026-02-19 02:08:11'),
+(676, 377, 12, 'Prince Brako Ofori', 'Binding', '2026-02-19 02:08:11'),
+(677, 378, 2, 'Harry Opata', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(678, 378, 2, 'Harry Opata', 'SISL team restored the connection from their end', '2026-02-19 02:08:11'),
+(679, 379, 12, 'Prince Brako Ofori', 'We stopped and started the application services.', '2026-02-19 02:08:11'),
+(680, 379, 12, 'Prince Brako Ofori', 'Checked availability of the service', '2026-02-19 02:08:11'),
+(681, 380, 2, 'Harry Opata', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(682, 380, 2, 'Harry Opata', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(683, 381, 12, 'Prince Brako Ofori', 'BINDING', '2026-02-19 02:08:11'),
+(684, 382, 5, 'Fredrick Hanson', 'The Issue was escalated to the TELECEL team.', '2026-02-19 02:08:11'),
+(685, 382, 5, 'Fredrick Hanson', 'TELECEL Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(686, 383, 8, 'Simon Owusu Ansah', 'BestPoint Tech team was engaged.', '2026-02-19 02:08:11'),
+(687, 383, 8, 'Simon Owusu Ansah', 'BestPoint Tech Team Restored Service at thier end.', '2026-02-19 02:08:11'),
+(688, 384, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(689, 384, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(690, 385, 5, 'Fredrick Hanson', 'The Issue was escalated to the BOA team.', '2026-02-19 02:08:11'),
+(691, 385, 5, 'Fredrick Hanson', 'BOA Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(692, 386, 2, 'Harry Opata', 'The Issue was escalated to the BESTPOINT  team.', '2026-02-19 02:08:11'),
+(693, 386, 2, 'Harry Opata', 'BESTPOINT Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(694, 387, 2, 'Harry Opata', 'The Issue was escalated to the BESTPOINT  team.', '2026-02-19 02:08:11'),
+(695, 387, 2, 'Harry Opata', 'BESTPOINT Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(696, 388, 12, 'Prince Brako Ofori', 'TELECEL Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(697, 389, 2, 'Harry Opata', 'MTN Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(698, 390, 12, 'Prince Brako Ofori', 'MTN Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(699, 391, 2, 'Harry Opata', 'The Issue was escalated to the BOA team.', '2026-02-19 02:08:11'),
+(700, 391, 2, 'Harry Opata', 'BOA Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(701, 392, 2, 'Harry Opata', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(702, 392, 2, 'Harry Opata', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(703, 393, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(704, 393, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(705, 394, 12, 'Prince Brako Ofori', 'The Issue was escalated to the ABII team', '2026-02-19 02:08:11'),
+(706, 394, 12, 'Prince Brako Ofori', 'ABII Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(707, 395, 5, 'Fredrick Hanson', 'The Issue was escalated to the AT team.', '2026-02-19 02:08:11'),
+(708, 395, 5, 'Fredrick Hanson', 'AT Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(709, 396, 12, 'Prince Brako Ofori', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(710, 396, 12, 'Prince Brako Ofori', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(711, 397, 12, 'Prince Brako Ofori', 'The Issue was escalated to the BESTPOINT team.', '2026-02-19 02:08:11'),
+(712, 397, 12, 'Prince Brako Ofori', 'BESTPOINT Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(713, 398, 12, 'Prince Brako Ofori', 'The Issue was escalated to the ABII team via Whatsapp', '2026-02-19 02:08:11'),
+(714, 398, 12, 'Prince Brako Ofori', 'ABII Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(715, 399, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(716, 399, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(717, 400, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(718, 400, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(719, 401, 5, 'Fredrick Hanson', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(720, 401, 5, 'Fredrick Hanson', 'SISL Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(721, 402, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(722, 402, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(723, 403, 12, 'Prince Brako Ofori', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(724, 403, 12, 'Prince Brako Ofori', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(725, 404, 5, 'Fredrick Hanson', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(726, 404, 5, 'Fredrick Hanson', 'SISL Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(727, 405, 2, 'Harry Opata', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(728, 405, 2, 'Harry Opata', 'The SISL team resolved the issue.', '2026-02-19 02:08:11'),
+(729, 406, 5, 'Fredrick Hanson', 'The Issue was escalated to the BOA team.', '2026-02-19 02:08:11'),
+(730, 406, 5, 'Fredrick Hanson', 'BOA Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(731, 407, 5, 'Fredrick Hanson', 'The Issue was escalated to the PBL team.', '2026-02-19 02:08:11'),
+(732, 407, 5, 'Fredrick Hanson', 'PBL Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(733, 408, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(734, 408, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(735, 409, 2, 'Harry Opata', 'The Issue was escalated to the Etz team.', '2026-02-19 02:08:11'),
+(736, 409, 2, 'Harry Opata', 'Etz Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(737, 410, 2, 'Harry Opata', 'The Issue was escalated to the Telecel team.', '2026-02-19 02:08:11'),
+(738, 410, 2, 'Harry Opata', 'Telecel Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(739, 411, 12, 'Prince Brako Ofori', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(740, 411, 12, 'Prince Brako Ofori', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(741, 412, 2, 'Harry Opata', 'The Issue was escalated to the BOA team.', '2026-02-19 02:08:11'),
+(742, 412, 2, 'Harry Opata', 'BOA Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(743, 413, 2, 'Harry Opata', 'The Issue was escalated to the BOA team.', '2026-02-19 02:08:11'),
+(744, 413, 2, 'Harry Opata', 'BOA Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(745, 414, 2, 'Harry Opata', 'The Issue was escalated to the Telecel team.', '2026-02-19 02:08:11'),
+(746, 414, 2, 'Harry Opata', 'Telecel Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(747, 415, 12, 'Prince Brako Ofori', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(748, 415, 12, 'Prince Brako Ofori', 'The SISL team resolved the issue.', '2026-02-19 02:08:11'),
+(749, 416, 12, 'Prince Brako Ofori', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(750, 416, 12, 'Prince Brako Ofori', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(751, 417, 5, 'Fredrick Hanson', 'The Issue was escalated to the Telecel team.', '2026-02-19 02:08:11'),
+(752, 417, 5, 'Fredrick Hanson', 'Telecel Team restored the connection from their end after the maintenance activity.', '2026-02-19 02:08:11'),
+(753, 418, 2, 'Harry Opata', 'The Issue was escalated to the ETZ team.', '2026-02-19 02:08:11'),
+(754, 418, 2, 'Harry Opata', 'ETZ Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(755, 419, 12, 'Prince Brako Ofori', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(756, 419, 12, 'Prince Brako Ofori', 'The SISL team resolved the issue.', '2026-02-19 02:08:11'),
+(757, 420, 12, 'Prince Brako Ofori', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(758, 420, 12, 'Prince Brako Ofori', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(759, 421, 5, 'Fredrick Hanson', 'The Issue was escalated to the PBL team.', '2026-02-19 02:08:11'),
+(760, 421, 5, 'Fredrick Hanson', 'PBL Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(761, 422, 14, 'Eshun Maxwell', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(762, 422, 14, 'Eshun Maxwell', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(763, 423, 12, 'Prince Brako Ofori', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(764, 423, 12, 'Prince Brako Ofori', 'The SISL team resolved the issue.', '2026-02-19 02:08:11'),
+(765, 424, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(766, 424, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(767, 425, 2, 'Harry Opata', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(768, 425, 2, 'Harry Opata', 'SISL Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(769, 426, 2, 'Harry Opata', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(770, 426, 2, 'Harry Opata', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(771, 427, 12, 'Prince Brako Ofori', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(772, 427, 12, 'Prince Brako Ofori', 'The SISL team resolved the issue.', '2026-02-19 02:08:11'),
+(773, 428, 2, 'Harry Opata', 'The Issue was escalated to the BESTPOINT team.', '2026-02-19 02:08:11'),
+(774, 428, 2, 'Harry Opata', 'BESTPOINT Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(775, 429, 5, 'Fredrick Hanson', 'The Issue was escalated to the BESTPOINT team.', '2026-02-19 02:08:11'),
+(776, 429, 5, 'Fredrick Hanson', 'BESTPOINT Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(777, 430, 5, 'Fredrick Hanson', 'The Issue was escalated to the ETZ Technology team.', '2026-02-19 02:08:11'),
+(778, 430, 5, 'Fredrick Hanson', 'Technology Team resolve the issue.', '2026-02-19 02:08:11'),
+(779, 431, 15, 'Philip Larm', 'The issue was noticed and escalated to both Network.', '2026-02-19 02:08:11'),
+(780, 431, 15, 'Philip Larm', 'Network investigated and noticed payment for subscription has failed.', '2026-02-19 02:08:11'),
+(781, 432, 6, 'Mary Asante', 'The Issue was escalated to the BOA team.', '2026-02-19 02:08:11'),
+(782, 432, 6, 'Mary Asante', 'BOA Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(783, 433, 2, 'Harry Opata', 'The Issue was escalated to the BOA team.', '2026-02-19 02:08:11'),
+(784, 433, 2, 'Harry Opata', 'BOA Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(785, 434, 14, 'Eshun Maxwell', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(786, 434, 14, 'Eshun Maxwell', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(787, 435, 2, 'Harry Opata', 'The Issue was escalated to the BESTP team.', '2026-02-19 02:08:11'),
+(788, 435, 2, 'Harry Opata', 'Bestpoint Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(789, 436, 5, 'Fredrick Hanson', 'The Issue was escalated to the AT team.', '2026-02-19 02:08:11'),
+(790, 436, 5, 'Fredrick Hanson', 'AT Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(791, 437, 14, 'Eshun Maxwell', 'The Issue was escalated to the ABII team', '2026-02-19 02:08:11'),
+(792, 437, 14, 'Eshun Maxwell', 'ABII Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(793, 438, 14, 'Eshun Maxwell', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(794, 438, 14, 'Eshun Maxwell', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(795, 439, 2, 'Harry Opata', 'The issue was escalated to the GCB team.', '2026-02-19 02:08:11'),
+(796, 439, 2, 'Harry Opata', 'The Issue was resolved by the GCB team.', '2026-02-19 02:08:11'),
+(797, 440, 12, 'Prince Brako Ofori', 'The Issue was escalated to the MTN team.', '2026-02-19 02:08:11'),
+(798, 440, 12, 'Prince Brako Ofori', 'The MTN team solved the issue.', '2026-02-19 02:08:11'),
+(799, 441, 12, 'Prince Brako Ofori', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(800, 441, 12, 'Prince Brako Ofori', 'The SISL team resolved the issue.', '2026-02-19 02:08:11'),
+(801, 442, 16, 'Seth Awiakye', 'The Technology and Risk teams were notified', '2026-02-19 02:08:11'),
+(802, 442, 16, 'Seth Awiakye', 'Suspectâ€™s Xcel account was deactivated and their mobile number blocked by the Risk team.', '2026-02-19 02:08:11'),
+(803, 443, 5, 'Fredrick Hanson', 'The Issue was escalated within ETZ team.', '2026-02-19 02:08:11'),
+(804, 443, 5, 'Fredrick Hanson', 'The connection was restored by GCB Team.', '2026-02-19 02:08:11'),
+(805, 444, 2, 'Harry Opata', 'The Issue was resolved by the operations team.', '2026-02-19 02:08:11'),
+(806, 445, 12, 'Prince Brako Ofori', 'The Issue was resolved by the operations team.', '2026-02-19 02:08:11'),
+(807, 445, 12, 'Prince Brako Ofori', 'The sever was manually restarted.', '2026-02-19 02:08:11'),
+(808, 446, 5, 'Fredrick Hanson', 'The Issue was escalated to the Telecel team.', '2026-02-19 02:08:11'),
+(809, 446, 5, 'Fredrick Hanson', 'Telecel Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(810, 447, 12, 'Prince Brako Ofori', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(811, 447, 12, 'Prince Brako Ofori', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(812, 448, 2, 'Harry Opata', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(813, 448, 2, 'Harry Opata', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(814, 449, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(815, 449, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(816, 450, 12, 'Prince Brako Ofori', 'The Issue was resolved by the GCB team.', '2026-02-19 02:08:11'),
+(817, 450, 12, 'Prince Brako Ofori', 'The issue was escalated to the GCB team.', '2026-02-19 02:08:11'),
+(818, 451, 14, 'Eshun Maxwell', 'The Issue was escalated to GCB  team via whatsapp', '2026-02-19 02:08:11'),
+(819, 451, 14, 'Eshun Maxwell', 'Connection was restored by GCB Team.', '2026-02-19 02:08:11'),
+(820, 452, 12, 'Prince Brako Ofori', 'The Issue was resolved by the Telecel team.', '2026-02-19 02:08:11'),
+(821, 453, 2, 'Harry Opata', 'The Issue was resolved by the ETz team.', '2026-02-19 02:08:11'),
+(822, 454, 12, 'Prince Brako Ofori', 'The Issue was resolved by the network team.', '2026-02-19 02:08:11'),
+(823, 454, 12, 'Prince Brako Ofori', 'Security Maintenance', '2026-02-19 02:08:11'),
+(824, 455, 14, 'Eshun Maxwell', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(825, 455, 14, 'Eshun Maxwell', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(826, 456, 5, 'Fredrick Hanson', 'The Issue was escalated to the BESTP team.', '2026-02-19 02:08:11'),
+(827, 456, 5, 'Fredrick Hanson', 'BESTP Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(828, 457, 14, 'Eshun Maxwell', 'The issue was escalated to BOA team via skype', '2026-02-19 02:08:11'),
+(829, 457, 14, 'Eshun Maxwell', 'BOA Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(830, 458, 14, 'Eshun Maxwell', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(831, 458, 14, 'Eshun Maxwell', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(832, 459, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(833, 459, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(834, 460, 2, 'Harry Opata', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(835, 460, 2, 'Harry Opata', 'SISL Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(836, 461, 5, 'Fredrick Hanson', 'Escalated to GCB team.', '2026-02-19 02:08:11'),
+(837, 461, 5, 'Fredrick Hanson', 'Connection was restored by GCB.', '2026-02-19 02:08:11'),
+(838, 462, 14, 'Eshun Maxwell', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(839, 462, 14, 'Eshun Maxwell', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(840, 463, 2, 'Harry Opata', 'The Issue was resolved by the Etz team.', '2026-02-19 02:08:11'),
+(841, 464, 2, 'Harry Opata', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(842, 465, 12, 'Prince Brako Ofori', 'The Issue was resolved by the GCB team.', '2026-02-19 02:08:11'),
+(843, 465, 12, 'Prince Brako Ofori', 'The issue was escalated to the GCB team.', '2026-02-19 02:08:11'),
+(844, 466, 14, 'Eshun Maxwell', 'The issue was escalated to clients via mail', '2026-02-19 02:08:11'),
+(845, 466, 14, 'Eshun Maxwell', 'MTN team restored connection from their end', '2026-02-19 02:08:11'),
+(846, 467, 2, 'Harry Opata', 'The Issue was escalated to the ETZ team.', '2026-02-19 02:08:11'),
+(847, 467, 2, 'Harry Opata', 'Connection was restored by ETZ Team', '2026-02-19 02:08:11'),
+(848, 468, 14, 'Eshun Maxwell', 'The Issue was escalated to the ETZ team.', '2026-02-19 02:08:11'),
+(849, 468, 14, 'Eshun Maxwell', 'Connection was restored by ETZ Team', '2026-02-19 02:08:11'),
+(850, 469, 2, 'Harry Opata', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(851, 469, 2, 'Harry Opata', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(852, 470, 14, 'Eshun Maxwell', 'MTN team restored connection from their end after the maintenance activity was completed.', '2026-02-19 02:08:11'),
+(853, 471, 5, 'Fredrick Hanson', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(854, 471, 5, 'Fredrick Hanson', 'SISL Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(855, 472, 14, 'Eshun Maxwell', 'The issue was escalated to GCB Team', '2026-02-19 02:08:11'),
+(856, 472, 14, 'Eshun Maxwell', 'GCB team restored connection from their end', '2026-02-19 02:08:11'),
+(857, 473, 2, 'Harry Opata', 'Connection was restored by ETZ Team', '2026-02-19 02:08:11'),
+(858, 474, 5, 'Fredrick Hanson', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(859, 474, 5, 'Fredrick Hanson', 'SISL Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(860, 475, 14, 'Eshun Maxwell', 'The Issue was escalated to the BESTPOINT team.', '2026-02-19 02:08:11'),
+(861, 475, 14, 'Eshun Maxwell', 'BESTPOINT Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(862, 476, 12, 'Prince Brako Ofori', 'The Issue was resolved by the AirtelTigo team.', '2026-02-19 02:08:11'),
+(863, 477, 12, 'Prince Brako Ofori', 'The Issue was solved by the Operations team.', '2026-02-19 02:08:11'),
+(864, 478, 12, 'Prince Brako Ofori', 'The Issue was solved by the Operations team.', '2026-02-19 02:08:11'),
+(865, 479, 14, 'Eshun Maxwell', 'The Issue was escalated to the ETZ team.', '2026-02-19 02:08:11'),
+(866, 479, 14, 'Eshun Maxwell', 'Connection was restored by ETZ Team', '2026-02-19 02:08:11'),
+(867, 480, 12, 'Prince Brako Ofori', 'The Issue was resolved by the operations team.', '2026-02-19 02:08:11'),
+(868, 480, 12, 'Prince Brako Ofori', 'The CBA, CMS, APL ,SQL and E-levy were restarted.', '2026-02-19 02:08:11'),
+(869, 481, 12, 'Prince Brako Ofori', 'The Issue was escalated to the PBL team.', '2026-02-19 02:08:11'),
+(870, 481, 12, 'Prince Brako Ofori', 'The Issue was resolved by the PBL team.', '2026-02-19 02:08:11'),
+(871, 482, 6, 'Mary Asante', 'The issue was escalated to Bestpoint Team via whatsapp', '2026-02-19 02:08:11'),
+(872, 482, 6, 'Mary Asante', 'Connection was restored by Bestpoint Team', '2026-02-19 02:08:11'),
+(873, 483, 6, 'Mary Asante', 'The issue was escalated to GCB Team via whatsapp', '2026-02-19 02:08:11'),
+(874, 483, 6, 'Mary Asante', 'Connection was restored by GCB Team', '2026-02-19 02:08:11'),
+(875, 484, 5, 'Fredrick Hanson', 'The Issue was escalated to the ECG team.', '2026-02-19 02:08:11'),
+(876, 484, 5, 'Fredrick Hanson', 'ECG Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(877, 485, 2, 'Harry Opata', 'The Issue was escalated to the PBL team.', '2026-02-19 02:08:11'),
+(878, 485, 2, 'Harry Opata', 'Connection was restored by PBL Tech Team', '2026-02-19 02:08:11'),
+(879, 486, 14, 'Eshun Maxwell', 'The Issue was escalated to the PBL team.', '2026-02-19 02:08:11'),
+(880, 486, 14, 'Eshun Maxwell', 'Connection was restored by PBL Tech Team', '2026-02-19 02:08:11'),
+(881, 487, 12, 'Prince Brako Ofori', 'The Issue was resolved by the operations team.', '2026-02-19 02:08:11'),
+(882, 487, 12, 'Prince Brako Ofori', 'The server was restarted.', '2026-02-19 02:08:11'),
+(883, 488, 14, 'Eshun Maxwell', 'The Issue was escalated to the PBL team.', '2026-02-19 02:08:11'),
+(884, 488, 14, 'Eshun Maxwell', 'Connection was restored by PBL Tech Team', '2026-02-19 02:08:11'),
+(885, 489, 12, 'Prince Brako Ofori', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(886, 489, 12, 'Prince Brako Ofori', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(887, 490, 2, 'Harry Opata', 'The Issue was escalated to the Abii national team.', '2026-02-19 02:08:11'),
+(888, 490, 2, 'Harry Opata', 'Abii national team solved the issues.', '2026-02-19 02:08:11'),
+(889, 491, 14, 'Eshun Maxwell', 'The Issue was escalated to the GCB team.', '2026-02-19 02:08:11'),
+(890, 491, 14, 'Eshun Maxwell', 'GCB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(891, 492, 12, 'Prince Brako Ofori', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(892, 492, 12, 'Prince Brako Ofori', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(893, 493, 5, 'Fredrick Hanson', 'The Issue was escalated to the ABII team.', '2026-02-19 02:08:11'),
+(894, 493, 5, 'Fredrick Hanson', 'ABII Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(895, 494, 5, 'Fredrick Hanson', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:11'),
+(896, 494, 5, 'Fredrick Hanson', 'SISL Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(897, 495, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:11'),
+(898, 495, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(899, 496, 12, 'Prince Brako Ofori', 'The Issue was escalated to the Abii national team.', '2026-02-19 02:08:11'),
+(900, 496, 12, 'Prince Brako Ofori', 'Abii national team solved the issues.', '2026-02-19 02:08:11'),
+(901, 497, 12, 'Prince Brako Ofori', 'The Issue was escalated to the GCB team.', '2026-02-19 02:08:11'),
+(902, 497, 12, 'Prince Brako Ofori', 'GCB Team restored the connection from their end.', '2026-02-19 02:08:11'),
+(903, 498, 12, 'Prince Brako Ofori', 'The Issue was escalated to the Abii national team.', '2026-02-19 02:08:11'),
+(904, 498, 12, 'Prince Brako Ofori', 'Abii national team solved the issues.', '2026-02-19 02:08:11'),
+(905, 499, 6, 'Mary Asante', 'Connection was restored by Etz Team', '2026-02-19 02:08:12'),
+(906, 500, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:12'),
+(907, 500, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:12'),
+(908, 501, 2, 'Harry Opata', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:12'),
+(909, 501, 2, 'Harry Opata', 'The SISL team resolved the issue', '2026-02-19 02:08:12'),
+(910, 502, 12, 'Prince Brako Ofori', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:12'),
+(911, 502, 12, 'Prince Brako Ofori', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:12'),
+(912, 503, 14, 'Eshun Maxwell', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:12'),
+(913, 503, 14, 'Eshun Maxwell', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:12'),
+(914, 504, 12, 'Prince Brako Ofori', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:12'),
+(915, 504, 12, 'Prince Brako Ofori', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:12'),
+(916, 505, 17, 'Leonard L. Ninsau', 'The Network Team was notified', '2026-02-19 02:08:12'),
+(917, 505, 17, 'Leonard L. Ninsau', 'Network team investigated the Incident.', '2026-02-19 02:08:12'),
+(918, 505, 17, 'Leonard L. Ninsau', 'During the investigations, The Team noted that the wifi controller was down, so it restarted.', '2026-02-19 02:08:12'),
+(919, 506, 12, 'Prince Brako Ofori', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:12'),
+(920, 506, 12, 'Prince Brako Ofori', 'The SISL team resolved the issue', '2026-02-19 02:08:12'),
+(921, 507, 17, 'Leonard L. Ninsau', 'The Network Team was notified', '2026-02-19 02:08:12'),
+(922, 507, 17, 'Leonard L. Ninsau', 'Network team investigated into the internet downtime', '2026-02-19 02:08:12'),
+(923, 507, 17, 'Leonard L. Ninsau', 'During the investigations, The Team noted that DNS was not resolving and restore it.', '2026-02-19 02:08:12'),
+(924, 508, 2, 'Harry Opata', 'The Issue was escalated to the PBL team.', '2026-02-19 02:08:12'),
+(925, 508, 2, 'Harry Opata', 'Connection was restored by Etranzact Tech Team', '2026-02-19 02:08:12'),
+(926, 509, 5, 'Fredrick Hanson', 'The Issue was escalated to the SISL team.', '2026-02-19 02:08:12'),
+(927, 509, 5, 'Fredrick Hanson', 'SISL Team restored the connection from their end.', '2026-02-19 02:08:12'),
+(928, 510, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:12'),
+(929, 510, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:12'),
+(930, 511, 12, 'Prince Brako Ofori', 'The Issue was escalated to the GCB team.', '2026-02-19 02:08:12'),
+(931, 511, 12, 'Prince Brako Ofori', 'GCB Team restored the connection from their end.', '2026-02-19 02:08:12'),
+(932, 512, 5, 'Fredrick Hanson', 'The Issue was escalated to the BESTPOINT team.', '2026-02-19 02:08:12'),
+(933, 512, 5, 'Fredrick Hanson', 'BESTPOINT Team restored the connection from their end.', '2026-02-19 02:08:12'),
+(934, 513, 12, 'Prince Brako Ofori', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:12'),
+(935, 513, 12, 'Prince Brako Ofori', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:12'),
+(936, 514, 12, 'Prince Brako Ofori', 'The Issue was escalated to the ABII team.', '2026-02-19 02:08:12'),
+(937, 514, 12, 'Prince Brako Ofori', 'ABII Team restored the connection from their end.', '2026-02-19 02:08:12'),
+(938, 515, 5, 'Fredrick Hanson', 'The Issue was escalated to the NIB team.', '2026-02-19 02:08:12'),
+(939, 515, 5, 'Fredrick Hanson', 'NIB Team restored the connection from their end.', '2026-02-19 02:08:12'),
+(940, 516, 14, 'Eshun Maxwell', 'The Issue was escalated to the ABII team.', '2026-02-19 02:08:12'),
+(941, 516, 14, 'Eshun Maxwell', 'ABII Team restored the connection from their end.', '2026-02-19 02:08:12'),
+(942, 517, 19, 'Jacob Quarshie Nii Odoi', 'Made changes to all results outcomes', '2026-02-19 07:38:26'),
+(943, 518, 18, 'System', 'Incident has been marked as resolved by System Administrator', '2026-02-26 09:13:11'),
+(944, 519, 18, 'System', 'Incident details updated by System Administrator', '2026-03-04 09:39:47'),
+(945, 520, 18, 'System', 'Incident details updated by System Administrator', '2026-03-04 14:08:59'),
+(946, 521, 23, 'System', 'Incident has been marked as resolved by JNQ', '2026-03-04 14:18:16'),
+(947, 520, 23, 'System', 'Incident has been marked as resolved by JNQ', '2026-03-04 14:18:24'),
+(948, 519, 23, 'System', 'Incident has been marked as resolved by JNQ', '2026-03-04 14:18:30'),
+(949, 517, 23, 'System', 'Incident has been marked as resolved by JNQ', '2026-03-04 14:18:41'),
+(950, 260, 23, 'System', 'Incident has been marked as resolved by JNQ', '2026-03-04 14:18:45');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `services`
+--
+
+CREATE TABLE `services` (
+  `service_id` int(11) NOT NULL,
+  `service_name` varchar(255) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `services`
+--
+
+INSERT INTO `services` (`service_id`, `service_name`, `created_at`, `updated_at`) VALUES
+(141, 'Mobile Money', '2026-02-18 23:20:11', '2026-02-18 23:20:11'),
+(142, 'VASGATE', '2026-02-18 23:54:40', '2026-02-18 23:54:47'),
+(143, 'FUNDGATE', '2026-02-18 23:55:01', '2026-02-18 23:55:01'),
+(144, 'MPAY', '2026-02-18 23:55:13', '2026-02-18 23:55:13'),
+(145, 'JUSTPAY', '2026-02-18 23:55:57', '2026-02-18 23:55:57'),
+(146, 'OVA', '2026-02-18 23:56:41', '2026-02-18 23:56:41');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `service_components`
+--
+
+CREATE TABLE `service_components` (
+  `component_id` int(11) NOT NULL,
+  `service_id` int(11) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `service_components`
+--
+
+INSERT INTO `service_components` (`component_id`, `service_id`, `name`, `is_active`) VALUES
+(130, 141, 'Credit', 1),
+(131, 141, 'Debit', 1),
+(132, 141, 'Reversal', 1),
+(133, 141, 'B2W', 1),
+(134, 141, 'W2B', 1),
+(135, 141, 'Topup', 1),
+(136, 142, 'Bills', 1),
+(137, 142, 'Topup', 1),
+(138, 142, 'Airtime', 1),
+(139, 142, 'Data Bundle', 1),
+(140, 142, 'B2W', 1),
+(141, 142, 'W2B', 1),
+(142, 143, 'Credit', 1),
+(143, 143, 'Debit', 1),
+(144, 143, 'B2W', 1),
+(145, 143, 'W2B', 1),
+(146, 143, 'Topup', 1),
+(147, 143, 'Reversal', 1),
+(148, 144, 'Credit', 1),
+(149, 144, 'Debit', 1),
+(150, 144, 'Topup', 1),
+(151, 144, 'B2W', 1),
+(152, 144, 'W2B', 1),
+(153, 144, 'Reversal', 1),
+(154, 145, 'Credit', 1),
+(155, 145, 'Debit', 1),
+(156, 145, 'Bills', 1),
+(157, 145, 'Topup', 1),
+(158, 145, 'Airtime', 1),
+(159, 145, 'Reversal', 1),
+(160, 146, 'Credit', 1),
+(161, 146, 'Debit', 1),
+(162, 146, 'B2W', 1),
+(163, 146, 'W2B', 1),
+(164, 146, 'Topup', 1),
+(165, 146, 'Reversal', 1);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `sla_targets`
+--
+
+CREATE TABLE `sla_targets` (
+  `target_id` int(11) NOT NULL,
+  `company_id` int(11) DEFAULT NULL,
+  `service_id` int(11) DEFAULT NULL,
+  `target_uptime` decimal(5,2) NOT NULL DEFAULT 99.99,
+  `business_hours_start` time DEFAULT '09:00:00',
+  `business_hours_end` time DEFAULT '17:00:00',
+  `business_days` set('Mon','Tue','Wed','Thu','Fri','Sat','Sun') DEFAULT 'Mon,Tue,Wed,Thu,Fri',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `users`
+--
+
+CREATE TABLE `users` (
+  `user_id` int(11) NOT NULL,
+  `username` varchar(50) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `full_name` varchar(255) NOT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `location` varchar(255) DEFAULT NULL,
+  `role` enum('admin','user') NOT NULL DEFAULT 'user',
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `last_login` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `changed_password` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `users`
+--
+
+INSERT INTO `users` (`user_id`, `username`, `email`, `password_hash`, `full_name`, `phone`, `location`, `role`, `is_active`, `last_login`, `created_at`, `updated_at`, `changed_password`) VALUES
+(2, 'harry_opata', 'harry_opata@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Harry Opata', '256591308', '3rd floor Heritage tower', 'user', 0, NULL, '2026-02-17 08:44:05', '2026-02-19 08:20:13', 0),
+(3, 'maxwell_eshun', 'maxwell_eshun@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Maxwell Eshun', '533866740', '3rd floor Heritage tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(4, 'eric_fillipe_arthur', 'eric_fillipe_arthur@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Eric Fillipe Arthur', '201471988', '3rd floor Heritage tower', 'user', 0, NULL, '2026-02-17 08:44:05', '2026-02-19 16:32:32', 0),
+(5, 'fredrick_hanson', 'fredrick_hanson@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Fredrick Hanson', '552150123', '3rd floor Heritage tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(6, 'mary_asante', 'mary_asante@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Mary Asante', '534488985', '3rd floor Heritage tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(7, 'takyi_owusu_mensah', 'takyi_owusu_mensah@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Takyi Owusu Mensah', '542672470', '3rd floor Heritage tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(8, 'simon_owusu_ansah', 'simon_owusu_ansah@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Simon Owusu Ansah', '593489937', '3rd floor Heritage tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(9, 'takyi_owusumensah_', 'takyi_owusumensah_@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Takyi Owusu-Mensah ', '542672470', '3rd floor Heritage tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(10, 'takyi_owusumensah', 'takyi_owusumensah@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Takyi Owusu-Mensah', '542672470', '3rd floor Heritage tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(11, 'japheth_boateng', 'japheth_boateng@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Japheth Boateng', '233244571716', '3rd floor Heritage tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(12, 'prince_brako_ofori', 'prince_brako_ofori@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Prince Brako Ofori', '207812962', '3rd floor Heritage tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(13, 'japthet_boateng', 'japthet_boateng@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Japthet Boateng', '244571716', '3rd floor Heritage tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(14, 'eshun_maxwell', 'eshun_maxwell@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Eshun Maxwell', '248919669', '3rd Floor Heritage Tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(15, 'philip_larm', 'philip_larm@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Philip Larm', '244418885', '3rd Floor Heritage Tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(16, 'seth_awiakye', 'seth_awiakye@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Seth Awiakye', '541568646', '3rd Floor Heritage Tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(17, 'leonard_l_ninsau', 'leonard_l_ninsau@incident-platform.local', 'e5bf4ea9d3ca8e7b01358689ef7fa132071ecb0adc8fddf8d4b268c868354707', 'Leonard L. Ninsau', '245446733', '3rd Floor Heritage Tower', 'user', 1, NULL, '2026-02-17 08:44:05', '2026-02-17 08:44:05', 0),
+(18, 'admin', 'admin@etranzact.com', '$2y$10$B5h1Jr3E5LLwUDzCgRWFIuCtsvArJBGwJe.aO4lX2Voo2ezCEha8i', 'System Administrator', NULL, NULL, 'admin', 1, '2026-03-04 14:04:18', '2026-02-18 23:12:52', '2026-03-04 14:04:18', 1),
+(19, 'jacobquarshie', 'jacobquarshie01@gmail.com', '$2y$10$0Xrb1zUbPKhZ/AtN8LQNmu5jSqzQTYspTql/ZsgLVEWW.7rFKIuEu', 'Jacob Quarshie Nii Odoi', NULL, NULL, 'user', 1, '2026-02-19 07:00:41', '2026-02-19 01:17:34', '2026-02-19 07:00:41', 1),
+(20, 'harry.opata', 'harry.opata@etz.co', '$2y$10$0AtBnomZiiXBgvg2vkd2Eei6yZz7rj3a5VKBftGO6RT6/gXuga/OW', 'Harry Opata', NULL, NULL, 'user', 1, '2026-02-19 08:23:50', '2026-02-19 08:21:02', '2026-02-19 08:24:28', 1),
+(21, 'eric.authur', 'eric@test.com', '$2y$10$4ZjIiTXXXDB5Ipe9hv0hCORXnW30kpnW1fpRhnmqYgaKyRSBvan5u', 'Eric Authur', NULL, NULL, 'admin', 1, '2026-02-19 22:58:14', '2026-02-19 16:32:23', '2026-02-19 22:58:14', 1),
+(22, 'test.admin', 'test.admin@test', '$2y$10$8Ry4FZx3g7OTV9I/ZI.UAOxFNBDHODTNiozhusr/nlJdiiREiph5q', 'Test Admin', NULL, NULL, 'admin', 1, NULL, '2026-02-19 16:34:00', '2026-02-19 16:34:00', 1),
+(23, 'Jacob', 'j@gmail.com', '$2y$10$5NjJ7ck7uMeDKP4bBK4ece0ygQcKgE8UfD1U7gUrAmt9.9Uc8hLNC', 'JNQ', NULL, NULL, 'user', 1, '2026-03-04 14:15:34', '2026-03-04 14:15:17', '2026-03-04 14:16:17', 1);
+
+--
+-- Indexes for dumped tables
+--
+
+--
+-- Indexes for table `activity_logs`
+--
+ALTER TABLE `activity_logs`
+  ADD PRIMARY KEY (`log_id`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_action` (`action`),
+  ADD KEY `idx_created_at` (`created_at`);
+
+--
+-- Indexes for table `companies`
+--
+ALTER TABLE `companies`
+  ADD PRIMARY KEY (`company_id`);
+
+--
+-- Indexes for table `downtime_incidents`
+--
+ALTER TABLE `downtime_incidents`
+  ADD PRIMARY KEY (`downtime_id`),
+  ADD KEY `incident_id` (`incident_id`);
+
+--
+-- Indexes for table `incidents`
+--
+ALTER TABLE `incidents`
+  ADD PRIMARY KEY (`incident_id`),
+  ADD UNIQUE KEY `unique_incident_ref` (`incident_ref`),
+  ADD KEY `service_id` (`service_id`),
+  ADD KEY `component_id` (`component_id`),
+  ADD KEY `incident_type_id` (`incident_type_id`),
+  ADD KEY `reported_by` (`reported_by`),
+  ADD KEY `idx_actual_start_time` (`actual_start_time`),
+  ADD KEY `idx_priority` (`priority`),
+  ADD KEY `idx_source` (`source`),
+  ADD KEY `idx_category` (`category`);
+
+--
+-- Indexes for table `incident_affected_companies`
+--
+ALTER TABLE `incident_affected_companies`
+  ADD PRIMARY KEY (`incident_id`,`company_id`),
+  ADD KEY `fk_iac_company` (`company_id`);
+
+--
+-- Indexes for table `incident_attachments`
+--
+ALTER TABLE `incident_attachments`
+  ADD PRIMARY KEY (`attachment_id`),
+  ADD KEY `idx_incident_id` (`incident_id`);
+
+--
+-- Indexes for table `incident_company_history`
+--
+ALTER TABLE `incident_company_history`
+  ADD PRIMARY KEY (`history_id`),
+  ADD KEY `changed_by` (`changed_by`),
+  ADD KEY `idx_incident_id` (`incident_id`),
+  ADD KEY `idx_company_id` (`company_id`),
+  ADD KEY `idx_changed_at` (`changed_at`);
+
+--
+-- Indexes for table `incident_templates`
+--
+ALTER TABLE `incident_templates`
+  ADD PRIMARY KEY (`template_id`),
+  ADD UNIQUE KEY `template_name` (`template_name`),
+  ADD KEY `component_id` (`component_id`),
+  ADD KEY `created_by` (`created_by`),
+  ADD KEY `idx_service` (`service_id`),
+  ADD KEY `idx_active` (`is_active`),
+  ADD KEY `idx_usage` (`usage_count`),
+  ADD KEY `incident_type_id` (`incident_type_id`);
+
+--
+-- Indexes for table `incident_types`
+--
+ALTER TABLE `incident_types`
+  ADD PRIMARY KEY (`type_id`),
+  ADD KEY `service_id` (`service_id`);
+
+--
+-- Indexes for table `incident_updates`
+--
+ALTER TABLE `incident_updates`
+  ADD PRIMARY KEY (`update_id`),
+  ADD KEY `incident_id` (`incident_id`);
+
+--
+-- Indexes for table `services`
+--
+ALTER TABLE `services`
+  ADD PRIMARY KEY (`service_id`);
+
+--
+-- Indexes for table `service_components`
+--
+ALTER TABLE `service_components`
+  ADD PRIMARY KEY (`component_id`),
+  ADD KEY `service_id` (`service_id`);
+
+--
+-- Indexes for table `sla_targets`
+--
+ALTER TABLE `sla_targets`
+  ADD PRIMARY KEY (`target_id`),
+  ADD UNIQUE KEY `unique_company_service` (`company_id`,`service_id`),
+  ADD KEY `service_id` (`service_id`);
+
+--
+-- Indexes for table `users`
+--
+ALTER TABLE `users`
+  ADD PRIMARY KEY (`user_id`),
+  ADD UNIQUE KEY `unique_username` (`username`),
+  ADD UNIQUE KEY `unique_email` (`email`),
+  ADD KEY `idx_username` (`username`),
+  ADD KEY `idx_email` (`email`),
+  ADD KEY `idx_role` (`role`),
+  ADD KEY `idx_is_active` (`is_active`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `activity_logs`
+--
+ALTER TABLE `activity_logs`
+  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=102;
+
+--
+-- AUTO_INCREMENT for table `companies`
+--
+ALTER TABLE `companies`
+  MODIFY `company_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+
+--
+-- AUTO_INCREMENT for table `downtime_incidents`
+--
+ALTER TABLE `downtime_incidents`
+  MODIFY `downtime_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=511;
+
+--
+-- AUTO_INCREMENT for table `incidents`
+--
+ALTER TABLE `incidents`
+  MODIFY `incident_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=522;
+
+--
+-- AUTO_INCREMENT for table `incident_attachments`
+--
+ALTER TABLE `incident_attachments`
+  MODIFY `attachment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `incident_company_history`
+--
+ALTER TABLE `incident_company_history`
+  MODIFY `history_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `incident_templates`
+--
+ALTER TABLE `incident_templates`
+  MODIFY `template_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=81;
+
+--
+-- AUTO_INCREMENT for table `incident_types`
+--
+ALTER TABLE `incident_types`
+  MODIFY `type_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1342;
+
+--
+-- AUTO_INCREMENT for table `incident_updates`
+--
+ALTER TABLE `incident_updates`
+  MODIFY `update_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=951;
+
+--
+-- AUTO_INCREMENT for table `services`
+--
+ALTER TABLE `services`
+  MODIFY `service_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=147;
+
+--
+-- AUTO_INCREMENT for table `service_components`
+--
+ALTER TABLE `service_components`
+  MODIFY `component_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=166;
+
+--
+-- AUTO_INCREMENT for table `sla_targets`
+--
+ALTER TABLE `sla_targets`
+  MODIFY `target_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `users`
+--
+ALTER TABLE `users`
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `activity_logs`
+--
+ALTER TABLE `activity_logs`
+  ADD CONSTRAINT `fk_activity_logs_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `downtime_incidents`
+--
+ALTER TABLE `downtime_incidents`
+  ADD CONSTRAINT `fk_downtime_incident` FOREIGN KEY (`incident_id`) REFERENCES `incidents` (`incident_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `incidents`
+--
+ALTER TABLE `incidents`
+  ADD CONSTRAINT `fk_incident_component` FOREIGN KEY (`component_id`) REFERENCES `service_components` (`component_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_incident_reporter` FOREIGN KEY (`reported_by`) REFERENCES `users` (`user_id`),
+  ADD CONSTRAINT `fk_incident_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`service_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_incident_type` FOREIGN KEY (`incident_type_id`) REFERENCES `incident_types` (`type_id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `incident_affected_companies`
+--
+ALTER TABLE `incident_affected_companies`
+  ADD CONSTRAINT `fk_iac_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`company_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_iac_incident` FOREIGN KEY (`incident_id`) REFERENCES `incidents` (`incident_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `incident_attachments`
+--
+ALTER TABLE `incident_attachments`
+  ADD CONSTRAINT `fk_attachment_incident` FOREIGN KEY (`incident_id`) REFERENCES `incidents` (`incident_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `incident_company_history`
+--
+ALTER TABLE `incident_company_history`
+  ADD CONSTRAINT `incident_company_history_ibfk_1` FOREIGN KEY (`incident_id`) REFERENCES `incidents` (`incident_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `incident_company_history_ibfk_2` FOREIGN KEY (`company_id`) REFERENCES `companies` (`company_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `incident_company_history_ibfk_3` FOREIGN KEY (`changed_by`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `incident_templates`
+--
+ALTER TABLE `incident_templates`
+  ADD CONSTRAINT `incident_templates_ibfk_1` FOREIGN KEY (`service_id`) REFERENCES `services` (`service_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `incident_templates_ibfk_2` FOREIGN KEY (`component_id`) REFERENCES `service_components` (`component_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `incident_templates_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`),
+  ADD CONSTRAINT `incident_templates_ibfk_4` FOREIGN KEY (`incident_type_id`) REFERENCES `incident_types` (`type_id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `incident_types`
+--
+ALTER TABLE `incident_types`
+  ADD CONSTRAINT `fk_type_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`service_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `incident_updates`
+--
+ALTER TABLE `incident_updates`
+  ADD CONSTRAINT `fk_updates_incident` FOREIGN KEY (`incident_id`) REFERENCES `incidents` (`incident_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `service_components`
+--
+ALTER TABLE `service_components`
+  ADD CONSTRAINT `fk_component_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`service_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `sla_targets`
+--
+ALTER TABLE `sla_targets`
+  ADD CONSTRAINT `fk_sla_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`company_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_sla_service` FOREIGN KEY (`service_id`) REFERENCES `services` (`service_id`) ON DELETE CASCADE;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
