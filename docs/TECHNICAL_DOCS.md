@@ -357,7 +357,28 @@ if (empty($errors)) {
     } catch (Exception $e) {
         $pdo->rollBack();
         $error = $e->getMessage();
+}
+```
+
+### Incident Resolution & Resolvers
+
+When resolving an incident, the system requires mandatory inputs to ensure proper documentation:
+- **Root Cause & Lessons Learned**: Required either as text input or file upload.
+- **Resolvers**: A dynamic array of names representing the engineers or staff who assisted in resolving the issue. At least one resolver must be provided.
+
+```php
+// Backend validation in incidents.php
+if ($status === 'resolved') {
+    $resolvers = $_POST['resolvers'] ?? [];
+    $valid_resolvers = array_filter(array_map('trim', is_array($resolvers) ? $resolvers : []));
+    
+    if (empty($valid_resolvers)) {
+        $errors[] = 'At least one resolver name is required.';
     }
+    
+    // ...
+    $sql .= ", resolved_by = :user_id, resolved_at = :resolved_at, resolvers = :resolvers";
+    $params[':resolvers'] = json_encode(array_values($valid_resolvers));
 }
 ```
 

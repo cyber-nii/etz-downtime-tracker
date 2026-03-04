@@ -76,6 +76,7 @@ The **eTranzact Downtime Tracking System** is a comprehensive web application de
 
 - **Comprehensive Incident View**: See all incidents grouped by service
 - **Status Management**: Update incident status (Pending → Resolved)
+- **Resolvers Tracking**: Mandatory input of engineers/staff who assisted in resolving an incident
 - **Update Timeline**: Add and view chronological updates for each incident
 - **Company Grouping**: View all affected companies per incident
 - **Bulk Updates**: Resolve all incidents for a specific service at once
@@ -426,6 +427,7 @@ root_cause         - Incident description
 status             - ENUM('pending', 'resolved')
 impact_level       - ENUM('Low', 'Medium', 'High', 'Critical')
 resolved_by        - User who resolved the issue
+resolvers          - JSON array of names of people who assisted in resolution
 resolved_at        - Resolution timestamp
 created_at         - Report timestamp
 updated_at         - Auto-updated timestamp
