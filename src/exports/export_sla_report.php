@@ -44,6 +44,9 @@ try {
     }
 
     // Build the query to get report data
+    // Only include incidents that have a downtime_incidents row
+    // marked as NOT planned (is_planned = 0) and whose downtime window
+    // overlaps the requested reporting period.
     $query = "SELECT 
                 iac.company_id,
                 c.company_name,
@@ -52,7 +55,7 @@ try {
                 i.created_at as incident_date,
                 i.resolved_at as resolved_date,
                 TIMESTAMPDIFF(MINUTE, 
-                    GREATEST(COALESCE(di.actual_start_time, i.created_at), :start1), 
+                    GREATEST(di.actual_start_time, :start1), 
                     LEAST(COALESCE(di.actual_end_time, i.resolved_at, NOW()), :end1)
                 ) as downtime_minutes,
                 i.impact_level,
@@ -61,8 +64,10 @@ try {
               JOIN services s ON i.service_id = s.service_id
               JOIN incident_affected_companies iac ON i.incident_id = iac.incident_id
               JOIN companies c ON iac.company_id = c.company_id
-              LEFT JOIN downtime_incidents di ON i.incident_id = di.incident_id
-              WHERE i.created_at < :end2 
+              JOIN downtime_incidents di 
+                    ON i.incident_id = di.incident_id 
+                   AND di.is_planned = 0
+              WHERE di.actual_start_time < :end2 
               AND (COALESCE(di.actual_end_time, i.resolved_at, NOW()) > :start2)";
 
     $params = [

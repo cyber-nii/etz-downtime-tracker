@@ -45,16 +45,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
             COALESCE(di.actual_start_time, i.created_at) as actual_start_time,
             di.actual_end_time,
             -- Only calculate downtime if incident has downtime_incidents entry
-            -- This excludes: non-downtime incidents AND planned maintenance
+            -- and it is NOT planned maintenance
             CASE 
-                WHEN di.incident_id IS NOT NULL AND i.status = 'resolved' THEN 
+                WHEN di.incident_id IS NOT NULL AND di.is_planned = 0 AND i.status = 'resolved' THEN 
                     -- Use resolved_at from incidents table (set by user when resolving)
                     TIMESTAMPDIFF(MINUTE, i.created_at, i.resolved_at)
-                WHEN di.incident_id IS NOT NULL AND i.status = 'pending' THEN 
+                WHEN di.incident_id IS NOT NULL AND di.is_planned = 0 AND i.status = 'pending' THEN 
                     -- Ongoing incident - calculate from created_at to NOW
                     TIMESTAMPDIFF(MINUTE, i.created_at, NOW())
                 ELSE 
-                    -- No downtime entry = no SLA impact
+                    -- No qualifying downtime entry = no SLA impact
                     0
             END as downtime_minutes,
             di.is_planned,
@@ -96,9 +96,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
             // Calculate downtime overlapping with the period
             $downtime = 0;
 
-            // Only calculate downtime if it has a downtime entry in downtime_incidents
-            // AND the status is resolved or pending (implied by query)
-            if (!empty($incident['has_downtime_entry'])) {
+            // Only calculate downtime for unplanned downtime incidents
+            // (has a downtime_incidents entry AND is_planned = 0)
+            if (!empty($incident['has_downtime_entry']) && (int)($incident['is_planned'] ?? 0) === 0) {
                 // Determine incident start and end
                 // Use columns from query: actual_start_time (calculated via COALESCE)
                 $incidentStart = new DateTime($incident['actual_start_time']);
