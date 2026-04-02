@@ -33,7 +33,7 @@ try {
     // Only include incidents that have a downtime_incidents row
     // marked as NOT planned (is_planned = 0) and whose downtime window
     // overlaps the requested reporting period.
-    $query = "SELECT 
+    $query = "SELECT
                 iac.company_id,
                 c.company_name,
                 s.service_name,
@@ -42,12 +42,13 @@ try {
                 i.created_at as incident_date,
                 i.resolved_at as resolved_date,
                 i.status,
-                TIMESTAMPDIFF(MINUTE, 
-                    GREATEST(di.actual_start_time, :period_start), 
+                TIMESTAMPDIFF(MINUTE,
+                    GREATEST(di.actual_start_time, :period_start),
                     LEAST(COALESCE(di.actual_end_time, i.resolved_at, NOW()), :period_end)
                 ) as downtime_minutes,
                 i.impact_level,
-                i.root_cause
+                i.root_cause,
+                i.incident_source
               FROM incidents i
               JOIN services s ON i.service_id = s.service_id
               JOIN incident_affected_companies iac ON i.incident_id = iac.incident_id
@@ -157,6 +158,20 @@ try {
     $pdf->Cell(60, 7, 'Uptime Percentage', 1, 0, 'L');
     $pdf->Cell(60, 7, number_format(round($overallUptime, 2), 2) . '%', 1, 0, 'C');
     $pdf->Cell(60, 7, 'Target: ' . number_format($slaTarget, 2) . '%', 1, 1, 'C');
+
+    // Split SLA rows
+    $externalDowntime = array_sum(array_map(fn($i) => ($i['incident_source'] ?? 'external') === 'external' ? max(0, (int)$i['downtime_minutes']) : 0, $incidents));
+    $internalDowntime = array_sum(array_map(fn($i) => ($i['incident_source'] ?? 'external') === 'internal' ? max(0, (int)$i['downtime_minutes']) : 0, $incidents));
+    $companyUptime = $totalMinutesInPeriod > 0 ? max(0, min($slaTarget, 100 - ($externalDowntime / $totalMinutesInPeriod * 100))) : $slaTarget;
+    $etrazUptime   = $totalMinutesInPeriod > 0 ? max(0, min($slaTarget, 100 - ($internalDowntime / $totalMinutesInPeriod * 100))) : $slaTarget;
+
+    $pdf->Cell(60, 7, 'Company SLA (External)', 1, 0, 'L');
+    $pdf->Cell(60, 7, number_format($companyUptime, 2) . '%', 1, 0, 'C');
+    $pdf->Cell(60, 7, $externalDowntime . ' min downtime', 1, 1, 'C');
+
+    $pdf->Cell(60, 7, 'eTranzact SLA (Internal)', 1, 0, 'L');
+    $pdf->Cell(60, 7, number_format($etrazUptime, 2) . '%', 1, 0, 'C');
+    $pdf->Cell(60, 7, $internalDowntime . ' min downtime', 1, 1, 'C');
 
     $pdf->SetFillColor(240, 240, 240);
 
@@ -366,8 +381,8 @@ try {
         $pdf->SetFont('helvetica', '', 10);
 
         // Table header
-        $header = ['Service', 'Start Time', 'End Time', 'Duration (min)', 'Status'];
-        $w = [50, 45, 45, 30, 20];
+        $header = ['Service', 'Start Time', 'End Time', 'Duration (min)', 'Status', 'Source'];
+        $w = [45, 42, 42, 28, 18, 22];
 
         // Set fill color for header
         $pdf->SetFillColor(220, 220, 220);
@@ -412,15 +427,21 @@ try {
 
             // Status with color coding
             $status = $incident['status'] ?? 'open';
-            $statusColor = $status === 'resolved' ? [50, 205, 50] : [255, 165, 0]; // Green for resolved, orange for others
+            $statusColor = $status === 'resolved' ? [50, 205, 50] : [255, 165, 0];
             $pdf->SetFillColor($statusColor[0], $statusColor[1], $statusColor[2]);
-            $pdf->Cell($w[4], 6, ucfirst($status), 'LR', 1, 'C', 1);
+            $pdf->Cell($w[4], 6, ucfirst($status), 'LR', 0, 'C', 1);
+
+            // Source
+            $src = $incident['incident_source'] ?? 'external';
+            $srcColor = $src === 'internal' ? [255, 165, 0] : [100, 149, 237]; // orange vs cornflower blue
+            $pdf->SetFillColor($srcColor[0], $srcColor[1], $srcColor[2]);
+            $pdf->Cell($w[5], 6, ucfirst($src), 'LR', 1, 'C', 1);
 
             $fill = !$fill;
         }
 
         // Close the table
-        $pdf->Cell(array_sum($w), 0, '', 'T');
+        $pdf->Cell(array_sum($w), 0, '', 'T'); // sum = 197mm, fits A4 landscape
     }
 
     // Set filename

@@ -21,6 +21,107 @@ try {
 
 $reportData = null;
 
+/**
+ * Fetch and calculate SLA data for a company/period, optionally filtered by incident source.
+ *
+ * @param PDO    $pdo
+ * @param int    $companyId
+ * @param string $startDate   Y-m-d
+ * @param string $endDate     Y-m-d
+ * @param int    $totalMinutes
+ * @param float  $slaTarget
+ * @param string|null $sourceFilter  'internal', 'external', or null (all)
+ */
+function calculateSlaData(PDO $pdo, $companyId, string $startDate, string $endDate,
+                          int $totalMinutes, float $slaTarget, ?string $sourceFilter = null): array
+{
+    $sourceClause = $sourceFilter ? "AND i.incident_source = :incident_source" : "";
+
+    $sql = "
+        SELECT
+            i.*,
+            s.service_name,
+            s.service_id,
+            di.incident_id as has_downtime_entry,
+            di.actual_end_time,
+            di.is_planned,
+            di.downtime_category
+        FROM incidents i
+        JOIN incident_affected_companies iac ON i.incident_id = iac.incident_id
+        LEFT JOIN services s ON i.service_id = s.service_id
+        LEFT JOIN downtime_incidents di ON i.incident_id = di.incident_id
+        WHERE iac.company_id = :company_id
+        $sourceClause
+        AND i.actual_start_time <= :period_end
+        AND (
+            i.status = 'pending'
+            OR i.resolved_at >= :period_start
+        )
+        ORDER BY i.actual_start_time DESC
+    ";
+
+    $params = [
+        ':company_id'   => $companyId,
+        ':period_start' => $startDate . ' 00:00:00',
+        ':period_end'   => $endDate   . ' 23:59:59',
+    ];
+    if ($sourceFilter) {
+        $params[':incident_source'] = $sourceFilter;
+    }
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $incidents = $stmt->fetchAll();
+
+    $totalDowntime = 0;
+    $downtimeByService = [];
+    $periodStart = new DateTime($startDate . ' 00:00:00');
+    $periodEnd   = new DateTime($endDate   . ' 23:59:59');
+
+    foreach ($incidents as &$incident) {
+        $downtime = 0;
+        if (!empty($incident['has_downtime_entry']) && (int)($incident['is_planned'] ?? 0) === 0) {
+            $incidentStart = new DateTime($incident['actual_start_time']);
+            $resolvedAt    = $incident['resolved_at'] ?? null;
+            $validResolved = $resolvedAt && $resolvedAt !== '0000-00-00 00:00:00';
+            $incidentEnd   = ($incident['status'] === 'resolved' && $validResolved)
+                ? new DateTime($resolvedAt)
+                : new DateTime('now');
+            $effectiveStart = $incidentStart > $periodStart ? $incidentStart : $periodStart;
+            $effectiveEnd   = $incidentEnd   < $periodEnd   ? $incidentEnd   : $periodEnd;
+            if ($effectiveEnd > $effectiveStart) {
+                $diff = $effectiveStart->diff($effectiveEnd);
+                $downtime = ($diff->days * 24 * 60) + ($diff->h * 60) + $diff->i;
+            }
+        }
+        $incident['downtime_minutes'] = $downtime;
+        $totalDowntime += $downtime;
+        if (!empty($incident['service_id'])) {
+            if (!isset($downtimeByService[$incident['service_id']])) {
+                $downtimeByService[$incident['service_id']] = [
+                    'name' => $incident['service_name'] ?? 'Unknown Service',
+                    'downtime' => 0, 'incidents' => 0
+                ];
+            }
+            $downtimeByService[$incident['service_id']]['downtime']   += $downtime;
+            $downtimeByService[$incident['service_id']]['incidents']++;
+        }
+    }
+    unset($incident);
+
+    $uptimePercentage = $totalMinutes > 0
+        ? max(0, min($slaTarget, 100 - (($totalDowntime / $totalMinutes) * 100)))
+        : $slaTarget;
+
+    return [
+        'totalDowntime'     => $totalDowntime,
+        'uptimePercentage'  => $uptimePercentage,
+        'isMetSla'          => $uptimePercentage >= $slaTarget,
+        'incidents'         => $incidents,
+        'downtimeByService' => $downtimeByService,
+    ];
+}
+
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
     try {
@@ -33,134 +134,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
         // Get SLA target for the company
         $slaStmt = $pdo->prepare("SELECT target_uptime FROM sla_targets WHERE company_id = ? LIMIT 1");
         $slaStmt->execute([$companyId]);
-        $slaTarget = $slaStmt->fetch(PDO::FETCH_COLUMN) ?: 99.99;
-
-        // Get all incidents for the company with optional downtime data
-        $stmt = $pdo->prepare("
-        SELECT 
-            i.*,
-            s.service_name,
-            s.service_id,
-            di.incident_id as has_downtime_entry,
-            COALESCE(di.actual_start_time, i.created_at) as actual_start_time,
-            di.actual_end_time,
-            -- Only calculate downtime if incident has downtime_incidents entry
-            -- and it is NOT planned maintenance
-            CASE 
-                WHEN di.incident_id IS NOT NULL AND di.is_planned = 0 AND i.status = 'resolved' THEN 
-                    -- Use resolved_at from incidents table (set by user when resolving)
-                    TIMESTAMPDIFF(MINUTE, i.created_at, i.resolved_at)
-                WHEN di.incident_id IS NOT NULL AND di.is_planned = 0 AND i.status = 'pending' THEN 
-                    -- Ongoing incident - calculate from created_at to NOW
-                    TIMESTAMPDIFF(MINUTE, i.created_at, NOW())
-                ELSE 
-                    -- No qualifying downtime entry = no SLA impact
-                    0
-            END as downtime_minutes,
-            di.is_planned,
-            di.downtime_category
-        FROM incidents i
-        JOIN incident_affected_companies iac ON i.incident_id = iac.incident_id
-        LEFT JOIN services s ON i.service_id = s.service_id
-        LEFT JOIN downtime_incidents di ON i.incident_id = di.incident_id
-        WHERE iac.company_id = ? 
-        AND (
-            (i.created_at BETWEEN ? AND ?)  -- Created in range
-            OR (i.status = 'resolved' AND i.updated_at BETWEEN ? AND ?)  -- Resolved in range
-            OR (i.created_at <= ? AND (i.status = 'pending' OR i.updated_at >= ?))  -- Ongoing during range
-        )
-        ORDER BY i.created_at DESC
-    ");
-
-        $startDateTime = $startDate . ' 00:00:00';
-        $endDateTime = $endDate . ' 23:59:59';
-        $stmt->execute([
-            $companyId,
-            $startDateTime,
-            $endDateTime,  // Created in range
-            $startDateTime,
-            $endDateTime,  // Resolved in range
-            $endDateTime,
-            $startDateTime   // Ongoing during range
-        ]);
-        $incidents = $stmt->fetchAll();
-
-        // Calculate total downtime and group by service
-        $totalDowntime = 0;
-        $downtimeByService = [];
-
-        $periodStart = new DateTime($startDate . ' 00:00:00');
-        $periodEnd = new DateTime($endDate . ' 23:59:59');
-
-        foreach ($incidents as &$incident) {
-            // Calculate downtime overlapping with the period
-            $downtime = 0;
-
-            // Only calculate downtime for unplanned downtime incidents
-            // (has a downtime_incidents entry AND is_planned = 0)
-            if (!empty($incident['has_downtime_entry']) && (int)($incident['is_planned'] ?? 0) === 0) {
-                // Determine incident start and end
-                // Use columns from query: actual_start_time (calculated via COALESCE)
-                $incidentStart = new DateTime($incident['actual_start_time']);
-
-                if ($incident['status'] === 'resolved' && !empty($incident['resolved_at'])) {
-                    $incidentEnd = new DateTime($incident['resolved_at']);
-                } else {
-                    $incidentEnd = new DateTime('now');
-                }
-
-                // Clamp to reporting period
-                $effectiveStart = $incidentStart > $periodStart ? $incidentStart : $periodStart;
-                $effectiveEnd = $incidentEnd < $periodEnd ? $incidentEnd : $periodEnd;
-
-                if ($effectiveEnd > $effectiveStart) {
-                    $diff = $effectiveStart->diff($effectiveEnd);
-                    $downtime = ($diff->days * 24 * 60) + ($diff->h * 60) + $diff->i;
-                }
-            }
-
-            // Update incident downtime to reflect the reported period only
-            $incident['downtime_minutes'] = $downtime;
-            $totalDowntime += $downtime;
-
-            // Only group by service if we have a service_id
-            if (!empty($incident['service_id'])) {
-                if (!isset($downtimeByService[$incident['service_id']])) {
-                    $downtimeByService[$incident['service_id']] = [
-                        'name' => $incident['service_name'] ?? 'Unknown Service',
-                        'downtime' => 0,
-                        'incidents' => 0
-                    ];
-                }
-                $downtimeByService[$incident['service_id']]['downtime'] += $downtime;
-                $downtimeByService[$incident['service_id']]['incidents']++;
-            }
-        }
-        unset($incident);
-
-        // Calculate uptime percentage
-        // Logic: SLA Target - (Downtime / Total Period * 100)
-        // Capped at SLA target since we're measuring SLA compliance, not raw uptime
-        $uptimePercentage = $totalMinutes > 0
-            ? max(0, min($slaTarget, 100 - (($totalDowntime / $totalMinutes) * 100)))
-            : $slaTarget;
-
-        $isMetSla = $uptimePercentage >= $slaTarget;
+        $slaTarget = (float)($slaStmt->fetch(PDO::FETCH_COLUMN) ?: 99.99);
 
         // Get company name
         $companyStmt = $pdo->prepare("SELECT company_name FROM companies WHERE company_id = ?");
         $companyStmt->execute([$companyId]);
         $companyName = $companyStmt->fetchColumn();
 
+        // Calculate combined, external (company SLA) and internal (eTranzact SLA)
+        $combinedData = calculateSlaData($pdo, $companyId, $startDate, $endDate, $totalMinutes, $slaTarget, null);
+        $externalData = calculateSlaData($pdo, $companyId, $startDate, $endDate, $totalMinutes, $slaTarget, 'external');
+        $internalData = calculateSlaData($pdo, $companyId, $startDate, $endDate, $totalMinutes, $slaTarget, 'internal');
+
         $reportData = [
-            'totalMinutes' => $totalMinutes,
-            'totalDowntime' => $totalDowntime,
-            'uptimePercentage' => $uptimePercentage,
-            'slaTarget' => $slaTarget,
-            'isMetSla' => $isMetSla,
-            'incidents' => $incidents,
-            'downtimeByService' => $downtimeByService,
-            'companyName' => $companyName
+            'totalMinutes'      => $totalMinutes,
+            'totalDowntime'     => $combinedData['totalDowntime'],
+            'uptimePercentage'  => $combinedData['uptimePercentage'],
+            'slaTarget'         => $slaTarget,
+            'isMetSla'          => $combinedData['isMetSla'],
+            'incidents'         => $combinedData['incidents'],
+            'downtimeByService' => $combinedData['downtimeByService'],
+            'companyName'       => $companyName,
+            'external'          => $externalData,
+            'internal'          => $internalData,
         ];
     } catch (PDOException $e) {
         die("Error generating report: " . $e->getMessage());
@@ -521,6 +517,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                         </div>
                     </div>
 
+                    <!-- Split SLA Cards: Company vs eTranzact -->
+                    <div class="grid grid-cols-1 gap-5 mt-4 sm:grid-cols-2 mb-6">
+                        <!-- Company SLA (External incidents) -->
+                        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg border <?= $reportData['external']['isMetSla'] ? 'border-green-200 dark:border-green-700' : 'border-red-200 dark:border-red-700' ?>">
+                            <div class="px-4 py-5 sm:p-6">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                                        <i class="fas fa-building text-white text-xl"></i>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                                                Company SLA <span class="text-xs font-normal">(External incidents)</span>
+                                            </dt>
+                                            <dd class="flex items-baseline gap-2 mt-1">
+                                                <span class="text-2xl font-semibold text-gray-900 dark:text-white">
+                                                    <?= number_format($reportData['external']['uptimePercentage'], 2) ?>%
+                                                </span>
+                                                <span class="text-xs px-2 py-0.5 rounded-full font-semibold <?= $reportData['external']['isMetSla'] ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' ?>">
+                                                    <?= $reportData['external']['isMetSla'] ? 'MET' : 'NOT MET' ?>
+                                                </span>
+                                            </dd>
+                                            <dd class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                <?= number_format($reportData['external']['totalDowntime']) ?> min downtime
+                                                &middot; <?= count($reportData['external']['incidents']) ?> incident(s)
+                                            </dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- eTranzact SLA (Internal incidents) -->
+                        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg border <?= $reportData['internal']['isMetSla'] ? 'border-green-200 dark:border-green-700' : 'border-red-200 dark:border-red-700' ?>">
+                            <div class="px-4 py-5 sm:p-6">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 bg-orange-500 rounded-md p-3">
+                                        <i class="fas fa-server text-white text-xl"></i>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                                                eTranzact SLA <span class="text-xs font-normal">(Internal incidents)</span>
+                                            </dt>
+                                            <dd class="flex items-baseline gap-2 mt-1">
+                                                <span class="text-2xl font-semibold text-gray-900 dark:text-white">
+                                                    <?= number_format($reportData['internal']['uptimePercentage'], 2) ?>%
+                                                </span>
+                                                <span class="text-xs px-2 py-0.5 rounded-full font-semibold <?= $reportData['internal']['isMetSla'] ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' ?>">
+                                                    <?= $reportData['internal']['isMetSla'] ? 'MET' : 'NOT MET' ?>
+                                                </span>
+                                            </dd>
+                                            <dd class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                <?= number_format($reportData['internal']['totalDowntime']) ?> min downtime
+                                                &middot; <?= count($reportData['internal']['incidents']) ?> incident(s)
+                                            </dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Downtime by Service -->
                     <div
                         class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg mb-6 border dark:border-gray-700">
@@ -619,12 +677,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                         <th scope="col"
                                             class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Impact</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Source</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                     <?php if (empty($reportData['incidents'])): ?>
                                         <tr>
-                                            <td colspan="6"
+                                            <td colspan="7"
                                                 class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                                                 No incidents found for the selected period</td>
                                         </tr>
@@ -671,7 +732,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                                 </td>
                                                 <td
                                                     class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-400">
-                                                    <?= $incident['downtime_minutes'] ?? 'N/A' ?> mins
+                                                    <?php if (empty($incident['has_downtime_entry'])): ?>
+                                                        <span class="text-gray-400 dark:text-gray-500 italic text-xs">No downtime logged</span>
+                                                    <?php elseif ((int)($incident['is_planned'] ?? 0) === 1): ?>
+                                                        <span class="text-gray-400 dark:text-gray-500 italic text-xs">Planned</span>
+                                                    <?php else: ?>
+                                                        <?= $incident['downtime_minutes'] ?> mins
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
                                                     <?= htmlspecialchars($incident['root_cause']) ?>
@@ -680,6 +747,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                                     <span
                                                         class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?= $impactClass ?>">
                                                         <?= htmlspecialchars($incident['impact_level']) ?>
+                                                    </span>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                                    <?php $src = $incident['incident_source'] ?? 'external'; ?>
+                                                    <span class="px-2 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full <?= $src === 'internal' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800' ?>">
+                                                        <i class="fas <?= $src === 'internal' ? 'fa-server' : 'fa-building' ?> text-[9px]"></i>
+                                                        <?= $src === 'internal' ? 'Internal' : 'External' ?>
                                                     </span>
                                                 </td>
                                             </tr>
