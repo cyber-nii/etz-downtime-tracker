@@ -26,6 +26,7 @@ try {
             i.description,
             i.impact_level,
             i.priority,
+            i.incident_source,
             i.actual_start_time,
             i.attachment_path,
             s.service_name

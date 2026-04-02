@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -r \":*)",
+      "Bash(/c/xampp/php/php -r \":*)",
+      "Bash(mysql -u root -e \":*)",
+      "Bash(/c/xampp/mysql/bin/mysql -u root -e \"SELECT VERSION\\(\\);\")",
+      "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \":*)",
+      "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb --delimiter=\"//\" -e \":*)",
+      "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \"SELECT * FROM sla_targets LIMIT 10;\")",
+      "Read(//c/Users/Jacob Quarshie/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/4bc8ecc6-64e0-4f46-85d8-33989c3210fa/b9153362-45df-4926-b189-cbdf0d9a32ab/skills/xlsx/**)",
+      "Bash(python -c \":*)",
+      "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \"UPDATE sla_targets SET target_uptime = 99.99;\")"
+    ]
+  }
+}

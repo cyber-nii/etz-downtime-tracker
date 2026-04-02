@@ -91,8 +91,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $actual_start_time = $incident_date . ' ' . $incident_time . ':00';
     
     $is_planned = isset($_POST['is_planned']) ? 1 : 0;
+    $causes_downtime = isset($_POST['causes_downtime']) && $_POST['causes_downtime'] == '1';
     $downtime_category = in_array($_POST['downtime_category'] ?? '', ['Network', 'Server', 'Maintenance', 'Third-party', 'Other']) ? $_POST['downtime_category'] : 'Other';
     $priority = in_array($_POST['priority'] ?? '', ['Low', 'Medium', 'High', 'Urgent']) ? $_POST['priority'] : 'Medium';
+    $incident_source = in_array($_POST['incident_source'] ?? '', ['internal', 'external']) ? $_POST['incident_source'] : null;
+
+    // Handle optional end time (only when causes_downtime is checked)
+    $incident_end_date = $_POST['incident_end_date'] ?? null;
+    $incident_end_time = $_POST['incident_end_time'] ?? null;
+    $actual_end_time = ($incident_end_date && $incident_end_time)
+        ? $incident_end_date . ' ' . $incident_end_time . ':00'
+        : null;
+
     $status = 'pending';
     
     // Validate and deduplicate company IDs
@@ -201,13 +211,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (strlen($root_cause) > 1000) {
         $errors[] = "Root cause is too long (max 1000 characters).";
     }
-    
-    // Validate incident date/time
+    if ($causes_downtime && $incident_source === null) {
+        $errors[] = "Please select whether this downtime is Internal or External.";
+    }
+
+    // Validate incident start date/time
     $datetime = DateTime::createFromFormat('Y-m-d H:i:s', $actual_start_time);
     if (!$datetime) {
         $errors[] = "Invalid incident date or time format.";
     } elseif ($datetime > new DateTime()) {
         $errors[] = "Incident date/time cannot be in the future.";
+    }
+
+    // Validate end time if provided
+    if ($actual_end_time) {
+        $endDatetime = DateTime::createFromFormat('Y-m-d H:i:s', $actual_end_time);
+        if (!$endDatetime) {
+            $errors[] = "Invalid end date or time format.";
+        } elseif ($datetime && $endDatetime <= $datetime) {
+            $errors[] = "End time must be after the incident start time.";
+        }
     }
     
     if (!empty($errors)) {
@@ -240,10 +263,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 }
 
                 // 1. Insert into incidents table
-                $sql = "INSERT INTO incidents 
-                        (incident_ref, service_id, component_id, incident_type_id, impact_level, priority, description, root_cause, attachment_path, actual_start_time, status, reported_by) 
-                        VALUES (:incident_ref, :service_id, :component_id, :incident_type_id, :impact_level, :priority, :description, :root_cause, :attachment_path, :actual_start_time, :status, :reported_by)";
-                
+                $sql = "INSERT INTO incidents
+                        (incident_ref, service_id, component_id, incident_type_id, impact_level, priority, incident_source, description, root_cause, attachment_path, actual_start_time, status, reported_by)
+                        VALUES (:incident_ref, :service_id, :component_id, :incident_type_id, :impact_level, :priority, :incident_source, :description, :root_cause, :attachment_path, :actual_start_time, :status, :reported_by)";
+
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute([
                     ':incident_ref' => $incident_ref,
@@ -252,6 +275,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     ':incident_type_id' => $t_id,
                     ':impact_level' => $impact_level,
                     ':priority' => $priority,
+                    ':incident_source' => $incident_source,
                     ':description' => $description,
                     ':root_cause' => $root_cause,
                     ':attachment_path' => $attachment_path,
@@ -275,19 +299,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 //    - "Causes Downtime" is checked AND
                 //    - "Is Planned Maintenance" is NOT checked
                 // This ensures only UNPLANNED downtime affects SLA calculations
-                $causes_downtime = isset($_POST['causes_downtime']) && $_POST['causes_downtime'] == '1';
-                
                 if ($causes_downtime && $is_planned != 1) {
-                    $downtime_sql = "INSERT INTO downtime_incidents 
-                                    (incident_id, actual_start_time, is_planned, downtime_category)
-                                    VALUES (:incident_id, :actual_start_time, :is_planned, :downtime_category)";
+                    $downtime_sql = "INSERT INTO downtime_incidents
+                                    (incident_id, actual_start_time, actual_end_time, is_planned, downtime_category)
+                                    VALUES (:incident_id, :actual_start_time, :actual_end_time, :is_planned, :downtime_category)";
                     $downtime_stmt = $pdo->prepare($downtime_sql);
                     $downtime_stmt->execute([
-                        ':incident_id' => $incident_id,
+                        ':incident_id'       => $incident_id,
                         ':actual_start_time' => $actual_start_time,
-                        ':is_planned' => $is_planned,
+                        ':actual_end_time'   => $actual_end_time,
+                        ':is_planned'        => $is_planned,
                         ':downtime_category' => $downtime_category
                     ]);
+
+                    // If end time was provided, mark the incident as resolved immediately
+                    if ($actual_end_time) {
+                        $pdo->prepare("UPDATE incidents SET status = 'resolved', resolved_at = :resolved_at WHERE incident_id = :incident_id")
+                            ->execute([':resolved_at' => $actual_end_time, ':incident_id' => $incident_id]);
+                    }
                 }
                 
                 
@@ -432,14 +461,57 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <?php unset($_SESSION['success']); ?>
                 <?php endif; ?>
 
-                <form action="report.php" method="POST" enctype="multipart/form-data" class="px-6 pb-8 pt-6 sm:px-8 space-y-6"
-                      x-data="{ 
+                <form action="report.php" method="POST" enctype="multipart/form-data" class="px-6 pb-8 pt-6 sm:px-8"
+                      x-data="{
+                        currentStep: 1,
+                        stepError: '',
+                        incidentSource: '<?= isset($_POST['incident_source']) ? htmlspecialchars($_POST['incident_source']) : 'null' ?>',
+                        isPlanned: false,
+                        causesDowntime: false,
+                        activeType: null,
+                        togglePlanned() {
+                          this.isPlanned = !this.isPlanned;
+                          if (this.isPlanned) {
+                            this.causesDowntime = false;
+                          }
+                          this.activeType = null;
+                        },
+                        toggleDowntime() {
+                          this.causesDowntime = !this.causesDowntime;
+                          if (this.causesDowntime) {
+                            this.isPlanned = false;
+                            this.activeType = 'downtime';
+                            if (!this.incidentSource) this.incidentSource = 'external';
+                          } else {
+                            this.activeType = null;
+                            this.incidentSource = null;
+                          }
+                        },
+                        nextStep() {
+                          this.stepError = '';
+                          if (this.currentStep === 1) {
+                            const service = document.getElementById('service_id').value;
+                            const companies = document.querySelectorAll('input[name=\'company_ids[]\']:checked');
+                            const date = document.getElementById('incident_date').value;
+                            const time = document.getElementById('incident_time').value;
+                            if (!service) { this.stepError = 'Please select a service.'; return; }
+                            if (companies.length === 0) { this.stepError = 'Please select at least one company.'; return; }
+                            if (!date || !time) { this.stepError = 'Please fill in the incident date and time.'; return; }
+                          }
+                          if (this.currentStep < 3) this.currentStep++;
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        },
+                        prevStep() {
+                          this.stepError = '';
+                          if (this.currentStep > 1) this.currentStep--;
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        },
                         filePreviews: [],
                         selectedFiles: [],
                         handleMultipleFileChange(event) {
                             const files = Array.from(event.target.files);
                             const imageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-                            
+
                             files.forEach(file => {
                                 const preview = {
                                     name: file.name,
@@ -473,7 +545,65 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         }
                       }">
                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                    
+
+                    <!-- ── Progress Bar ── -->
+                    <div class="mb-8">
+                        <div class="flex items-center">
+                            <!-- Step 1 -->
+                            <div class="flex flex-col items-center">
+                                <div class="flex items-center justify-center w-9 h-9 rounded-full text-sm font-semibold transition-colors"
+                                     :class="currentStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-500'">
+                                    <template x-if="currentStep > 1"><i class="fas fa-check text-xs"></i></template>
+                                    <template x-if="currentStep <= 1"><span>1</span></template>
+                                </div>
+                                <span class="mt-1.5 text-xs font-medium hidden sm:block"
+                                      :class="currentStep >= 1 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'">What Happened</span>
+                            </div>
+                            <!-- Connector -->
+                            <div class="flex-1 h-0.5 mx-2 transition-colors"
+                                 :class="currentStep > 1 ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'"></div>
+                            <!-- Step 2 -->
+                            <div class="flex flex-col items-center">
+                                <div class="flex items-center justify-center w-9 h-9 rounded-full text-sm font-semibold transition-colors"
+                                     :class="currentStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-500'">
+                                    <template x-if="currentStep > 2"><i class="fas fa-check text-xs"></i></template>
+                                    <template x-if="currentStep <= 2"><span>2</span></template>
+                                </div>
+                                <span class="mt-1.5 text-xs font-medium hidden sm:block"
+                                      :class="currentStep >= 2 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'">Severity</span>
+                            </div>
+                            <!-- Connector -->
+                            <div class="flex-1 h-0.5 mx-2 transition-colors"
+                                 :class="currentStep > 2 ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'"></div>
+                            <!-- Step 3 -->
+                            <div class="flex flex-col items-center">
+                                <div class="flex items-center justify-center w-9 h-9 rounded-full text-sm font-semibold transition-colors"
+                                     :class="currentStep >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-500'">
+                                    <span>3</span>
+                                </div>
+                                <span class="mt-1.5 text-xs font-medium hidden sm:block"
+                                      :class="currentStep >= 3 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'">Classification</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Step Error Banner ── -->
+                    <div x-show="stepError !== ''" x-transition
+                         class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-3 rounded-r-lg mb-4">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-exclamation-circle text-red-500"></i>
+                            <p class="text-sm font-medium text-red-700 dark:text-red-400" x-text="stepError"></p>
+                        </div>
+                    </div>
+
+                    <!-- ══════════════════════════════════════════ -->
+                    <!-- STEP 1 — What Happened?                   -->
+                    <!-- ══════════════════════════════════════════ -->
+                    <div x-show="currentStep === 1" class="space-y-6">
+                        <p class="text-sm text-gray-500 dark:text-gray-400 -mt-2 pb-2 border-b border-gray-100 dark:border-gray-700">
+                            <i class="fas fa-info-circle mr-1"></i> Tell us what service was affected, which companies were impacted, and when it happened.
+                        </p>
+
                     <!-- Reporter Info (Read Only) -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -652,196 +782,287 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         </p>
                     </div>
 
-                    <!-- File Upload -->
-                    <div class="space-y-2">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Evidence / Attachments
-                        </label>
-                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md hover:border-blue-400 dark:hover:border-blue-500 transition-colors bg-gray-50 dark:bg-gray-700/50">
-                            <div class="space-y-1 text-center w-full">
-                                <template x-if="filePreviews.length === 0">
-                                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                    </svg>
-                                </template>
-                                
-                                <!-- File Previews Grid -->
-                                <template x-if="filePreviews.length > 0">
-                                    <div class="space-y-3 mb-4">
-                                        <template x-for="(preview, index) in filePreviews" :key="index">
-                                            <div class="relative group bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
-                                                <div class="flex items-start gap-3">
-                                                    <!-- File Preview -->
-                                                    <div class="flex-shrink-0">
-                                                        <template x-if="preview.type === 'image'">
-                                                            <img :src="preview.url" class="h-16 w-16 object-cover rounded shadow-sm">
-                                                        </template>
-                                                        <template x-if="preview.type === 'document'">
-                                                            <div class="h-16 w-16 bg-gray-200 dark:bg-gray-600 rounded shadow-sm flex items-center justify-center">
-                                                                <i class="fas fa-file-alt text-2xl text-gray-500 dark:text-gray-300"></i>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                    
-                                                    <!-- File Info and Editable Name -->
-                                                    <div class="flex-1 min-w-0">
-                                                        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                                                            Display Name
-                                                        </label>
-                                                        <input 
-                                                            type="text" 
-                                                            x-model="preview.customName"
-                                                            class="block w-full text-sm border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-2 bg-white dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500"
-                                                            placeholder="Enter display name..."
-                                                        >
-                                                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                            Original: <span x-text="preview.name"></span>
-                                                        </p>
-                                                        <!-- Hidden input to pass custom name to backend -->
-                                                        <input type="hidden" :name="'file_custom_names[' + index + ']'" :value="preview.customName">
-                                                    </div>
-                                                    
-                                                    <!-- Remove Button -->
-                                                    <button @click="removeFile(index)" type="button" class="self-center text-gray-400 hover:text-red-500 focus:outline-none transition-colors">
-                                                        <i class="fas fa-times text-lg"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </template>
-                                
-                                <div class="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
-                                    <label for="evidence" class="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 px-2 py-0.5 border border-blue-600/20">
-                                        <span>Upload files</span>
-                                        <input id="evidence" name="evidence[]" type="file" class="sr-only" x-ref="fileInput" @change="handleMultipleFileChange" multiple>
-                                    </label>
-                                    <p class="pl-1">or drag and drop</p>
-                                </div>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">
-                                    PNG, JPG, GIF, PDF, DOC, TXT up to 10MB each (multiple files allowed)
-                                </p>
-                                <p x-show="filePreviews.length > 0" x-text="`${filePreviews.length} file(s) selected`" class="text-sm font-medium text-blue-600 dark:text-blue-400 transition-all"></p>
-                            </div>
-                        </div>
-                    </div>
+                    </div> <!-- end Step 1 -->
 
-                    <!-- Incident Description (Optional) -->
-                    <div>
-                        <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Incident Description
-                           <!-- <span class="text-xs text-gray-500 dark:text-gray-400 font-normal ml-2">(Optional)</span> -->
-                        </label>
-                        <textarea name="description" id="description" rows="4"
-                            placeholder="Describe what happened during this incident in detail..."
-                            class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"><?= isset($_POST['description']) ? htmlspecialchars($_POST['description']) : '' ?></textarea>
-                        <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            Provide a detailed explanation of what occurred. This is separate from the root cause.
+                    <!-- ══════════════════════════════════════════ -->
+                    <!-- STEP 2 — Severity & Details               -->
+                    <!-- ══════════════════════════════════════════ -->
+                    <div x-show="currentStep === 2" class="space-y-6">
+                        <p class="text-sm text-gray-500 dark:text-gray-400 -mt-2 pb-2 border-b border-gray-100 dark:border-gray-700">
+                            <i class="fas fa-info-circle mr-1"></i> How severe was this incident? Add a description if you have more context.
                         </p>
-                    </div>
 
-                    <!-- Impact Level, Priority, and Category - Always visible -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <!-- Impact Level -->
-                        <div>
-                            <label for="impact_level" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Impact Level <span class="text-red-500">*</span>
-                            </label>
-                            <select name="impact_level" id="impact_level" required
-                                class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
-                                <option value="Low">Low</option>
-                                <option value="Medium">Medium</option>
-                                <option value="High">High</option>
-                                <option value="Critical">Critical</option>
-                            </select>
-                        </div>
-
-                        <!-- Priority -->
-                        <div>
-                            <label for="priority" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Priority <span class="text-red-500">*</span>
-                            </label>
-                            <select name="priority" id="priority" required
-                                class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
-                                <option value="Low">Low</option>
-                                <option value="Medium" selected>Medium</option>
-                                <option value="High">High</option>
-                                <option value="Urgent">Urgent</option>
-                            </select>
-                        </div>
-
-                        <!-- Downtime Category -->
-                        <div>
-                            <label for="downtime_category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Downtime Category
-                            </label>
-                            <select name="downtime_category" id="downtime_category"
-                                class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
-                                <option value="Network">Network</option>
-                                <option value="Server">Server</option>
-                                <option value="Maintenance">Maintenance</option>
-                                <option value="Third-party">Third-party</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Planned Maintenance Checkbox -->
-                    <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
-                        <div class="flex items-start">
-                            <div class="flex items-center h-5">
-                                <input id="is_planned" name="is_planned" type="checkbox"
-                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                            </div>
-                            <div class="ml-3">
-                                <label for="is_planned" class="font-medium text-sm text-gray-900 dark:text-white">
-                                    This is planned maintenance
+                        <!-- Impact Level and Priority -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="impact_level" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Impact Level <span class="text-red-500">*</span>
                                 </label>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    Scheduled maintenance that was communicated in advance. Will NOT affect SLA.
+                                <select name="impact_level" id="impact_level"
+                                    class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                    <option value="Critical">Critical</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="priority" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Priority <span class="text-red-500">*</span>
+                                </label>
+                                <select name="priority" id="priority"
+                                    class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="Low">Low</option>
+                                    <option value="Medium" selected>Medium</option>
+                                    <option value="High">High</option>
+                                    <option value="Urgent">Urgent</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Incident Description (Optional) -->
+                        <div>
+                            <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Incident Description
+                                <span class="text-xs text-gray-500 dark:text-gray-400 font-normal ml-2">(Optional)</span>
+                            </label>
+                            <textarea name="description" id="description" rows="4"
+                                placeholder="Describe what happened during this incident in detail..."
+                                class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"><?= isset($_POST['description']) ? htmlspecialchars($_POST['description']) : '' ?></textarea>
+                            <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Provide a detailed explanation of what occurred. This is separate from the root cause.
+                            </p>
+                        </div>
+                    </div> <!-- end Step 2 -->
+
+                    <!-- ══════════════════════════════════════════ -->
+                    <!-- STEP 3 — Classification & Evidence        -->
+                    <!-- ══════════════════════════════════════════ -->
+                    <div x-show="currentStep === 3" class="space-y-6">
+                        <p class="text-sm text-gray-500 dark:text-gray-400 -mt-2 pb-2 border-b border-gray-100 dark:border-gray-700">
+                            <i class="fas fa-info-circle mr-1"></i> Classify the incident for SLA purposes and attach any supporting evidence.
+                        </p>
+
+                        <!-- Planned Maintenance Checkbox -->
+                        <div class="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5 mt-0.5">
+                                    <input id="is_planned" name="is_planned" type="checkbox"
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        @change="togglePlanned()">
+                                </div>
+                                <div class="ml-3">
+                                    <label for="is_planned" class="font-medium text-sm text-gray-900 dark:text-white">
+                                        This is planned maintenance
+                                    </label>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Scheduled maintenance communicated in advance. Will <strong>NOT</strong> affect SLA.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Causes Downtime Checkbox -->
+                        <div class="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5 mt-0.5">
+                                    <input id="causes_downtime" name="causes_downtime" type="checkbox" value="1"
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        @change="toggleDowntime()">
+                                </div>
+                                <div class="ml-3">
+                                    <label for="causes_downtime" class="font-medium text-sm text-gray-900 dark:text-white">
+                                        This incident caused service downtime <span class="text-red-500 font-normal">(will affect SLA)</span>
+                                    </label>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Check this if the incident resulted in actual service unavailability or degradation.
+                                        Leave unchecked for informational incidents (e.g., warnings, capacity alerts).
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Downtime Source — shown only when Causes Downtime is checked -->
+                        <div x-show="activeType !== null" x-transition>
+                            <fieldset class="bg-white dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 p-4">
+                                <legend class="block text-sm font-medium text-gray-900 dark:text-white mb-1 px-1">
+                                    Downtime Source <span class="text-red-500">*</span>
+                                </legend>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                                    Who caused this downtime? This determines which SLA is affected.
+                                </p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <label class="relative flex cursor-pointer rounded-lg border p-4 shadow-sm transition-colors"
+                                           :class="incidentSource === 'external'
+                                               ? 'border-blue-500 ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                               : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-blue-400'">
+                                        <input type="radio" name="incident_source" value="external" class="sr-only" x-model="incidentSource">
+                                        <span class="flex flex-1 flex-col">
+                                            <span class="flex items-center gap-2">
+                                                <i class="fas fa-building text-blue-400"></i>
+                                                <span class="block text-sm font-semibold text-gray-900 dark:text-white">External (Company's fault)</span>
+                                            </span>
+                                            <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                                                Counts against the <strong>Company SLA</strong>.
+                                            </span>
+                                        </span>
+                                    </label>
+                                    <label class="relative flex cursor-pointer rounded-lg border p-4 shadow-sm transition-colors"
+                                           :class="incidentSource === 'internal'
+                                               ? 'border-orange-500 ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                                               : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-orange-400'">
+                                        <input type="radio" name="incident_source" value="internal" class="sr-only" x-model="incidentSource">
+                                        <span class="flex flex-1 flex-col">
+                                            <span class="flex items-center gap-2">
+                                                <i class="fas fa-server text-orange-400"></i>
+                                                <span class="block text-sm font-semibold text-gray-900 dark:text-white">Internal (eTranzact's fault)</span>
+                                            </span>
+                                            <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                                                Counts against the <strong>eTranzact SLA</strong>.
+                                            </span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </fieldset>
+                        </div>
+
+                        <!-- Downtime Category + End Time — shown only when Causes Downtime is checked -->
+                        <div x-show="causesDowntime" x-transition class="space-y-4">
+                            <!-- Downtime Category -->
+                            <div>
+                                <label for="downtime_category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Downtime Category
+                                </label>
+                                <select name="downtime_category" id="downtime_category"
+                                    class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="Network">Network</option>
+                                    <option value="Server">Server</option>
+                                    <option value="Maintenance">Maintenance</option>
+                                    <option value="Third-party">Third-party</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <!-- End Time -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    When Did the Downtime End?
+                                    <span class="text-xs text-gray-500 dark:text-gray-400 font-normal ml-2">(Optional — leave blank if still ongoing)</span>
+                                </label>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="incident_end_date" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">End Date</label>
+                                        <input type="date" name="incident_end_date" id="incident_end_date"
+                                               max="<?= date('Y-m-d') ?>"
+                                               class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                    <div>
+                                        <label for="incident_end_time" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">End Time</label>
+                                        <input type="time" name="incident_end_time" id="incident_end_time"
+                                               class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
+                                    </div>
+                                </div>
+                                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    If provided, the incident will be marked as resolved automatically with the correct duration for SLA.
                                 </p>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Causes Downtime Checkbox -->
-                    <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
-                        <div class="flex items-start">
-                            <div class="flex items-center h-5">
-                                <input id="causes_downtime" name="causes_downtime" type="checkbox" value="1"
-                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                            </div>
-                            <div class="ml-3">
-                                <label for="causes_downtime" class="font-medium text-sm text-gray-900 dark:text-white">
-                                    This incident caused service downtime (will affect SLA)
-                                </label>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    Check this if the incident resulted in actual service unavailability or degradation.
-                                    Leave unchecked for informational incidents (e.g., empty OVA, warnings, capacity alerts).
-                                </p>
+                        <!-- Root Cause -->
+                        <div>
+                            <label for="root_cause" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Root Cause
+                                <span class="text-xs text-gray-500 dark:text-gray-400 font-normal ml-2">(Optional)</span>
+                            </label>
+                            <textarea id="root_cause" name="root_cause" rows="3"
+                                placeholder="Briefly describe what caused the issue (if known)..."
+                                class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 dark:border-gray-600 rounded-md p-3 bg-white dark:bg-gray-700 dark:text-white"><?php echo isset($_POST['root_cause']) ? sanitize($_POST['root_cause']) : ''; ?></textarea>
+                        </div>
+
+                        <!-- Evidence / Attachments -->
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Evidence / Attachments
+                                <span class="text-xs text-gray-500 dark:text-gray-400 font-normal ml-2">(Optional)</span>
+                            </label>
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md hover:border-blue-400 dark:hover:border-blue-500 transition-colors bg-gray-50 dark:bg-gray-700/50">
+                                <div class="space-y-1 text-center w-full">
+                                    <template x-if="filePreviews.length === 0">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </template>
+                                    <template x-if="filePreviews.length > 0">
+                                        <div class="space-y-3 mb-4">
+                                            <template x-for="(preview, index) in filePreviews" :key="index">
+                                                <div class="relative group bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                                                    <div class="flex items-start gap-3">
+                                                        <div class="flex-shrink-0">
+                                                            <template x-if="preview.type === 'image'">
+                                                                <img :src="preview.url" class="h-16 w-16 object-cover rounded shadow-sm">
+                                                            </template>
+                                                            <template x-if="preview.type === 'document'">
+                                                                <div class="h-16 w-16 bg-gray-200 dark:bg-gray-600 rounded shadow-sm flex items-center justify-center">
+                                                                    <i class="fas fa-file-alt text-2xl text-gray-500 dark:text-gray-300"></i>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                        <div class="flex-1 min-w-0">
+                                                            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Display Name</label>
+                                                            <input type="text" x-model="preview.customName"
+                                                                class="block w-full text-sm border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-2 bg-white dark:bg-gray-800 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+                                                                placeholder="Enter display name...">
+                                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Original: <span x-text="preview.name"></span></p>
+                                                            <input type="hidden" :name="'file_custom_names[' + index + ']'" :value="preview.customName">
+                                                        </div>
+                                                        <button @click="removeFile(index)" type="button" class="self-center text-gray-400 hover:text-red-500 focus:outline-none transition-colors">
+                                                            <i class="fas fa-times text-lg"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <div class="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
+                                        <label for="evidence" class="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 px-2 py-0.5 border border-blue-600/20">
+                                            <span>Upload files</span>
+                                            <input id="evidence" name="evidence[]" type="file" class="sr-only" x-ref="fileInput" @change="handleMultipleFileChange" multiple>
+                                        </label>
+                                        <p class="pl-1">or drag and drop</p>
+                                    </div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF, PDF, DOC, TXT up to 10MB each</p>
+                                    <p x-show="filePreviews.length > 0" x-text="`${filePreviews.length} file(s) selected`" class="text-sm font-medium text-blue-600 dark:text-blue-400"></p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </div> <!-- end Step 3 -->
 
-                    <!-- Root Cause -->
-                    <div>
-                        <label for="root_cause" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Root Cause
-                        </label>
-                        <div class="mt-1">
-                            <textarea id="root_cause" name="root_cause" rows="3" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 dark:border-gray-600 rounded-md p-3 bg-white dark:bg-gray-700 dark:text-white"><?php echo isset($_POST['root_cause']) ? sanitize($_POST['root_cause']) : ''; ?></textarea>
-                        </div>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Briefly describe what caused the issue (if known)</p>
-                    </div>
-
-                    <div class="pt-5">
-                        <div class="flex justify-end">
-                            <a href="index.php" class="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <!-- ── Navigation Buttons ── -->
+                    <div class="pt-6 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
+                        <!-- Left: Cancel (step 1) or Back (step 2/3) -->
+                        <div>
+                            <a x-show="currentStep === 1" href="index.php"
+                               class="inline-flex items-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                                 Cancel
                             </a>
-                            <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                <i class="fas fa-paper-plane mr-2"></i> Report Incident
+                            <button x-show="currentStep > 1" type="button" @click="prevStep()"
+                                class="inline-flex items-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <i class="fas fa-arrow-left mr-2 text-xs"></i> Back
+                            </button>
+                        </div>
+
+                        <!-- Right: Step indicator + Next / Submit -->
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-gray-400 dark:text-gray-500" x-text="`Step ${currentStep} of 3`"></span>
+                            <button x-show="currentStep < 3" type="button" @click="nextStep()"
+                                class="inline-flex items-center py-2 px-5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Next <i class="fas fa-arrow-right ml-2 text-xs"></i>
+                            </button>
+                            <button x-show="currentStep === 3" type="submit"
+                                class="inline-flex items-center py-2 px-5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                <i class="fas fa-paper-plane mr-2"></i> Submit Incident
                             </button>
                         </div>
                     </div>
@@ -1116,9 +1337,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     if (template.impact_level) {
                         const impactDropdown = document.getElementById('impact_level');
                         if (impactDropdown) {
-                            // Capitalize first letter to match form values (Low, Medium, High, Critical)
-                            const capitalizedImpact = template.impact_level.charAt(0).toUpperCase() + template.impact_level.slice(1).toLowerCase();
-                            impactDropdown.value = capitalizedImpact;
+                            impactDropdown.value = template.impact_level;
                         }
                     }
                     

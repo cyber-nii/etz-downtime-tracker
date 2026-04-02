@@ -194,6 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $incidentTypeId = !empty($_POST['incident_type_id']) ? intval($_POST['incident_type_id']) : null;
         $impactLevel = $_POST['impact_level'];
         $priority = $_POST['priority'];
+        $incidentSource = in_array($_POST['incident_source'] ?? '', ['internal', 'external']) ? $_POST['incident_source'] : 'external';
         $actualStartTime = $_POST['actual_start_time'];
         $description = !empty($_POST['description']) ? trim($_POST['description']) : null;
         $companies = isset($_POST['companies']) ? $_POST['companies'] : [];
@@ -207,12 +208,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 // Update incident
                 $stmt = $pdo->prepare("
-                    UPDATE incidents 
+                    UPDATE incidents
                     SET service_id = :service_id,
                         component_id = :component_id,
                         incident_type_id = :incident_type_id,
                         impact_level = :impact_level,
                         priority = :priority,
+                        incident_source = :incident_source,
                         actual_start_time = :actual_start_time,
                         description = :description,
                         updated_at = CURRENT_TIMESTAMP
@@ -224,6 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     ':incident_type_id' => $incidentTypeId,
                     ':impact_level' => $impactLevel,
                     ':priority' => $priority,
+                    ':incident_source' => $incidentSource,
                     ':actual_start_time' => $actualStartTime,
                     ':description' => $description,
                     ':incident_id' => $incidentId
@@ -781,6 +784,17 @@ try {
                                                                             <i class="fas fa-paperclip text-[9px]"></i> <?= $incident['attachment_count'] ?>
                                                                         </span>
                                                             <?php endif; ?>
+                                                            <?php
+                                                                $srcKey = $incident['incident_source'] ?? 'external';
+                                                                $srcBadge = $srcKey === 'internal'
+                                                                    ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                                                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+                                                                $srcIcon = $srcKey === 'internal' ? 'fa-server' : 'fa-building';
+                                                            ?>
+                                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $srcBadge ?>">
+                                                                <i class="fas <?= $srcIcon ?> text-[9px]"></i>
+                                                                <?= $srcKey === 'internal' ? 'Internal' : 'External' ?>
+                                                            </span>
                                                         </div>
                                                     </div>
 
@@ -1408,6 +1422,40 @@ try {
                         </div>
                     </div>
 
+                    <!-- Incident Source -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Incident Source <span class="text-red-500">*</span>
+                        </label>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                            Changing the source will affect SLA calculations for this incident.
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label id="edit_source_external_label" onclick="setEditSource('external')"
+                                   class="relative flex cursor-pointer rounded-lg border p-3 shadow-sm transition-colors">
+                                <input type="radio" name="incident_source" value="external" id="edit_source_external" class="sr-only" checked>
+                                <span class="flex flex-1 flex-col">
+                                    <span class="flex items-center gap-2">
+                                        <i class="fas fa-building text-blue-400 text-sm"></i>
+                                        <span class="text-sm font-semibold text-gray-900 dark:text-white">External</span>
+                                    </span>
+                                    <span class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Company's fault &rarr; affects Company SLA</span>
+                                </span>
+                            </label>
+                            <label id="edit_source_internal_label" onclick="setEditSource('internal')"
+                                   class="relative flex cursor-pointer rounded-lg border p-3 shadow-sm transition-colors">
+                                <input type="radio" name="incident_source" value="internal" id="edit_source_internal" class="sr-only">
+                                <span class="flex flex-1 flex-col">
+                                    <span class="flex items-center gap-2">
+                                        <i class="fas fa-server text-orange-400 text-sm"></i>
+                                        <span class="text-sm font-semibold text-gray-900 dark:text-white">Internal</span>
+                                    </span>
+                                    <span class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">eTranzact's fault &rarr; affects eTranzact SLA</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Description -->
                     <div>
                         <label for="edit_description"
@@ -1715,6 +1763,21 @@ try {
             }
         });
 
+        // Set incident source selection in edit modal
+        function setEditSource(value) {
+            const externalLabel = document.getElementById('edit_source_external_label');
+            const internalLabel = document.getElementById('edit_source_internal_label');
+            document.getElementById('edit_source_external').checked = value === 'external';
+            document.getElementById('edit_source_internal').checked = value === 'internal';
+            if (value === 'external') {
+                externalLabel.className = 'relative flex cursor-pointer rounded-lg border p-3 shadow-sm transition-colors border-blue-500 ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20';
+                internalLabel.className = 'relative flex cursor-pointer rounded-lg border p-3 shadow-sm transition-colors border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-orange-400';
+            } else {
+                externalLabel.className = 'relative flex cursor-pointer rounded-lg border p-3 shadow-sm transition-colors border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-blue-400';
+                internalLabel.className = 'relative flex cursor-pointer rounded-lg border p-3 shadow-sm transition-colors border-orange-500 ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/20';
+            }
+        }
+
         // Edit Modal Functions
         function showEditModal(incidentId) {
             // Fetch incident data with attachments
@@ -1734,6 +1797,7 @@ try {
                     document.getElementById('edit_incident_type').value = data.incident_type_id || '';
                     document.getElementById('edit_impact').value = data.impact_level;
                     document.getElementById('edit_priority').value = data.priority;
+                    setEditSource(data.incident_source || 'external');
                     document.getElementById('edit_description').value = data.description || '';
 
                     // Format datetime for datetime-local input
