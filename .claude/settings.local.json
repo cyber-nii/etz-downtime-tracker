@@ -23,7 +23,9 @@
       "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --password=\"\" downtimedb -e \"SHOW TRIGGERS LIKE ''calculate_downtime%'';\")",
       "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --password=\"\" downtimedb -e \"SHOW TABLES;\")",
       "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --password=\"\" downtimedb -e \"DESCRIBE downtime_incidents;\")",
-      "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --password=\"\" downtimedb -e \":*)"
+      "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --password=\"\" downtimedb -e \":*)",
+      "Bash(grep -A 50 \"CREATE TABLE \\\\`users\\\\`\" \"/c/xampp/htdocs/etz-downtime-tracker/migration/downtimedb ACTUAL DATA.sql\")",
+      "Bash(grep -i \"INSERT INTO \\\\`users\\\\`\" \"/c/xampp/htdocs/etz-downtime-tracker/migration/downtimedb ACTUAL DATA.sql\")"
     ]
   }
 }

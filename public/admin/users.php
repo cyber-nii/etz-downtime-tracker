@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../src/includes/auth.php';
+require_once __DIR__ . '/../../src/includes/activity_logger.php';
 requireLogin();
 requireRole('admin');
 
@@ -11,6 +12,31 @@ unset($_SESSION['message']);
 // Handle user actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+
+    if ($action === 'bulk_delete') {
+        $userIds = $_POST['user_ids'] ?? [];
+        if (is_array($userIds) && !empty($userIds)) {
+            // Filter out own account
+            $userIds = array_filter($userIds, fn($id) => (int)$id !== (int)$currentUser['user_id']);
+            $deleted = 0;
+            foreach ($userIds as $uid) {
+                $uid = (int)$uid;
+                try {
+                    logUserAction($_SESSION['user_id'], 'deleted', $uid);
+                    $stmt = $pdo->prepare("DELETE FROM users WHERE user_id = ?");
+                    $stmt->execute([$uid]);
+                    $deleted++;
+                } catch (PDOException $e) {
+                    // continue deleting others
+                }
+            }
+            $_SESSION['message'] = ['type' => 'success', 'text' => "$deleted user(s) deleted successfully"];
+        } else {
+            $_SESSION['message'] = ['type' => 'error', 'text' => 'No users selected'];
+        }
+        header('Location: users.php');
+        exit;
+    }
 
     if ($action === 'toggle_status') {
         $userId = $_POST['user_id'] ?? 0;
@@ -120,10 +146,16 @@ $users = $stmt->fetchAll();
                         <h1 class="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">User Management</h1>
                         <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Manage system users and permissions</p>
                     </div>
-                    <a href="user_create.php"
-                        class="inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-                        <i class="fas fa-plus mr-2"></i>Create User
-                    </a>
+                    <div class="flex gap-2">
+                        <a href="user_bulk_import.php"
+                            class="inline-flex items-center justify-center px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-colors">
+                            <i class="fas fa-file-import mr-2"></i>Bulk Import
+                        </a>
+                        <a href="user_create.php"
+                            class="inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                            <i class="fas fa-plus mr-2"></i>Create User
+                        </a>
+                    </div>
                 </div>
 
                 <!-- Message -->
@@ -173,6 +205,50 @@ $users = $stmt->fetchAll();
                     </form>
                 </div>
 
+                <!-- Bulk Action Toolbar -->
+                <div id="bulkToolbar" class="hidden mb-4 px-4 py-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl flex items-center justify-between">
+                    <span class="text-sm font-medium text-blue-800 dark:text-blue-200">
+                        <span id="selectedCount">0</span> user(s) selected
+                    </span>
+                    <button type="button" id="bulkDeleteBtn"
+                        class="inline-flex items-center px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors">
+                        <i class="fas fa-trash mr-2"></i>Delete Selected
+                    </button>
+                </div>
+
+                <!-- Hidden bulk delete form -->
+                <form id="bulkDeleteForm" method="POST" class="hidden">
+                    <input type="hidden" name="action" value="bulk_delete">
+                    <div id="bulkDeleteInputs"></div>
+                </form>
+
+                <!-- Confirmation Modal -->
+                <div id="bulkDeleteModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+                    <div class="absolute inset-0 bg-black/50" id="modalBackdrop"></div>
+                    <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+                        <div class="flex items-center mb-4">
+                            <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mr-3">
+                                <i class="fas fa-exclamation-triangle text-red-600 dark:text-red-400"></i>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Delete Users</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                            You are about to permanently delete <strong id="modalCount" class="text-gray-900 dark:text-white">0</strong> user(s).
+                        </p>
+                        <p class="text-sm text-red-600 dark:text-red-400 mb-6">This action cannot be undone.</p>
+                        <div class="flex justify-end gap-3">
+                            <button type="button" id="modalCancelBtn"
+                                class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                Cancel
+                            </button>
+                            <button type="button" id="modalConfirmBtn"
+                                class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                <i class="fas fa-trash mr-2"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Users Table -->
                 <div
                     class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
@@ -180,6 +256,10 @@ $users = $stmt->fetchAll();
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-900/50">
                                 <tr>
+                                    <th class="px-4 py-3 w-10">
+                                        <input type="checkbox" id="selectAll"
+                                            class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                                    </th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
                                         User</th>
@@ -200,6 +280,13 @@ $users = $stmt->fetchAll();
                             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                                 <?php foreach ($users as $user): ?>
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                        <td class="px-4 py-4 whitespace-nowrap w-10">
+                                            <?php if ($user['user_id'] != $currentUser['user_id']): ?>
+                                                <input type="checkbox" name="user_ids[]"
+                                                    value="<?= $user['user_id'] ?>"
+                                                    class="user-checkbox w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                                            <?php endif; ?>
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="flex items-center">
                                                 <div
@@ -294,6 +381,80 @@ $users = $stmt->fetchAll();
             </div>
         </main>
     </div> <!-- End Content Wrapper -->
+
+<script>
+(function () {
+    const selectAll = document.getElementById('selectAll');
+    const toolbar = document.getElementById('bulkToolbar');
+    const countEl = document.getElementById('selectedCount');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const modal = document.getElementById('bulkDeleteModal');
+    const modalBackdrop = document.getElementById('modalBackdrop');
+    const modalCount = document.getElementById('modalCount');
+    const modalCancelBtn = document.getElementById('modalCancelBtn');
+    const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+    const bulkDeleteForm = document.getElementById('bulkDeleteForm');
+    const bulkDeleteInputs = document.getElementById('bulkDeleteInputs');
+
+    function getChecked() {
+        return Array.from(document.querySelectorAll('.user-checkbox:checked'));
+    }
+
+    function updateToolbar() {
+        const checked = getChecked();
+        if (checked.length > 0) {
+            toolbar.classList.remove('hidden');
+            toolbar.classList.add('flex');
+        } else {
+            toolbar.classList.add('hidden');
+            toolbar.classList.remove('flex');
+        }
+        countEl.textContent = checked.length;
+        // Sync select-all state
+        const all = document.querySelectorAll('.user-checkbox');
+        selectAll.checked = all.length > 0 && checked.length === all.length;
+        selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+    }
+
+    selectAll.addEventListener('change', function () {
+        document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = this.checked);
+        updateToolbar();
+    });
+
+    document.querySelectorAll('.user-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateToolbar);
+    });
+
+    bulkDeleteBtn.addEventListener('click', function () {
+        const checked = getChecked();
+        if (checked.length === 0) return;
+        modalCount.textContent = checked.length;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    });
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    modalBackdrop.addEventListener('click', closeModal);
+    modalCancelBtn.addEventListener('click', closeModal);
+
+    modalConfirmBtn.addEventListener('click', function () {
+        const checked = getChecked();
+        bulkDeleteInputs.innerHTML = '';
+        checked.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'user_ids[]';
+            input.value = cb.value;
+            bulkDeleteInputs.appendChild(input);
+        });
+        bulkDeleteForm.submit();
+    });
+})();
+</script>
 </body>
 
 </html>

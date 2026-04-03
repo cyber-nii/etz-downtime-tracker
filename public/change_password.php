@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phone
                             Number(s)</label>
                         <div class="relative">
-                            <input type="text" name="phone" placeholder="E.g. +23324..., +23320..." required
+                            <input type="tel" name="phone" autocomplete="tel" placeholder="E.g. +23324..., +23320..." required
                                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Separate multiple numbers with commas.
@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current
                             Password</label>
                         <div class="relative">
-                            <input :type="showPasswords ? 'text' : 'password'" name="current_password" required
+                            <input :type="showPasswords ? 'text' : 'password'" name="current_password" autocomplete="current-password" required
                                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                     </div>
@@ -164,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">New
                             Password</label>
                         <div class="relative">
-                            <input :type="showPasswords ? 'text' : 'password'" name="new_password" required
+                            <input :type="showPasswords ? 'text' : 'password'" name="new_password" autocomplete="new-password" required
                                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Must be at least 8 characters with
@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confirm New
                             Password</label>
                         <div class="relative">
-                            <input :type="showPasswords ? 'text' : 'password'" name="confirm_password" required
+                            <input :type="showPasswords ? 'text' : 'password'" name="confirm_password" autocomplete="new-password" required
                                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                     </div>
