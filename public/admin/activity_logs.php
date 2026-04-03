@@ -9,7 +9,7 @@ requireRole('admin');
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     $filters = [
         'user_id' => $_GET['user_id'] ?? null,
-        'action' => $_GET['action_type'] ?? null,
+        'action' => !empty($_GET['action_types']) ? $_GET['action_types'] : null,
         'start_date' => $_GET['start_date'] ?? null,
         'end_date' => $_GET['end_date'] ?? null,
         'search' => $_GET['search'] ?? null
@@ -34,7 +34,7 @@ $filters = [
 
 // Pagination
 $page = max(1, intval($_GET['page'] ?? 1));
-$perPage = intval($_GET['per_page'] ?? 25);
+$perPage = max(10, min(100, intval($_GET['per_page'] ?? 25)));
 $offset = ($page - 1) * $perPage;
 
 // Get logs and total count
@@ -44,6 +44,13 @@ $totalPages = ceil($totalLogs / $perPage);
 
 // Get statistics
 $stats = getActivityStats($filters['start_date'], $filters['end_date']);
+
+// Count how many filters are currently active
+$activeFilterCount = (int)!empty($filters['user_id'])
+    + (int)!empty($filters['action'])
+    + (int)!empty($filters['start_date'])
+    + (int)!empty($filters['end_date'])
+    + (int)!empty($filters['search']);
 
 // Get all users for filter dropdown
 $usersStmt = $pdo->query("SELECT user_id, username, full_name FROM users ORDER BY username");
@@ -75,6 +82,7 @@ $actionTypes = [
 
 <head>
     <meta charset="UTF-8">
+    <script>if(localStorage.getItem('theme')==='dark'||(!localStorage.getItem('theme')&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Activity Logs - eTranzact</title>
 
@@ -113,82 +121,54 @@ $actionTypes = [
 
             <!-- Statistics Cards -->
             <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-                <div
-                    class="bg-white dark:bg-gray-800 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div class="p-5">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-list-ul text-2xl text-blue-600"></i>
-                            </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Logs
-                                    </dt>
-                                    <dd class="text-lg font-semibold text-gray-900 dark:text-white">
-                                        <?= number_format($stats['total_logs']) ?>
-                                    </dd>
-                                </dl>
-                            </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
+                    <div class="flex items-center gap-4">
+                        <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                            <i class="fas fa-list-ul text-xl text-blue-600 dark:text-blue-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Logs</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white"><?= number_format($stats['total_logs']) ?></p>
                         </div>
                     </div>
                 </div>
 
-                <div
-                    class="bg-white dark:bg-gray-800 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div class="p-5">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-users text-2xl text-green-600"></i>
-                            </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Unique
-                                        Users</dt>
-                                    <dd class="text-lg font-semibold text-gray-900 dark:text-white">
-                                        <?= number_format($stats['unique_users']) ?>
-                                    </dd>
-                                </dl>
-                            </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
+                    <div class="flex items-center gap-4">
+                        <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
+                            <i class="fas fa-users text-xl text-green-600 dark:text-green-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Unique Users</p>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-white"><?= number_format($stats['unique_users']) ?></p>
                         </div>
                     </div>
                 </div>
 
-                <div
-                    class="bg-white dark:bg-gray-800 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div class="p-5">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-chart-line text-2xl text-purple-600"></i>
-                            </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Top Action
-                                    </dt>
-                                    <dd class="text-lg font-semibold text-gray-900 dark:text-white">
-                                        <?= !empty($stats['top_actions']) ? ucfirst(str_replace('_', ' ', $stats['top_actions'][0]['action_type'])) : 'N/A' ?>
-                                    </dd>
-                                </dl>
-                            </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
+                    <div class="flex items-center gap-4">
+                        <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
+                            <i class="fas fa-chart-line text-xl text-purple-600 dark:text-purple-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Top Action</p>
+                            <p class="text-lg font-bold text-gray-900 dark:text-white truncate max-w-[140px]">
+                                <?= !empty($stats['top_actions']) ? ucfirst(str_replace('_', ' ', $stats['top_actions'][0]['action_type'])) : 'N/A' ?>
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <div
-                    class="bg-white dark:bg-gray-800 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div class="p-5">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <i class="fas fa-user-check text-2xl text-orange-600"></i>
-                            </div>
-                            <div class="ml-5 w-0 flex-1">
-                                <dl>
-                                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Most
-                                        Active</dt>
-                                    <dd class="text-lg font-semibold text-gray-900 dark:text-white">
-                                        <?= !empty($stats['top_users']) ? htmlspecialchars($stats['top_users'][0]['username']) : 'N/A' ?>
-                                    </dd>
-                                </dl>
-                            </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
+                    <div class="flex items-center gap-4">
+                        <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center">
+                            <i class="fas fa-user-check text-xl text-orange-600 dark:text-orange-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Most Active</p>
+                            <p class="text-lg font-bold text-gray-900 dark:text-white truncate max-w-[140px]">
+                                <?= !empty($stats['top_users']) ? htmlspecialchars($stats['top_users'][0]['username']) : 'N/A' ?>
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -197,11 +177,18 @@ $actionTypes = [
             <!-- Filters -->
             <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg mb-6">
                 <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        <i class="fas fa-filter mr-2"></i>Filters
-                    </h2>
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                            <i class="fas fa-filter mr-2"></i>Filters
+                        </h2>
+                        <?php if ($activeFilterCount > 0): ?>
+                            <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold">
+                                <?= $activeFilterCount ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
                     <button @click="showFilters = !showFilters"
-                        class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                        class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
                         <i class="fas" :class="showFilters ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
                     </button>
                 </div>
@@ -252,16 +239,40 @@ $actionTypes = [
 
                     <!-- Action Types -->
                     <div class="mt-4">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Action
-                            Types</label>
-                        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-                            <?php foreach ($actionTypes as $type): ?>
-                                <label class="flex items-center">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Action Types</label>
+                        <?php
+                        $pillColors = [
+                            'login'              => 'peer-checked:bg-green-100 peer-checked:text-green-800 peer-checked:border-green-300 dark:peer-checked:bg-green-900 dark:peer-checked:text-green-200 dark:peer-checked:border-green-700',
+                            'logout'             => 'peer-checked:bg-gray-200 peer-checked:text-gray-800 peer-checked:border-gray-400 dark:peer-checked:bg-gray-600 dark:peer-checked:text-gray-100 dark:peer-checked:border-gray-500',
+                            'login_failed'       => 'peer-checked:bg-red-100 peer-checked:text-red-800 peer-checked:border-red-300 dark:peer-checked:bg-red-900 dark:peer-checked:text-red-200 dark:peer-checked:border-red-700',
+                            'user_created'       => 'peer-checked:bg-blue-100 peer-checked:text-blue-800 peer-checked:border-blue-300 dark:peer-checked:bg-blue-900 dark:peer-checked:text-blue-200 dark:peer-checked:border-blue-700',
+                            'user_updated'       => 'peer-checked:bg-yellow-100 peer-checked:text-yellow-800 peer-checked:border-yellow-300 dark:peer-checked:bg-yellow-900 dark:peer-checked:text-yellow-200 dark:peer-checked:border-yellow-700',
+                            'user_deleted'       => 'peer-checked:bg-red-100 peer-checked:text-red-800 peer-checked:border-red-300 dark:peer-checked:bg-red-900 dark:peer-checked:text-red-200 dark:peer-checked:border-red-700',
+                            'user_role_changed'  => 'peer-checked:bg-purple-100 peer-checked:text-purple-800 peer-checked:border-purple-300 dark:peer-checked:bg-purple-900 dark:peer-checked:text-purple-200 dark:peer-checked:border-purple-700',
+                            'incident_created'   => 'peer-checked:bg-orange-100 peer-checked:text-orange-800 peer-checked:border-orange-300 dark:peer-checked:bg-orange-900 dark:peer-checked:text-orange-200 dark:peer-checked:border-orange-700',
+                            'incident_updated'   => 'peer-checked:bg-amber-100 peer-checked:text-amber-800 peer-checked:border-amber-300 dark:peer-checked:bg-amber-900 dark:peer-checked:text-amber-200 dark:peer-checked:border-amber-700',
+                            'incident_deleted'   => 'peer-checked:bg-red-100 peer-checked:text-red-800 peer-checked:border-red-300 dark:peer-checked:bg-red-900 dark:peer-checked:text-red-200 dark:peer-checked:border-red-700',
+                            'analytics_exported' => 'peer-checked:bg-cyan-100 peer-checked:text-cyan-800 peer-checked:border-cyan-300 dark:peer-checked:bg-cyan-900 dark:peer-checked:text-cyan-200 dark:peer-checked:border-cyan-700',
+                            'sla_report_exported'=> 'peer-checked:bg-teal-100 peer-checked:text-teal-800 peer-checked:border-teal-300 dark:peer-checked:bg-teal-900 dark:peer-checked:text-teal-200 dark:peer-checked:border-teal-700',
+                            'incident_exported'  => 'peer-checked:bg-indigo-100 peer-checked:text-indigo-800 peer-checked:border-indigo-300 dark:peer-checked:bg-indigo-900 dark:peer-checked:text-indigo-200 dark:peer-checked:border-indigo-700',
+                            'password_changed'   => 'peer-checked:bg-pink-100 peer-checked:text-pink-800 peer-checked:border-pink-300 dark:peer-checked:bg-pink-900 dark:peer-checked:text-pink-200 dark:peer-checked:border-pink-700',
+                            'profile_updated'    => 'peer-checked:bg-sky-100 peer-checked:text-sky-800 peer-checked:border-sky-300 dark:peer-checked:bg-sky-900 dark:peer-checked:text-sky-200 dark:peer-checked:border-sky-700',
+                            'settings_changed'   => 'peer-checked:bg-violet-100 peer-checked:text-violet-800 peer-checked:border-violet-300 dark:peer-checked:bg-violet-900 dark:peer-checked:text-violet-200 dark:peer-checked:border-violet-700',
+                            'other'              => 'peer-checked:bg-gray-100 peer-checked:text-gray-800 peer-checked:border-gray-300 dark:peer-checked:bg-gray-700 dark:peer-checked:text-gray-200 dark:peer-checked:border-gray-600',
+                        ];
+                        ?>
+                        <div class="flex flex-wrap gap-2">
+                            <?php foreach ($actionTypes as $type):
+                                $isChecked = isset($filters['action']) && is_array($filters['action']) && in_array($type, $filters['action']);
+                                $pill = $pillColors[$type] ?? 'peer-checked:bg-gray-100 peer-checked:text-gray-800 peer-checked:border-gray-300';
+                            ?>
+                                <label class="relative cursor-pointer">
                                     <input type="checkbox" name="action_types[]" value="<?= $type ?>"
-                                        <?php echo (isset($filters['action']) && is_array($filters['action']) && in_array($type, $filters['action'])) ? 'checked' : ''; ?>
-                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                                    <span
-                                        class="ml-2 text-sm text-gray-700 dark:text-gray-300"><?= ucfirst(str_replace('_', ' ', $type)) ?></span>
+                                        <?= $isChecked ? 'checked' : '' ?>
+                                        class="peer sr-only">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-400 transition-all cursor-pointer select-none <?= $pill ?>">
+                                        <?= ucfirst(str_replace('_', ' ', $type)) ?>
+                                    </span>
                                 </label>
                             <?php endforeach; ?>
                         </div>
@@ -273,7 +284,7 @@ $actionTypes = [
                             class="inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                             <i class="fas fa-search mr-2"></i>Apply Filters
                         </button>
-                        <a href="activity_logs.php"
+                        <a href="activity_logs.php<?= $perPage !== 25 ? '?per_page=' . $perPage : '' ?>"
                             class="inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                             <i class="fas fa-times mr-2"></i>Clear
                         </a>
@@ -288,16 +299,57 @@ $actionTypes = [
             <!-- Activity Logs Table -->
             <div
                 class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                        Activity Logs (<?= number_format($totalLogs) ?> total)
-                    </h2>
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Activity Logs</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                            <?php if ($totalLogs === 0): ?>
+                                No logs found<?= $activeFilterCount > 0 ? ' matching current filters' : '' ?>
+                            <?php else: ?>
+                                Showing <strong class="text-gray-700 dark:text-gray-300"><?= number_format($offset + 1) ?>–<?= number_format(min($offset + $perPage, $totalLogs)) ?></strong>
+                                of <strong class="text-gray-700 dark:text-gray-300"><?= number_format($totalLogs) ?></strong> results
+                                <?= $activeFilterCount > 0 ? '<span class="text-blue-600 dark:text-blue-400">(filtered)</span>' : '' ?>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                    <!-- Per-page selector -->
+                    <form method="GET" class="flex items-center gap-2 flex-shrink-0">
+                        <?php foreach ($_GET as $k => $v): ?>
+                            <?php if ($k !== 'per_page' && $k !== 'page'): ?>
+                                <?php if (is_array($v)): ?>
+                                    <?php foreach ($v as $item): ?>
+                                        <input type="hidden" name="<?= htmlspecialchars($k) ?>[]" value="<?= htmlspecialchars($item) ?>">
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <input type="hidden" name="<?= htmlspecialchars($k) ?>" value="<?= htmlspecialchars($v) ?>">
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                        <label class="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">Rows per page:</label>
+                        <select name="per_page" onchange="this.form.submit()"
+                            class="px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-blue-500">
+                            <?php foreach ([10, 25, 50, 100] as $opt): ?>
+                                <option value="<?= $opt ?>" <?= $perPage === $opt ? 'selected' : '' ?>><?= $opt ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
                 </div>
 
                 <?php if (empty($logs)): ?>
-                    <div class="px-6 py-12 text-center">
-                        <i class="fas fa-inbox text-4xl text-gray-400 mb-3"></i>
-                        <p class="text-gray-500 dark:text-gray-400">No activity logs found</p>
+                    <div class="px-6 py-16 text-center">
+                        <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-700 mb-4">
+                            <i class="fas fa-<?= $activeFilterCount > 0 ? 'filter' : 'inbox' ?> text-2xl text-gray-400 dark:text-gray-500"></i>
+                        </div>
+                        <p class="text-base font-medium text-gray-700 dark:text-gray-300">No activity logs found</p>
+                        <?php if ($activeFilterCount > 0): ?>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">No logs match your current filters.</p>
+                            <a href="activity_logs.php<?= $perPage !== 25 ? '?per_page=' . $perPage : '' ?>"
+                               class="mt-4 inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                               <i class="fas fa-times mr-1.5"></i> Clear filters
+                            </a>
+                        <?php else: ?>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Activity will appear here as users interact with the system.</p>
+                        <?php endif; ?>
                     </div>
                 <?php else: ?>
                     <div class="overflow-x-auto">
@@ -327,10 +379,19 @@ $actionTypes = [
                             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 <?php foreach ($logs as $log): ?>
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                        <?php
+                                        $avatarPalette = [
+                                            'bg-blue-500', 'bg-green-500', 'bg-purple-500',
+                                            'bg-orange-500', 'bg-pink-500', 'bg-teal-500',
+                                            'bg-indigo-500', 'bg-rose-500',
+                                        ];
+                                        $avatarBg = $log['username']
+                                            ? $avatarPalette[abs(crc32($log['username'])) % count($avatarPalette)]
+                                            : 'bg-gray-400';
+                                        ?>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="flex items-center">
-                                                <div
-                                                    class="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold">
+                                                <div class="h-8 w-8 rounded-full <?= $avatarBg ?> flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
                                                     <?= $log['username'] ? strtoupper(substr($log['username'], 0, 2)) : 'SY' ?>
                                                 </div>
                                                 <div class="ml-3">
@@ -343,13 +404,23 @@ $actionTypes = [
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <?php
                                             $actionColors = [
-                                                'login' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-                                                'logout' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-                                                'login_failed' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-                                                'user_created' => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-                                                'user_updated' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-                                                'user_deleted' => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-                                                'incident_created' => 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+                                                'login'                 => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                                                'logout'                => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+                                                'login_failed'          => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+                                                'user_created'          => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                                                'user_updated'          => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+                                                'user_deleted'          => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+                                                'user_role_changed'     => 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+                                                'incident_created'      => 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+                                                'incident_updated'      => 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+                                                'incident_deleted'      => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+                                                'analytics_exported'    => 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+                                                'sla_report_exported'   => 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+                                                'incident_exported'     => 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+                                                'password_changed'      => 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+                                                'profile_updated'       => 'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200',
+                                                'settings_changed'      => 'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200',
+                                                'other'                 => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
                                             ];
                                             $actionKey = $log['action'] ?? '';
                                             $colorClass = $actionColors[$actionKey] ?? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
@@ -359,7 +430,8 @@ $actionTypes = [
                                                 <?= ucfirst(str_replace('_', ' ', $actionKey)) ?>
                                             </span>
                                         </td>
-                                        <td class="px-6 py-4 text-sm text-gray-900 dark:text-white max-w-md truncate">
+                                        <td class="px-6 py-4 text-sm text-gray-900 dark:text-white max-w-md truncate"
+                                            title="<?= htmlspecialchars($log['description']) ?>">
                                             <?= htmlspecialchars($log['description']) ?>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -396,40 +468,63 @@ $actionTypes = [
                     </div>
 
                     <!-- Pagination -->
-                    <?php if ($totalPages > 1): ?>
-                        <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                            <div class="flex-1 flex justify-between sm:hidden">
+                    <?php if ($totalPages > 1):
+                        $startPage = max(1, $page - 2);
+                        $endPage   = min($totalPages, $page + 2);
+                    ?>
+                        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 w-fit mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-6 py-3 shadow-sm mb-4">
+                            <div class="flex items-center gap-1">
+                                <!-- Previous -->
                                 <?php if ($page > 1): ?>
                                     <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>"
-                                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                                        Previous
+                                        class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                                        <i class="fas fa-chevron-left text-xs"></i>
                                     </a>
+                                <?php else: ?>
+                                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed">
+                                        <i class="fas fa-chevron-left text-xs"></i>
+                                    </span>
                                 <?php endif; ?>
+
+                                <!-- First + ellipsis -->
+                                <?php if ($startPage > 1): ?>
+                                    <a href="?<?= http_build_query(array_merge($_GET, ['page' => 1])) ?>"
+                                        class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">1</a>
+                                    <?php if ($startPage > 2): ?>
+                                        <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+
+                                <!-- Page numbers -->
+                                <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+                                    <?php if ($i === $page): ?>
+                                        <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-600 text-white text-sm font-semibold shadow-sm"><?= $i ?></span>
+                                    <?php else: ?>
+                                        <a href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>"
+                                            class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"><?= $i ?></a>
+                                    <?php endif; ?>
+                                <?php endfor; ?>
+
+                                <!-- Ellipsis + last -->
+                                <?php if ($endPage < $totalPages): ?>
+                                    <?php if ($endPage < $totalPages - 1): ?>
+                                        <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
+                                    <?php endif; ?>
+                                    <a href="?<?= http_build_query(array_merge($_GET, ['page' => $totalPages])) ?>"
+                                        class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"><?= $totalPages ?></a>
+                                <?php endif; ?>
+
+                                <!-- Next -->
                                 <?php if ($page < $totalPages): ?>
                                     <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>"
-                                        class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                                        Next
+                                        class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                                        <i class="fas fa-chevron-right text-xs"></i>
                                     </a>
+                                <?php else: ?>
+                                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed">
+                                        <i class="fas fa-chevron-right text-xs"></i>
+                                    </span>
                                 <?php endif; ?>
-                            </div>
-                            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                                <div>
-                                    <p class="text-sm text-gray-700 dark:text-gray-300">
-                                        Showing <span class="font-medium"><?= $offset + 1 ?></span> to
-                                        <span class="font-medium"><?= min($offset + $perPage, $totalLogs) ?></span> of
-                                        <span class="font-medium"><?= number_format($totalLogs) ?></span> results
-                                    </p>
-                                </div>
-                                <div>
-                                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                                        <?php for ($i = max(1, $page - 2); $i <= min($totalPages, $page + 2); $i++): ?>
-                                            <a href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>"
-                                                class="relative inline-flex items-center px-4 py-2 border text-sm font-medium <?= $i === $page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50' ?> dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300">
-                                                <?= $i ?>
-                                            </a>
-                                        <?php endfor; ?>
-                                    </nav>
-                                </div>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -493,7 +588,7 @@ $actionTypes = [
                                 <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Metadata:</div>
                                 <div class="col-span-2">
                                     <pre class="text-xs bg-gray-100 dark:bg-gray-900 p-3 rounded overflow-x-auto"
-                                        x-text="JSON.stringify(JSON.parse(detailModal.metadata), null, 2)"></pre>
+                                        x-text="(() => { try { return JSON.stringify(JSON.parse(detailModal.metadata), null, 2); } catch(e) { return detailModal.metadata; } })()"></pre>
                                 </div>
                             </div>
                         </template>

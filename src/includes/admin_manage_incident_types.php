@@ -5,11 +5,8 @@
         <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total
-                        Incident Types</p>
-                    <p class="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
-                        <?= $totalIncidentTypes ?>
-                    </p>
+                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Incident Types</p>
+                    <p class="mt-2 text-3xl font-semibold text-gray-900 dark:text-white"><?= $totalIncidentTypes ?></p>
                 </div>
                 <div class="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
                     <i class="fas fa-exclamation-triangle text-blue-600 dark:text-blue-400 text-xl"></i>
@@ -20,11 +17,8 @@
         <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Active Types
-                    </p>
-                    <p class="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
-                        <?= $activeIncidentTypes ?>
-                    </p>
+                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Active Types</p>
+                    <p class="mt-2 text-3xl font-semibold text-gray-900 dark:text-white"><?= $activeIncidentTypes ?></p>
                 </div>
                 <div class="w-12 h-12 bg-green-50 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
                     <i class="fas fa-check-circle text-green-600 dark:text-green-400 text-xl"></i>
@@ -45,20 +39,16 @@
     <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
         <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-700">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">All Incident Types</h3>
-            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Manage incident type classifications</p>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Incident types are shared across services — assign each type to one or more services</p>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
-                            Incident Type</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
-                            Service</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
-                            Status</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">
-                            Actions</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Incident Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Assigned Services</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -77,10 +67,18 @@
                                         <?= htmlspecialchars($type['name']) ?>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900 dark:text-white">
-                                        <?= htmlspecialchars($type['service_name']) ?>
-                                    </div>
+                                <td class="px-6 py-4">
+                                    <?php if (!empty($type['service_names'])): ?>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <?php foreach (explode(', ', $type['service_names']) as $svcName): ?>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                                                    <?= htmlspecialchars(trim($svcName)) ?>
+                                                </span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="text-xs text-gray-400 dark:text-gray-500 italic">Unassigned</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <form method="POST" class="inline" onchange="this.submit()">
@@ -89,24 +87,26 @@
                                         <input type="hidden" name="new_status" value="<?= $type['is_active'] ? 0 : 1 ?>">
                                         <label class="relative inline-flex items-center cursor-pointer">
                                             <input type="checkbox" <?= $type['is_active'] ? 'checked' : '' ?>
-                                            onchange="this.form.submit()" class="sr-only peer">
-                                            <div
-                                                class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-600">
-                                            </div>
-                                            <span
-                                                class="ms-3 text-sm font-medium <?= $type['is_active'] ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400' ?>">
+                                                   onchange="this.form.submit()" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-600"></div>
+                                            <span class="ms-3 text-sm font-medium <?= $type['is_active'] ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400' ?>">
                                                 <?= $type['is_active'] ? 'Active' : 'Inactive' ?>
                                             </span>
                                         </label>
                                     </form>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button onclick='editIncidentType(<?= json_encode($type) ?>)'
+                                    <button onclick='editIncidentType(<?= json_encode([
+                                        'type_id'       => $type['type_id'],
+                                        'name'          => $type['name'],
+                                        'is_active'     => $type['is_active'],
+                                        'service_ids'   => $type['service_ids'] ?? '',
+                                        'service_names' => $type['service_names'] ?? '',
+                                    ]) ?>)'
                                         class="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 text-xs font-semibold rounded-lg transition-colors mr-2">
                                         <i class="fas fa-edit mr-1"></i> Edit
                                     </button>
-                                    <button
-                                        onclick="deleteIncidentType(<?= $type['type_id'] ?>, '<?= addslashes(htmlspecialchars($type['name'])) ?>')"
+                                    <button onclick="deleteIncidentType(<?= $type['type_id'] ?>, '<?= addslashes(htmlspecialchars($type['name'])) ?>')"
                                         class="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 text-xs font-semibold rounded-lg transition-colors">
                                         <i class="fas fa-trash mr-1"></i> Delete
                                     </button>
@@ -123,34 +123,42 @@
 <!-- Incident Type Modal -->
 <div id="incidentTypeModal"
     class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
-        <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white" id="incidentTypeModalTitle">Add Incident
-                Type</h3>
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col">
+        <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white" id="incidentTypeModalTitle">Add Incident Type</h3>
+            <button type="button" onclick="hideIncidentTypeModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                <i class="fas fa-times text-lg"></i>
+            </button>
         </div>
-        <form method="POST" class="p-6 space-y-4">
+        <form method="POST" class="p-6 space-y-5 overflow-y-auto">
             <input type="hidden" name="action" id="incidentTypeAction" value="create_incident_type">
             <input type="hidden" name="type_id" id="incidentTypeId" value="">
 
+            <!-- Services Multi-Checkbox -->
             <div>
-                <label for="incidentTypeServiceId"
-                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Service <span
-                        class="text-red-500">*</span></label>
-                <select name="service_id" id="incidentTypeServiceId" required
-                    class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Select a service...</option>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Assigned Services
+                    <span class="text-gray-400 dark:text-gray-500 font-normal">(select all that apply)</span>
+                </label>
+                <div class="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden divide-y divide-gray-200 dark:divide-gray-700 max-h-44 overflow-y-auto" id="typeServiceCheckboxList">
                     <?php foreach ($services as $service): ?>
-                        <option value="<?= $service['service_id'] ?>">
-                            <?= htmlspecialchars($service['service_name']) ?>
-                        </option>
+                        <label class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                            <input type="checkbox"
+                                   name="service_ids[]"
+                                   value="<?= $service['service_id'] ?>"
+                                   class="type-service-checkbox w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:focus:ring-blue-600">
+                            <span class="text-sm text-gray-900 dark:text-white"><?= htmlspecialchars($service['service_name']) ?></span>
+                        </label>
                     <?php endforeach; ?>
-                </select>
+                </div>
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">Leave all unchecked to create an unassigned type.</p>
             </div>
 
+            <!-- Type Name -->
             <div>
-                <label for="incidentTypeName"
-                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Incident Type Name <span
-                        class="text-red-500">*</span></label>
+                <label for="incidentTypeName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Incident Type Name <span class="text-red-500">*</span>
+                </label>
                 <input type="text" name="type_name" id="incidentTypeName" required
                     placeholder="e.g., Hardware Failure, Network Outage, Software Bug"
                     class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -163,7 +171,7 @@
                 </button>
                 <button type="submit"
                     class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
-                    <i class="fas fa-save mr-2"></i> Save
+                    <i class="fas fa-save mr-2"></i> <span id="incidentTypeSaveLabel">Save</span>
                 </button>
             </div>
         </form>
@@ -171,38 +179,55 @@
 </div>
 
 <script>
-    function showIncidentTypeModal() {
-        document.getElementById('incidentTypeModalTitle').textContent = 'Add Incident Type';
-        document.getElementById('incidentTypeAction').value = 'create_incident_type';
-        document.getElementById('incidentTypeId').value = '';
-        document.getElementById('incidentTypeServiceId').value = '';
-        document.getElementById('incidentTypeName').value = '';
-        document.getElementById('incidentTypeModal').classList.remove('hidden');
-    }
+function clearTypeServiceCheckboxes() {
+    document.querySelectorAll('.type-service-checkbox').forEach(cb => cb.checked = false);
+}
 
-    function editIncidentType(type) {
-        document.getElementById('incidentTypeModalTitle').textContent = 'Edit Incident Type';
-        document.getElementById('incidentTypeAction').value = 'update_incident_type';
-        document.getElementById('incidentTypeId').value = type.type_id;
-        document.getElementById('incidentTypeServiceId').value = type.service_id;
-        document.getElementById('incidentTypeName').value = type.name;
-        document.getElementById('incidentTypeModal').classList.remove('hidden');
-    }
+function showIncidentTypeModal() {
+    document.getElementById('incidentTypeModalTitle').textContent = 'Add Incident Type';
+    document.getElementById('incidentTypeAction').value = 'create_incident_type';
+    document.getElementById('incidentTypeId').value = '';
+    document.getElementById('incidentTypeName').value = '';
+    document.getElementById('incidentTypeSaveLabel').textContent = 'Save';
+    clearTypeServiceCheckboxes();
+    document.getElementById('incidentTypeModal').classList.remove('hidden');
+}
 
-    function hideIncidentTypeModal() {
-        document.getElementById('incidentTypeModal').classList.add('hidden');
-    }
+function editIncidentType(type) {
+    document.getElementById('incidentTypeModalTitle').textContent = 'Edit Incident Type';
+    document.getElementById('incidentTypeAction').value = 'update_incident_type';
+    document.getElementById('incidentTypeId').value = type.type_id;
+    document.getElementById('incidentTypeName').value = type.name;
+    document.getElementById('incidentTypeSaveLabel').textContent = 'Save';
 
-    function deleteIncidentType(id, name) {
-        if (confirm(`Are you sure you want to delete "${name}"?\n\nThis will affect any incidents using this incident type.`)) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.innerHTML = `
+    // Tick the correct service checkboxes
+    clearTypeServiceCheckboxes();
+    const assignedIds = type.service_ids
+        ? type.service_ids.toString().split(',').map(id => id.trim())
+        : [];
+    document.querySelectorAll('.type-service-checkbox').forEach(cb => {
+        if (assignedIds.includes(cb.value.toString())) {
+            cb.checked = true;
+        }
+    });
+
+    document.getElementById('incidentTypeModal').classList.remove('hidden');
+}
+
+function hideIncidentTypeModal() {
+    document.getElementById('incidentTypeModal').classList.add('hidden');
+}
+
+function deleteIncidentType(id, name) {
+    if (confirm(`Are you sure you want to delete "${name}"?\n\nThis will affect any incidents using this incident type.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = `
             <input type="hidden" name="action" value="delete_incident_type">
             <input type="hidden" name="type_id" value="${id}">
         `;
-            document.body.appendChild(form);
-            form.submit();
-        }
+        document.body.appendChild(form);
+        form.submit();
     }
+}
 </script>

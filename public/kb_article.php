@@ -26,7 +26,7 @@ try {
             i.attachment_path
         FROM incidents i
         JOIN services s ON i.service_id = s.service_id
-        LEFT JOIN service_components c ON i.component_id = c.component_id
+        LEFT JOIN components c ON i.component_id = c.component_id
         LEFT JOIN users u ON i.reported_by = u.user_id
         LEFT JOIN users res ON i.resolved_by = res.user_id
         WHERE i.incident_id = ? AND i.status = 'resolved'
@@ -106,6 +106,7 @@ function getDownloadLink($filePath)
 
 <head>
     <meta charset="UTF-8">
+    <script>if(localStorage.getItem('theme')==='dark'||(!localStorage.getItem('theme')&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($article['service_name']) ?> Post-Mortem - KB</title>
 

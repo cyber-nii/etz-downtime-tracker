@@ -39,8 +39,24 @@ function sanitize($data) {
 // Fetch services, companies, components, and types
 try {
     $services = $pdo->query("SELECT * FROM services ORDER BY service_name")->fetchAll(PDO::FETCH_ASSOC);
-    $components = $pdo->query("SELECT * FROM service_components WHERE is_active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
-    $incidentTypes = $pdo->query("SELECT * FROM incident_types WHERE is_active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+    $components = $pdo->query("
+        SELECT c.component_id, c.name, c.is_active,
+               GROUP_CONCAT(scm.service_id ORDER BY scm.service_id) AS service_ids
+        FROM components c
+        LEFT JOIN service_component_map scm ON scm.component_id = c.component_id
+        WHERE c.is_active = 1
+        GROUP BY c.component_id
+        ORDER BY c.name
+    ")->fetchAll(PDO::FETCH_ASSOC);
+    $incidentTypes = $pdo->query("
+        SELECT it.type_id, it.name, it.is_active,
+               GROUP_CONCAT(itsm.service_id ORDER BY itsm.service_id) AS service_ids
+        FROM incident_types it
+        LEFT JOIN incident_type_service_map itsm ON itsm.type_id = it.type_id
+        WHERE it.is_active = 1
+        GROUP BY it.type_id
+        ORDER BY it.name ASC
+    ")->fetchAll(PDO::FETCH_ASSOC);
     
     // Fetch all companies and sort them with 'All' first, then alphabetically
     $allCompanies = $pdo->query("SELECT * FROM companies")->fetchAll(PDO::FETCH_ASSOC);
@@ -370,6 +386,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script>if(localStorage.getItem('theme')==='dark'||(!localStorage.getItem('theme')&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Report Incident - eTranzact</title>
     
@@ -660,7 +677,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <option value="">Select component...</option>
                                 <option value="all" class="component-option">All Components</option>
                                 <?php foreach ($components as $component): ?>
-                                    <option value="<?= $component['component_id'] ?>" data-service="<?= $component['service_id'] ?>" class="component-option hidden">
+                                    <option value="<?= $component['component_id'] ?>" data-services="<?= htmlspecialchars($component['service_ids'] ?? '') ?>" class="component-option hidden">
                                         <?= htmlspecialchars($component['name']) ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -677,7 +694,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <option value="">Select type...</option>
                                 <option value="all" class="type-option">All Incident Types</option>
                                 <?php foreach ($incidentTypes as $type): ?>
-                                    <option value="<?= $type['type_id'] ?>" data-service="<?= $type['service_id'] ?>" class="type-option hidden">
+                                    <option value="<?= $type['type_id'] ?>" data-services="<?= htmlspecialchars($type['service_ids'] ?? '') ?>" class="type-option hidden">
                                         <?= htmlspecialchars($type['name']) ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -1202,7 +1219,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 incidentTypeId.value = '';
                 
                 document.querySelectorAll('.component-option').forEach(opt => {
-                    if (serviceId === 'all' || opt.dataset.service == serviceId || !opt.dataset.service) {
+                    const services = opt.dataset.services ? opt.dataset.services.split(',') : [];
+                    if (serviceId === '' || serviceId === 'all' || services.includes(serviceId)) {
                         opt.classList.remove('hidden');
                     } else {
                         opt.classList.add('hidden');
@@ -1210,7 +1228,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 });
                 
                 document.querySelectorAll('.type-option').forEach(opt => {
-                    if (serviceId === 'all' || opt.dataset.service == serviceId || !opt.dataset.service) {
+                    const services = opt.dataset.services ? opt.dataset.services.split(',') : [];
+                    if (serviceId === '' || serviceId === 'all' || services.includes(serviceId)) {
                         opt.classList.remove('hidden');
                     } else {
                         opt.classList.add('hidden');

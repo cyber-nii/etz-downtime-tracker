@@ -10,7 +10,20 @@
       "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \"SELECT * FROM sla_targets LIMIT 10;\")",
       "Read(//c/Users/Jacob Quarshie/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/4bc8ecc6-64e0-4f46-85d8-33989c3210fa/b9153362-45df-4926-b189-cbdf0d9a32ab/skills/xlsx/**)",
       "Bash(python -c \":*)",
-      "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \"UPDATE sla_targets SET target_uptime = 99.99;\")"
+      "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \"UPDATE sla_targets SET target_uptime = 99.99;\")",
+      "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \"SELECT component_id, service_id, name, is_active FROM service_components ORDER BY name, service_id;\")",
+      "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \"SELECT service_id, service_name FROM services ORDER BY service_id;\")",
+      "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \"SELECT component_id FROM incidents WHERE component_id IS NOT NULL; SELECT component_id FROM incident_templates WHERE component_id IS NOT NULL;\")",
+      "Bash(php -l /c/xampp/htdocs/etz-downtime-tracker/public/report.php)",
+      "Bash(php -l /c/xampp/htdocs/etz-downtime-tracker/public/admin/manage.php)",
+      "Bash(php -l /c/xampp/htdocs/etz-downtime-tracker/public/incidents.php)",
+      "Bash(php -l /c/xampp/htdocs/etz-downtime-tracker/public/admin/templates.php)",
+      "Bash(ls \"C:\\\\Users\\\\Jacob Quarshie\\\\.claude\\\\projects\\\\C--xampp-htdocs-etz-downtime-tracker\\\\memory\"\" 2>/dev/null || echo \"EMPTY \")",
+      "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --password=\"\" downtimedb -e \"DESCRIBE incidents;\")",
+      "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --password=\"\" downtimedb -e \"SHOW TRIGGERS LIKE ''calculate_downtime%'';\")",
+      "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --password=\"\" downtimedb -e \"SHOW TABLES;\")",
+      "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --password=\"\" downtimedb -e \"DESCRIBE downtime_incidents;\")",
+      "Bash(\"C:\\\\xampp\\\\mysql\\\\bin\\\\mysql.exe\" -u root --password=\"\" downtimedb -e \":*)"
     ]
   }
 }

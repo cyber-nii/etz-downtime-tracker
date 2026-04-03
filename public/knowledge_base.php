@@ -67,7 +67,7 @@ try {
             (SELECT COUNT(*) FROM incident_attachments ia WHERE ia.incident_id = i.incident_id) as attachment_count
         FROM incidents i
         JOIN services s ON i.service_id = s.service_id
-        LEFT JOIN service_components c ON i.component_id = c.component_id
+        LEFT JOIN components c ON i.component_id = c.component_id
         LEFT JOIN users u ON i.resolved_by = u.user_id
         WHERE {$whereSQL}
         ORDER BY i.resolved_at DESC
@@ -97,6 +97,7 @@ function getExcerpt($text, $length = 150) {
 
 <head>
     <meta charset="UTF-8">
+    <script>if(localStorage.getItem('theme')==='dark'||(!localStorage.getItem('theme')&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Knowledge Base - ETZ Downtime</title>
 
