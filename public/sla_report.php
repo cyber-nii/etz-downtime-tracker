@@ -286,37 +286,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                             </span>
                                         </a>
                                     <?php endif; ?>
-
-                                    <div
-                                        class="px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-t border-b border-gray-100 dark:border-gray-700 mt-1">
-                                        Export to PDF
-                                    </div>
-                                    <a href="../src/exports/export_sla_report_pdf.php?start_date=<?= urlencode($startDate) ?>&end_date=<?= urlencode($endDate) ?>"
-                                        class="text-gray-700 dark:text-gray-300 block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                                        role="menuitem" tabindex="-1" data-no-loading>
-                                        <span class="flex items-center">
-                                            <svg class="mr-2 h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg"
-                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                            </svg>
-                                            All Companies (PDF)
-                                        </span>
-                                    </a>
-                                    <?php if ($companyId): ?>
-                                        <a href="../src/exports/export_sla_report_pdf.php?company_id=<?= urlencode($companyId) ?>&start_date=<?= urlencode($startDate) ?>&end_date=<?= urlencode($endDate) ?>"
-                                            class="text-gray-700 dark:text-gray-300 block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                                            role="menuitem" tabindex="-1" data-no-loading>
-                                            <span class="flex items-center">
-                                                <svg class="mr-2 h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg"
-                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                                </svg>
-                                                Current Filter (PDF)
-                                            </span>
-                                        </a>
-                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
