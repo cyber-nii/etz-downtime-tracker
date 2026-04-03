@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $serviceName = $stmt->fetchColumn();
 
             // Check for dependencies
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM service_components WHERE service_id = ?");
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM service_component_map WHERE service_id = ?");
             $stmt->execute([$serviceId]);
             $componentCount = $stmt->fetchColumn();
 
@@ -150,165 +150,148 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // ============ COMPONENT ACTIONS ============
         } elseif ($action === 'create_component') {
-            $serviceId = $_POST['service_id'] ?? 0;
-
-            if (empty($serviceId)) {
-                throw new Exception('Please select a service');
-            }
-
-            // Support both single name (edit) and array of names (bulk create)
+            // Support both single name and array of names (bulk create)
             $rawNames = $_POST['component_names'] ?? [];
             if (empty($rawNames)) {
-                // Fallback: single-name field (shouldn't be used on create, but kept for safety)
                 $single = trim($_POST['component_name'] ?? '');
-                if ($single !== '') {
-                    $rawNames = [$single];
-                }
+                if ($single !== '') $rawNames = [$single];
             }
-
-            // Filter out blank entries
             $names = array_filter(array_map('trim', $rawNames), fn($n) => $n !== '');
+            if (empty($names)) throw new Exception('At least one component name is required');
 
-            if (empty($names)) {
-                throw new Exception('At least one component name is required');
-            }
+            // Which services to assign this component to
+            $serviceIds = array_filter(array_map('intval', (array)($_POST['service_ids'] ?? [])));
 
-            $insertStmt = $pdo->prepare("INSERT INTO service_components (service_id, name) VALUES (?, ?)");
-            $dupCheck   = $pdo->prepare("SELECT COUNT(*) FROM service_components WHERE name = ? AND service_id = ?");
-            $created    = 0;
-            $skipped    = [];
+            $created = 0;
+            $skipped = [];
+            $dupCheck  = $pdo->prepare("SELECT component_id FROM components WHERE name = ?");
+            $insertCmp = $pdo->prepare("INSERT INTO components (name) VALUES (?)");
+            $insertMap = $pdo->prepare("INSERT IGNORE INTO service_component_map (service_id, component_id) VALUES (?, ?)");
 
             foreach ($names as $componentName) {
-                $dupCheck->execute([$componentName, $serviceId]);
-                if ($dupCheck->fetchColumn() > 0) {
-                    $skipped[] = $componentName;
-                    continue;
+                // Get or create the global component
+                $dupCheck->execute([$componentName]);
+                $existingId = $dupCheck->fetchColumn();
+                if ($existingId) {
+                    $componentId = $existingId;
+                    if (empty($serviceIds)) { $skipped[] = $componentName; continue; }
+                } else {
+                    $insertCmp->execute([$componentName]);
+                    $componentId = $pdo->lastInsertId();
+                    $created++;
+                    logActivity($_SESSION['user_id'], 'created_component', "Created component: $componentName");
                 }
-                $insertStmt->execute([$serviceId, $componentName]);
-                logActivity($_SESSION['user_id'], 'created_component', "Created component: $componentName for service ID $serviceId");
-                $created++;
+                // Assign to selected services
+                foreach ($serviceIds as $sid) {
+                    $insertMap->execute([$sid, $componentId]);
+                }
             }
 
-            if ($created === 0) {
-                $dupList = implode(', ', array_map('htmlspecialchars', $skipped));
-                throw new Exception("No components created — duplicate(s) already exist: $dupList");
-            }
-
-            $msg = "$created component(s) created successfully.";
-            if (!empty($skipped)) {
-                $msg .= ' Skipped duplicates: ' . implode(', ', array_map('htmlspecialchars', $skipped)) . '.';
-            }
-
+            $msg = $created > 0 ? "$created component(s) created successfully." : 'Component(s) assigned to selected services.';
+            if (!empty($skipped)) $msg .= ' Already existed (skipped): ' . implode(', ', $skipped) . '.';
             $_SESSION['message'] = ['type' => 'success', 'text' => $msg];
 
         } elseif ($action === 'update_component') {
-            $componentId = $_POST['component_id'] ?? 0;
-            $serviceId = $_POST['service_id'] ?? 0;
+            $componentId   = (int)($_POST['component_id'] ?? 0);
             $componentName = trim($_POST['component_name'] ?? '');
+            if (empty($componentName)) throw new Exception('Component name is required');
 
-            if (empty($componentName)) {
-                throw new Exception('Component name is required');
+            // Check for duplicate name (excluding self)
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM components WHERE name = ? AND component_id != ?");
+            $stmt->execute([$componentName, $componentId]);
+            if ($stmt->fetchColumn() > 0) throw new Exception('A component with this name already exists');
+
+            $stmt = $pdo->prepare("UPDATE components SET name = ? WHERE component_id = ?");
+            $stmt->execute([$componentName, $componentId]);
+
+            // Update service assignments
+            $serviceIds = array_filter(array_map('intval', (array)($_POST['service_ids'] ?? [])));
+            $pdo->prepare("DELETE FROM service_component_map WHERE component_id = ?")->execute([$componentId]);
+            $insertMap = $pdo->prepare("INSERT IGNORE INTO service_component_map (service_id, component_id) VALUES (?, ?)");
+            foreach ($serviceIds as $sid) {
+                $insertMap->execute([$sid, $componentId]);
             }
-
-            if (empty($serviceId)) {
-                throw new Exception('Please select a service');
-            }
-
-            // Check for duplicates (excluding current component)
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM service_components WHERE name = ? AND service_id = ? AND component_id != ?");
-            $stmt->execute([$componentName, $serviceId, $componentId]);
-            if ($stmt->fetchColumn() > 0) {
-                throw new Exception('This component already exists for the selected service');
-            }
-
-            $stmt = $pdo->prepare("UPDATE service_components SET service_id = ?, name = ? WHERE component_id = ?");
-            $stmt->execute([$serviceId, $componentName, $componentId]);
 
             logActivity($_SESSION['user_id'], 'updated_component', "Updated component ID $componentId to: $componentName");
-
             $_SESSION['message'] = ['type' => 'success', 'text' => 'Component updated successfully'];
 
         } elseif ($action === 'toggle_component_status') {
-            $componentId = $_POST['component_id'] ?? 0;
-            $newStatus = $_POST['new_status'] ?? 1;
-
-            $stmt = $pdo->prepare("UPDATE service_components SET is_active = ? WHERE component_id = ?");
-            $stmt->execute([$newStatus, $componentId]);
-
+            $componentId = (int)($_POST['component_id'] ?? 0);
+            $newStatus   = $_POST['new_status'] ?? 1;
+            $pdo->prepare("UPDATE components SET is_active = ? WHERE component_id = ?")->execute([$newStatus, $componentId]);
             $statusText = $newStatus ? 'activated' : 'deactivated';
             logActivity($_SESSION['user_id'], 'toggled_component_status', "Component ID $componentId $statusText");
-
             $_SESSION['message'] = ['type' => 'success', 'text' => 'Component status updated successfully'];
 
         } elseif ($action === 'delete_component') {
-            $componentId = $_POST['component_id'] ?? 0;
-
-            // Get component name for logging
-            $stmt = $pdo->prepare("SELECT name FROM service_components WHERE component_id = ?");
+            $componentId = (int)($_POST['component_id'] ?? 0);
+            $stmt = $pdo->prepare("SELECT name FROM components WHERE component_id = ?");
             $stmt->execute([$componentId]);
             $componentName = $stmt->fetchColumn();
 
-            // Check for dependencies
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM incidents WHERE component_id = ?");
             $stmt->execute([$componentId]);
             $incidentCount = $stmt->fetchColumn();
 
-            $stmt = $pdo->prepare("DELETE FROM service_components WHERE component_id = ?");
-            $stmt->execute([$componentId]);
-
+            // Deleting from components cascades to service_component_map via FK
+            $pdo->prepare("DELETE FROM components WHERE component_id = ?")->execute([$componentId]);
             logActivity($_SESSION['user_id'], 'deleted_component', "Deleted component: $componentName (had $incidentCount incidents)");
-
             $_SESSION['message'] = ['type' => 'success', 'text' => 'Component deleted successfully'];
 
             // ============ INCIDENT TYPE ACTIONS ============
         } elseif ($action === 'create_incident_type') {
-            $serviceId = $_POST['service_id'] ?? 0;
-            $typeName = trim($_POST['type_name'] ?? '');
+            $typeName  = trim($_POST['type_name'] ?? '');
+            $serviceIds = array_filter(array_map('intval', (array)($_POST['service_ids'] ?? [])));
 
             if (empty($typeName)) {
                 throw new Exception('Incident type name is required');
             }
 
-            if (empty($serviceId)) {
-                throw new Exception('Please select a service');
-            }
-
-            // Check for duplicates within the same service
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM incident_types WHERE name = ? AND service_id = ?");
-            $stmt->execute([$typeName, $serviceId]);
+            // Check for global duplicate name
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM incident_types WHERE name = ?");
+            $stmt->execute([$typeName]);
             if ($stmt->fetchColumn() > 0) {
-                throw new Exception('This incident type already exists for the selected service');
+                throw new Exception('An incident type with this name already exists');
             }
 
-            $stmt = $pdo->prepare("INSERT INTO incident_types (service_id, name) VALUES (?, ?)");
-            $stmt->execute([$serviceId, $typeName]);
+            $stmt = $pdo->prepare("INSERT INTO incident_types (name) VALUES (?)");
+            $stmt->execute([$typeName]);
+            $newTypeId = $pdo->lastInsertId();
 
-            logActivity($_SESSION['user_id'], 'created_incident_type', "Created incident type: $typeName for service ID $serviceId");
+            $insertMap = $pdo->prepare("INSERT IGNORE INTO incident_type_service_map (service_id, type_id) VALUES (?, ?)");
+            foreach ($serviceIds as $sid) {
+                $insertMap->execute([$sid, $newTypeId]);
+            }
+
+            logActivity($_SESSION['user_id'], 'created_incident_type', "Created incident type: $typeName");
 
             $_SESSION['message'] = ['type' => 'success', 'text' => 'Incident type created successfully'];
 
         } elseif ($action === 'update_incident_type') {
-            $typeId = $_POST['type_id'] ?? 0;
-            $serviceId = $_POST['service_id'] ?? 0;
-            $typeName = trim($_POST['type_name'] ?? '');
+            $typeId     = (int)($_POST['type_id'] ?? 0);
+            $typeName   = trim($_POST['type_name'] ?? '');
+            $serviceIds = array_filter(array_map('intval', (array)($_POST['service_ids'] ?? [])));
 
             if (empty($typeName)) {
                 throw new Exception('Incident type name is required');
             }
 
-            if (empty($serviceId)) {
-                throw new Exception('Please select a service');
-            }
-
-            // Check for duplicates (excluding current type)
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM incident_types WHERE name = ? AND service_id = ? AND type_id != ?");
-            $stmt->execute([$typeName, $serviceId, $typeId]);
+            // Check for global duplicate name (excluding current)
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM incident_types WHERE name = ? AND type_id != ?");
+            $stmt->execute([$typeName, $typeId]);
             if ($stmt->fetchColumn() > 0) {
-                throw new Exception('This incident type already exists for the selected service');
+                throw new Exception('An incident type with this name already exists');
             }
 
-            $stmt = $pdo->prepare("UPDATE incident_types SET service_id = ?, name = ? WHERE type_id = ?");
-            $stmt->execute([$serviceId, $typeName, $typeId]);
+            $stmt = $pdo->prepare("UPDATE incident_types SET name = ? WHERE type_id = ?");
+            $stmt->execute([$typeName, $typeId]);
+
+            // Rebuild service assignments
+            $pdo->prepare("DELETE FROM incident_type_service_map WHERE type_id = ?")->execute([$typeId]);
+            $insertMap = $pdo->prepare("INSERT IGNORE INTO incident_type_service_map (service_id, type_id) VALUES (?, ?)");
+            foreach ($serviceIds as $sid) {
+                $insertMap->execute([$sid, $typeId]);
+            }
 
             logActivity($_SESSION['user_id'], 'updated_incident_type', "Updated incident type ID $typeId to: $typeName");
 
@@ -359,10 +342,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 try {
     // Get all services with component count
     $services = $pdo->query("
-        SELECT s.*, 
-               COUNT(sc.component_id) as component_count
+        SELECT s.*,
+               COUNT(scm.component_id) as component_count
         FROM services s
-        LEFT JOIN service_components sc ON s.service_id = sc.service_id
+        LEFT JOIN service_component_map scm ON s.service_id = scm.service_id
         GROUP BY s.service_id
         ORDER BY s.service_name ASC
     ")->fetchAll();
@@ -373,20 +356,28 @@ try {
         ORDER BY company_name ASC
     ")->fetchAll();
 
-    // Get all components with service names
+    // Get all components with their assigned service names
     $components = $pdo->query("
-        SELECT sc.*, s.service_name
-        FROM service_components sc
-        INNER JOIN services s ON sc.service_id = s.service_id
-        ORDER BY s.service_name ASC, sc.name ASC
+        SELECT c.component_id, c.name, c.is_active,
+               GROUP_CONCAT(s.service_name ORDER BY s.service_name SEPARATOR ', ') AS service_names,
+               GROUP_CONCAT(scm.service_id ORDER BY s.service_name) AS service_ids
+        FROM components c
+        LEFT JOIN service_component_map scm ON scm.component_id = c.component_id
+        LEFT JOIN services s ON s.service_id = scm.service_id
+        GROUP BY c.component_id
+        ORDER BY c.name ASC
     ")->fetchAll();
 
-    // Get all incident types with service names
+    // Get all incident types with aggregated service names
     $incidentTypes = $pdo->query("
-        SELECT it.*, s.service_name
+        SELECT it.type_id, it.name, it.is_active,
+               GROUP_CONCAT(s.service_name ORDER BY s.service_name SEPARATOR ', ') AS service_names,
+               GROUP_CONCAT(itsm.service_id ORDER BY s.service_name) AS service_ids
         FROM incident_types it
-        INNER JOIN services s ON it.service_id = s.service_id
-        ORDER BY s.service_name ASC, it.name ASC
+        LEFT JOIN incident_type_service_map itsm ON itsm.type_id = it.type_id
+        LEFT JOIN services s ON s.service_id = itsm.service_id
+        GROUP BY it.type_id
+        ORDER BY it.name ASC
     ")->fetchAll();
 
     // Get statistics

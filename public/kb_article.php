@@ -26,7 +26,7 @@ try {
             i.attachment_path
         FROM incidents i
         JOIN services s ON i.service_id = s.service_id
-        LEFT JOIN service_components c ON i.component_id = c.component_id
+        LEFT JOIN components c ON i.component_id = c.component_id
         LEFT JOIN users u ON i.reported_by = u.user_id
         LEFT JOIN users res ON i.resolved_by = res.user_id
         WHERE i.incident_id = ? AND i.status = 'resolved'

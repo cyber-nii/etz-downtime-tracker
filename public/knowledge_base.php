@@ -67,7 +67,7 @@ try {
             (SELECT COUNT(*) FROM incident_attachments ia WHERE ia.incident_id = i.incident_id) as attachment_count
         FROM incidents i
         JOIN services s ON i.service_id = s.service_id
-        LEFT JOIN service_components c ON i.component_id = c.component_id
+        LEFT JOIN components c ON i.component_id = c.component_id
         LEFT JOIN users u ON i.resolved_by = u.user_id
         WHERE {$whereSQL}
         ORDER BY i.resolved_at DESC

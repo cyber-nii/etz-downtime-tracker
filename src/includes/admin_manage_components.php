@@ -13,7 +13,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
             <div class="flex items-center justify-between">
                 <div>
@@ -38,14 +38,14 @@
     <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
         <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-700">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">All Components</h3>
-            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Manage service components</p>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Components are shared across services — assign each component to one or more services</p>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Component Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Service</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Assigned Services</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Status</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-400 uppercase">Actions</th>
                     </tr>
@@ -66,10 +66,18 @@
                                         <?= htmlspecialchars($component['name']) ?>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900 dark:text-white">
-                                        <?= htmlspecialchars($component['service_name']) ?>
-                                    </div>
+                                <td class="px-6 py-4">
+                                    <?php if (!empty($component['service_names'])): ?>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <?php foreach (explode(', ', $component['service_names']) as $svcName): ?>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                                                    <?= htmlspecialchars(trim($svcName)) ?>
+                                                </span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="text-xs text-gray-400 dark:text-gray-500 italic">Unassigned</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <form method="POST" class="inline" onchange="this.submit()">
@@ -86,7 +94,13 @@
                                     </form>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button onclick='editComponent(<?= json_encode($component) ?>)' class="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 text-xs font-semibold rounded-lg transition-colors mr-2">
+                                    <button onclick='editComponent(<?= json_encode([
+                                        'component_id' => $component['component_id'],
+                                        'name'         => $component['name'],
+                                        'is_active'    => $component['is_active'],
+                                        'service_ids'  => $component['service_ids'] ?? '',
+                                        'service_names'=> $component['service_names'] ?? '',
+                                    ]) ?>)' class="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 text-xs font-semibold rounded-lg transition-colors mr-2">
                                         <i class="fas fa-edit mr-1"></i> Edit
                                     </button>
                                     <button onclick="deleteComponent(<?= $component['component_id'] ?>, '<?= addslashes(htmlspecialchars($component['name'])) ?>')" class="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 text-xs font-semibold rounded-lg transition-colors">
@@ -104,36 +118,48 @@
 
 <!-- Component Modal -->
 <div id="componentModal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
-        <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col">
+        <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white" id="componentModalTitle">Add Component</h3>
             <button type="button" onclick="hideComponentModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
                 <i class="fas fa-times text-lg"></i>
             </button>
         </div>
-        <form method="POST" class="p-6 space-y-4" id="componentForm">
+        <form method="POST" class="p-6 space-y-5 overflow-y-auto" id="componentForm">
             <input type="hidden" name="action" id="componentAction" value="create_component">
             <input type="hidden" name="component_id" id="componentId" value="">
 
-            <!-- Service Selector -->
+            <!-- Services Multi-Checkbox -->
             <div>
-                <label for="componentServiceId" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Service <span class="text-red-500">*</span></label>
-                <select name="service_id" id="componentServiceId" required class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Select a service...</option>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Assigned Services
+                    <span class="text-gray-400 dark:text-gray-500 font-normal">(select all that apply)</span>
+                </label>
+                <div class="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden divide-y divide-gray-200 dark:divide-gray-700 max-h-44 overflow-y-auto" id="serviceCheckboxList">
                     <?php foreach ($services as $service): ?>
-                        <option value="<?= $service['service_id'] ?>"><?= htmlspecialchars($service['service_name']) ?></option>
+                        <label class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                            <input type="checkbox"
+                                   name="service_ids[]"
+                                   value="<?= $service['service_id'] ?>"
+                                   class="service-checkbox w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:focus:ring-blue-600">
+                            <span class="text-sm text-gray-900 dark:text-white"><?= htmlspecialchars($service['service_name']) ?></span>
+                        </label>
                     <?php endforeach; ?>
-                </select>
+                </div>
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">Leave all unchecked to create an unassigned component.</p>
             </div>
 
-            <!-- Single name input (shown for Edit) -->
+            <!-- Single name input (Edit mode) -->
             <div id="singleNameWrap">
-                <label for="componentName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Component Name <span class="text-red-500">*</span></label>
-                <input type="text" name="component_name" id="componentName" placeholder="e.g., Database, API, Web Server"
-                    class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <label for="componentName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Component Name <span class="text-red-500">*</span>
+                </label>
+                <input type="text" name="component_name" id="componentName"
+                       placeholder="e.g., Database, API, Web Server"
+                       class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
 
-            <!-- Multi-name inputs (shown for Create) -->
+            <!-- Multi-name inputs (Create mode) -->
             <div id="multiNameWrap" class="hidden">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Component Name(s) <span class="text-red-500">*</span>
@@ -164,7 +190,6 @@
 <script>
 function addComponentNameRow(value) {
     const list = document.getElementById('componentNamesList');
-    const idx  = list.children.length;
     const row  = document.createElement('div');
     row.className = 'flex items-center gap-2';
     row.innerHTML = `
@@ -178,20 +203,25 @@ function addComponentNameRow(value) {
     list.appendChild(row);
 }
 
+function clearServiceCheckboxes() {
+    document.querySelectorAll('.service-checkbox').forEach(cb => cb.checked = false);
+}
+
 function showComponentModal() {
-    // Switch to create mode
     document.getElementById('componentModalTitle').textContent = 'Add Component(s)';
     document.getElementById('componentAction').value = 'create_component';
     document.getElementById('componentId').value = '';
-    document.getElementById('componentServiceId').value = '';
     document.getElementById('componentName').removeAttribute('required');
 
-    // Show multi, hide single
+    // Clear all service checkboxes
+    clearServiceCheckboxes();
+
+    // Show multi-name, hide single-name
     document.getElementById('singleNameWrap').classList.add('hidden');
     document.getElementById('multiNameWrap').classList.remove('hidden');
     document.getElementById('componentSaveLabel').textContent = 'Save All';
 
-    // Reset rows to one empty row
+    // Reset name rows to one empty row
     document.getElementById('componentNamesList').innerHTML = '';
     addComponentNameRow();
 
@@ -199,16 +229,25 @@ function showComponentModal() {
 }
 
 function editComponent(component) {
-    // Switch to edit mode
     document.getElementById('componentModalTitle').textContent = 'Edit Component';
     document.getElementById('componentAction').value = 'update_component';
     document.getElementById('componentId').value = component.component_id;
-    document.getElementById('componentServiceId').value = component.service_id;
     document.getElementById('componentName').value = component.name;
     document.getElementById('componentName').setAttribute('required', 'required');
     document.getElementById('componentSaveLabel').textContent = 'Save';
 
-    // Show single, hide multi
+    // Clear then check the correct service checkboxes
+    clearServiceCheckboxes();
+    const assignedIds = component.service_ids
+        ? component.service_ids.toString().split(',').map(id => id.trim())
+        : [];
+    document.querySelectorAll('.service-checkbox').forEach(cb => {
+        if (assignedIds.includes(cb.value.toString())) {
+            cb.checked = true;
+        }
+    });
+
+    // Show single-name, hide multi-name
     document.getElementById('singleNameWrap').classList.remove('hidden');
     document.getElementById('multiNameWrap').classList.add('hidden');
 

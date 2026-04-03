@@ -306,9 +306,9 @@ function getActivityLogs($filters = [], $limit = 50, $offset = 0)
     $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
 
     $sql = "
-        SELECT l.*, u.username 
+        SELECT l.*, u.username
         FROM activity_logs l
-        JOIN users u ON l.user_id = u.user_id
+        LEFT JOIN users u ON l.user_id = u.user_id
         $whereClause
         ORDER BY l.created_at DESC
         LIMIT ? OFFSET ?
@@ -372,7 +372,7 @@ function getActivityLogsCount($filters = [])
 
     $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
 
-    $sql = "SELECT COUNT(*) as total FROM activity_logs l JOIN users u ON l.user_id = u.user_id $whereClause";
+    $sql = "SELECT COUNT(*) as total FROM activity_logs l LEFT JOIN users u ON l.user_id = u.user_id $whereClause";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);

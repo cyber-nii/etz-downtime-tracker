@@ -146,7 +146,7 @@ try {
                u.username as created_by_name
         FROM incident_templates t
         LEFT JOIN services s ON t.service_id = s.service_id
-        LEFT JOIN service_components sc ON t.component_id = sc.component_id
+        LEFT JOIN components sc ON t.component_id = sc.component_id
         LEFT JOIN users u ON t.created_by = u.user_id
         ORDER BY t.usage_count DESC, t.template_name ASC
     ")->fetchAll();
@@ -156,20 +156,24 @@ try {
     
     // Get all components for dropdown (will be filtered by JS)
     $allComponents = $pdo->query("
-        SELECT sc.*, s.service_name
-        FROM service_components sc
-        INNER JOIN services s ON sc.service_id = s.service_id
-        WHERE sc.is_active = 1
-        ORDER BY s.service_name ASC, sc.name ASC
+        SELECT c.component_id, c.name, c.is_active,
+               GROUP_CONCAT(scm.service_id ORDER BY scm.service_id) AS service_ids
+        FROM components c
+        LEFT JOIN service_component_map scm ON scm.component_id = c.component_id
+        WHERE c.is_active = 1
+        GROUP BY c.component_id
+        ORDER BY c.name ASC
     ")->fetchAll();
     
     // Get all incident types for dropdown (will be filtered by JS)
     $allIncidentTypes = $pdo->query("
-        SELECT it.*, s.service_name
+        SELECT it.type_id, it.name, it.is_active,
+               GROUP_CONCAT(itsm.service_id ORDER BY itsm.service_id) AS service_ids
         FROM incident_types it
-        INNER JOIN services s ON it.service_id = s.service_id
+        LEFT JOIN incident_type_service_map itsm ON itsm.type_id = it.type_id
         WHERE it.is_active = 1
-        ORDER BY s.service_name ASC, it.name ASC
+        GROUP BY it.type_id
+        ORDER BY it.name ASC
     ")->fetchAll();
     
     // Get statistics
@@ -419,8 +423,8 @@ try {
                             class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="">None</option>
                             <?php foreach ($allComponents as $comp): ?>
-                                <option value="<?= $comp['component_id'] ?>" data-service-id="<?= $comp['service_id'] ?>">
-                                    <?= htmlspecialchars($comp['name']) ?> (<?= htmlspecialchars($comp['service_name']) ?>)
+                                <option value="<?= $comp['component_id'] ?>" data-service-ids="<?= htmlspecialchars($comp['service_ids'] ?? '') ?>">
+                                    <?= htmlspecialchars($comp['name']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -434,8 +438,8 @@ try {
                             class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="">None</option>
                             <?php foreach ($allIncidentTypes as $type): ?>
-                                <option value="<?= $type['type_id'] ?>" data-service-id="<?= $type['service_id'] ?>">
-                                    <?= htmlspecialchars($type['name']) ?> (<?= htmlspecialchars($type['service_name']) ?>)
+                                <option value="<?= $type['type_id'] ?>" data-service-ids="<?= htmlspecialchars($type['service_ids'] ?? '') ?>">
+                                    <?= htmlspecialchars($type['name']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -486,25 +490,25 @@ try {
     </div>
 
     <script>
-    // Component filtering
+    // Component + incident type filtering by service
     function filterComponents(serviceId) {
-        // Always compare as strings — template.service_id from PHP JSON is a number,
-        // but data-service-id attributes are strings, so strict equality would fail.
         serviceId = serviceId ? String(serviceId) : '';
 
         const componentSelect = document.getElementById('templateComponentId');
-        const typeSelect = document.getElementById('templateIncidentTypeId');
-        
+        const typeSelect      = document.getElementById('templateIncidentTypeId');
+
         [componentSelect, typeSelect].forEach(select => {
-            const options = select.querySelectorAll('option');
-            options.forEach(option => {
+            const prevValue = select.value;
+            select.querySelectorAll('option').forEach(option => {
                 if (option.value === '') { option.style.display = 'block'; return; }
-                const optionServiceId = option.getAttribute('data-service-id');
-                option.style.display = (!serviceId || optionServiceId === serviceId) ? 'block' : 'none';
+                const ids = option.getAttribute('data-service-ids') || '';
+                const serviceList = ids ? ids.split(',').map(s => s.trim()) : [];
+                const visible = !serviceId || serviceList.includes(serviceId);
+                option.style.display = visible ? 'block' : 'none';
             });
-            // Reset selection only when changing service (not when loading existing template)
-            const selected = select.options[select.selectedIndex];
-            if (selected && selected.getAttribute('data-service-id') !== serviceId && serviceId !== '') {
+            // Clear selection if the currently selected option is now hidden
+            const chosen = select.options[select.selectedIndex];
+            if (chosen && chosen.style.display === 'none') {
                 select.value = '';
             }
         });

@@ -403,21 +403,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     exit;
 }
 
-// Pagination settings
+// ── Filter params ──────────────────────────────────────────
+$statusFilter = in_array($_GET['status'] ?? '', ['pending', 'resolved']) ? $_GET['status'] : '';
+$searchFilter = trim($_GET['search'] ?? '');
+
+// ── Pagination ─────────────────────────────────────────────
 $itemsPerPage = 10;
-$currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-$offset = ($currentPage - 1) * $itemsPerPage;
+$currentPage  = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$offset       = ($currentPage - 1) * $itemsPerPage;
+
+// Helper: build a URL preserving current filters
+function pageUrl(int $page, string $status, string $search): string {
+    $p = ['page' => $page];
+    if ($status) $p['status'] = $status;
+    if ($search !== '') $p['search'] = $search;
+    return '?' . http_build_query($p);
+}
+
+// Build shared WHERE conditions (no LIMIT/OFFSET yet)
+$whereClauses = [];
+$filterParams  = [];
+
+if ($statusFilter) {
+    $whereClauses[] = "i.status = ?";
+    $filterParams[]  = $statusFilter;
+}
+if ($searchFilter !== '') {
+    $whereClauses[] = "(
+        s.service_name LIKE ?
+        OR i.incident_ref  LIKE ?
+        OR i.root_cause    LIKE ?
+        OR it.name         LIKE ?
+        OR EXISTS (
+            SELECT 1 FROM incident_affected_companies iac2
+            JOIN companies c2 ON iac2.company_id = c2.company_id
+            WHERE iac2.incident_id = i.incident_id AND c2.company_name LIKE ?
+        )
+    )";
+    $wild = "%" . $searchFilter . "%";
+    array_push($filterParams, $wild, $wild, $wild, $wild, $wild);
+}
+$whereSQL = $whereClauses ? "WHERE " . implode(" AND ", $whereClauses) : "";
 
 // Get all incidents with their updates
 try {
-    // First, count total incidents for pagination
-    $countQuery = "SELECT COUNT(*) FROM incidents";
-    $totalIncidents = $pdo->query($countQuery)->fetchColumn();
+    $countStmt = $pdo->prepare("
+        SELECT COUNT(DISTINCT i.incident_id)
+        FROM incidents i
+        JOIN services s ON i.service_id = s.service_id
+        LEFT JOIN incident_types it ON i.incident_type_id = it.type_id
+        $whereSQL
+    ");
+    $countStmt->execute($filterParams);
+    $totalIncidents = $countStmt->fetchColumn();
     $totalPages = ceil($totalIncidents / $itemsPerPage);
 
     // Get incidents with service and affected companies (with pagination)
     $incidents = $pdo->prepare("
-        SELECT 
+        SELECT
             i.incident_id,
             i.incident_ref,
             i.service_id,
@@ -425,7 +468,12 @@ try {
             i.status,
             i.impact_level,
             i.priority,
+            i.incident_source,
             i.attachment_path,
+            i.actual_start_time,
+            EXISTS(SELECT 1 FROM downtime_incidents di WHERE di.incident_id = i.incident_id) AS causes_downtime,
+            (SELECT COALESCE(SUM(di.downtime_minutes), 0) FROM downtime_incidents di WHERE di.incident_id = i.incident_id) AS downtime_minutes,
+            i.description,
             u.full_name as user_name,
             i.created_at,
             res.full_name as resolved_by,
@@ -438,8 +486,8 @@ try {
             s.service_name,
             sc.name as component_name,
             it.name as incident_type_name,
-            CASE 
-                WHEN GROUP_CONCAT(DISTINCT c.company_name ORDER BY c.company_name SEPARATOR ', ') LIKE '%All%' 
+            CASE
+                WHEN GROUP_CONCAT(DISTINCT c.company_name ORDER BY c.company_name SEPARATOR ', ') LIKE '%All%'
                 THEN 'All'
                 ELSE GROUP_CONCAT(DISTINCT c.company_name ORDER BY c.company_name SEPARATOR ', ')
             END as affected_companies,
@@ -452,15 +500,16 @@ try {
         LEFT JOIN users res ON i.resolved_by = res.user_id
         LEFT JOIN incident_affected_companies iac ON i.incident_id = iac.incident_id
         LEFT JOIN companies c ON iac.company_id = c.company_id
-        LEFT JOIN service_components sc ON i.component_id = sc.component_id
+        LEFT JOIN components sc ON i.component_id = sc.component_id
         LEFT JOIN incident_types it ON i.incident_type_id = it.type_id
+        $whereSQL
         GROUP BY i.incident_id
-        ORDER BY 
+        ORDER BY
             FIELD(i.status, 'pending', 'resolved'),
             i.updated_at DESC
         LIMIT ? OFFSET ?
     ");
-    $incidents->execute([$itemsPerPage, $offset]);
+    $incidents->execute(array_merge($filterParams, [$itemsPerPage, $offset]));
     $incidents = $incidents->fetchAll(PDO::FETCH_ASSOC);
 
     // Get updates for each incident
@@ -477,7 +526,7 @@ try {
 
     // Fetch data for edit modal dropdowns
     $services = $pdo->query("SELECT service_id, service_name FROM services ORDER BY service_name")->fetchAll();
-    $components = $pdo->query("SELECT component_id, name, service_id FROM service_components ORDER BY name")->fetchAll();
+    $components = $pdo->query("SELECT component_id, name FROM components WHERE is_active = 1 ORDER BY name")->fetchAll();
     $incidentTypes = $pdo->query("SELECT type_id, name FROM incident_types ORDER BY name")->fetchAll();
     $companies = $pdo->query("SELECT company_id, company_name FROM companies ORDER BY company_name")->fetchAll();
 
@@ -615,36 +664,42 @@ try {
                     <div class="flex-1">
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
+                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                 </svg>
                             </div>
                             <input type="text" id="incident-search"
-                                placeholder="Search incidents by service, company, or root cause..."
-                                class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm"
-                                onkeyup="filterIncidents()">
+                                placeholder="Search by service, company, ref, type or root cause..."
+                                value="<?= htmlspecialchars($searchFilter) ?>"
+                                class="block w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm">
+                            <?php if ($searchFilter): ?>
+                                <a href="?<?= http_build_query(array_filter(['status' => $statusFilter])) ?>"
+                                   class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                                    <i class="fas fa-times-circle"></i>
+                                </a>
+                            <?php endif; ?>
                         </div>
                     </div>
+                    <!-- status toggle buttons -->
                     <div class="mt-4 flex md:mt-0 md:ml-6">
                         <div class="inline-flex rounded-lg shadow-sm" role="group">
-                            <button type="button" data-status="all"
-                                class="status-toggle px-4 py-2 text-sm font-medium rounded-l-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500">
+                            <button type="button" data-status=""
+                                class="status-toggle px-4 py-2 text-sm font-medium rounded-l-lg border border-gray-200 <?= $statusFilter === '' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-gray-700' ?> hover:bg-gray-50 transition-colors duration-200 ease-in-out focus:outline-none">
                                 <span class="flex items-center">
-                                    <i class="fas fa-list-ul mr-2 text-gray-500"></i>
+                                    <i class="fas fa-list-ul mr-2 <?= $statusFilter === '' ? 'text-blue-600' : 'text-gray-500' ?>"></i>
                                     <span>All</span>
                                 </span>
                             </button>
                             <button type="button" data-status="pending"
-                                class="status-toggle px-4 py-2 text-sm font-medium border-t border-b border-gray-200 bg-white text-gray-700 hover:bg-yellow-50 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-yellow-500">
+                                class="status-toggle px-4 py-2 text-sm font-medium border-t border-b border-gray-200 <?= $statusFilter === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-white text-gray-700' ?> hover:bg-yellow-50 transition-colors duration-200 ease-in-out focus:outline-none">
                                 <span class="flex items-center">
                                     <i class="fas fa-clock mr-2 text-yellow-500"></i>
                                     <span>Pending</span>
                                 </span>
                             </button>
                             <button type="button" data-status="resolved"
-                                class="status-toggle px-4 py-2 text-sm font-medium rounded-r-lg border border-gray-200 bg-white text-gray-700 hover:bg-green-50 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-green-500">
+                                class="status-toggle px-4 py-2 text-sm font-medium rounded-r-lg border border-gray-200 <?= $statusFilter === 'resolved' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-white text-gray-700' ?> hover:bg-green-50 transition-colors duration-200 ease-in-out focus:outline-none">
                                 <span class="flex items-center">
                                     <i class="fas fa-check-circle mr-2 text-green-500"></i>
                                     <span>Resolved</span>
@@ -654,18 +709,27 @@ try {
                     </div>
                 </div>
 
+                <!-- Results summary -->
+                <div class="mb-4 flex items-center justify-between">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        <?php if ($totalIncidents === 0): ?>
+                            No incidents found<?= $searchFilter ? ' for "<strong>' . htmlspecialchars($searchFilter) . '</strong>"' : '' ?>
+                        <?php else: ?>
+                            Showing <strong class="text-gray-900 dark:text-white"><?= number_format(($offset + 1)) ?>–<?= number_format(min($offset + $itemsPerPage, $totalIncidents)) ?></strong>
+                            of <strong class="text-gray-900 dark:text-white"><?= number_format($totalIncidents) ?></strong>
+                            <?= $statusFilter ? ucfirst($statusFilter) : '' ?> incidents
+                            <?= $searchFilter ? 'matching "<strong>' . htmlspecialchars($searchFilter) . '</strong>"' : '' ?>
+                        <?php endif; ?>
+                    </p>
+                    <?php if ($statusFilter || $searchFilter): ?>
+                        <a href="incidents.php" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-medium">
+                            <i class="fas fa-times mr-1"></i> Clear filters
+                        </a>
+                    <?php endif; ?>
+                </div>
+
                 <!-- Incidents List -->
                 <div class="space-y-4">
-                    <!-- Empty State for No Results -->
-                    <div id="no-results" class="hidden text-center py-12">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No incidents found</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Try selecting a different filter.</p>
-                    </div>
 
                     <?php if (empty($incidents)): ?>
                                 <div class="text-center py-12">
@@ -1062,7 +1126,7 @@ try {
                             <div class="flex items-center gap-1 order-1 sm:order-2">
                                 <!-- Previous -->
                                 <?php if ($currentPage > 1): ?>
-                                            <a href="?page=<?= $currentPage - 1 ?>"
+                                            <a href="<?= pageUrl($currentPage - 1, $statusFilter, $searchFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                                                 <i class="fas fa-chevron-left text-xs"></i>
                                             </a>
@@ -1075,7 +1139,7 @@ try {
 
                                 <!-- First page + ellipsis -->
                                 <?php if ($startPage > 1): ?>
-                                            <a href="?page=1"
+                                            <a href="<?= pageUrl(1, $statusFilter, $searchFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">1</a>
                                             <?php if ($startPage > 2): ?>
                                                         <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
@@ -1090,7 +1154,7 @@ try {
                                                             <?= $i ?>
                                                         </span>
                                             <?php else: ?>
-                                                        <a href="?page=<?= $i ?>"
+                                                        <a href="<?= pageUrl($i, $statusFilter, $searchFilter) ?>"
                                                             class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
                                                             <?= $i ?>
                                                         </a>
@@ -1102,13 +1166,13 @@ try {
                                             <?php if ($endPage < $totalPages - 1): ?>
                                                         <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
                                             <?php endif; ?>
-                                            <a href="?page=<?= $totalPages ?>"
+                                            <a href="<?= pageUrl($totalPages, $statusFilter, $searchFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"><?= $totalPages ?></a>
                                 <?php endif; ?>
 
                                 <!-- Next -->
                                 <?php if ($currentPage < $totalPages): ?>
-                                            <a href="?page=<?= $currentPage + 1 ?>"
+                                            <a href="<?= pageUrl($currentPage + 1, $statusFilter, $searchFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                                                 <i class="fas fa-chevron-right text-xs"></i>
                                             </a>
@@ -1357,8 +1421,7 @@ try {
                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">All</option>
                                 <?php foreach ($components as $component): ?>
-                                            <option value="<?= $component['component_id'] ?>"
-                                                data-service="<?= $component['service_id'] ?>">
+                                            <option value="<?= $component['component_id'] ?>">
                                                 <?= htmlspecialchars($component['name']) ?>
                                             </option>
                                 <?php endforeach; ?>
@@ -1646,52 +1709,17 @@ try {
                         this.querySelector('i').classList.add('text-blue-600');
                     }
 
-                    // Filter incidents
-                    const incidents = document.querySelectorAll('.incident-card');
-                    const noResults = document.getElementById('no-results');
-                    let visibleCount = 0;
-
-                    incidents.forEach(incident => {
-                        const incidentStatus = incident.getAttribute('data-status');
-                        if (status === 'all' || incidentStatus === status) {
-                            incident.classList.remove('hidden');
-                            visibleCount++;
-                        } else {
-                            incident.classList.add('hidden');
-                        }
-                    });
-
-                    // Show/hide empty state
-                    // Only show "no results" if there are incidents but they're all filtered
-                    const hasIncidents = incidents.length > 0;
-                    if (visibleCount === 0 && hasIncidents) {
-                        noResults.classList.remove('hidden');
-                    } else {
-                        noResults.classList.add('hidden');
-                    }
-
-                    // Update URL without page reload
+                    // Navigate to the filtered URL (server-side, preserves search, resets to page 1)
                     const url = new URL(window.location);
-                    if (status === 'all') {
+                    if (status === '' || status === 'all') {
                         url.searchParams.delete('status');
                     } else {
                         url.searchParams.set('status', status);
                     }
-                    window.history.pushState({}, '', url);
+                    url.searchParams.delete('page');
+                    window.location.href = url.toString();
                 });
             });
-
-            // Set initial active state from URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const statusParam = urlParams.get('status');
-            if (statusParam) {
-                const activeButton = document.querySelector(`.status-toggle[data-status="${statusParam}"]`);
-                if (activeButton) activeButton.click();
-            } else {
-                // Default to 'all' if no status in URL
-                const allButton = document.querySelector('.status-toggle[data-status="all"]');
-                if (allButton) allButton.click();
-            }
         });
 
         // Resolve Modal Functions
@@ -2049,22 +2077,38 @@ try {
     </script>
 
     <script>
-        // Search/Filter incidents
-        function filterIncidents() {
-            const searchTerm = document.getElementById('incident-search').value.toLowerCase();
-            const cards = document.querySelectorAll('.incident-card');
-            let visibleCount = 0;
+        // Search — navigate via URL so server filters + pagination stays correct
+        (function () {
+            const searchInput = document.getElementById('incident-search');
+            if (!searchInput) return;
 
-            cards.forEach(card => {
-                const text = card.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
-                    card.style.display = '';
-                    visibleCount++;
+            function submitSearch(value) {
+                const url = new URL(window.location);
+                if (value.trim()) {
+                    url.searchParams.set('search', value.trim());
                 } else {
-                    card.style.display = 'none';
+                    url.searchParams.delete('search');
+                }
+                url.searchParams.delete('page');
+                window.location.href = url.toString();
+            }
+
+            let searchTimer;
+            searchInput.addEventListener('input', function () {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => submitSearch(this.value), 500);
+            });
+            searchInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    clearTimeout(searchTimer);
+                    submitSearch(this.value);
+                } else if (e.key === 'Escape') {
+                    clearTimeout(searchTimer);
+                    this.value = '';
+                    submitSearch('');
                 }
             });
-        }
+        })();
 
         // Refresh incidents function
         function refreshIncidents() {
