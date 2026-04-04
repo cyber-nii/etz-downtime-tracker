@@ -289,8 +289,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                 // 1. Insert into incidents table
                 $sql = "INSERT INTO incidents
-                        (incident_ref, service_id, component_id, incident_type_id, impact_level, priority, incident_source, description, root_cause, attachment_path, actual_start_time, status, reported_by)
-                        VALUES (:incident_ref, :service_id, :component_id, :incident_type_id, :impact_level, :priority, :incident_source, :description, :root_cause, :attachment_path, :actual_start_time, :status, :reported_by)";
+                        (incident_ref, category, service_id, component_id, incident_type_id, impact_level, priority, incident_source, description, root_cause, attachment_path, actual_start_time, status, reported_by)
+                        VALUES (:incident_ref, 'system_downtime', :service_id, :component_id, :incident_type_id, :impact_level, :priority, :incident_source, :description, :root_cause, :attachment_path, :actual_start_time, :status, :reported_by)";
 
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute([

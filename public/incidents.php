@@ -415,8 +415,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 
 // ── Filter params ──────────────────────────────────────────
-$statusFilter = in_array($_GET['status'] ?? '', ['pending', 'resolved']) ? $_GET['status'] : '';
-$searchFilter = trim($_GET['search'] ?? '');
+$statusFilter   = in_array($_GET['status'] ?? '', ['pending', 'resolved']) ? $_GET['status'] : '';
+$searchFilter   = trim($_GET['search'] ?? '');
+$categoryFilter = in_array($_GET['category'] ?? '', ['system_downtime', 'information_security', 'fraud']) ? $_GET['category'] : '';
 
 // ── Pagination ─────────────────────────────────────────────
 $itemsPerPage = 10;
@@ -424,10 +425,11 @@ $currentPage  = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset       = ($currentPage - 1) * $itemsPerPage;
 
 // Helper: build a URL preserving current filters
-function pageUrl(int $page, string $status, string $search): string {
+function pageUrl(int $page, string $status, string $search, string $category = ''): string {
     $p = ['page' => $page];
     if ($status) $p['status'] = $status;
     if ($search !== '') $p['search'] = $search;
+    if ($category !== '') $p['category'] = $category;
     return '?' . http_build_query($p);
 }
 
@@ -438,6 +440,10 @@ $filterParams  = [];
 if ($statusFilter) {
     $whereClauses[] = "i.status = ?";
     $filterParams[]  = $statusFilter;
+}
+if ($categoryFilter) {
+    $whereClauses[] = "i.category = ?";
+    $filterParams[]  = $categoryFilter;
 }
 if ($searchFilter !== '') {
     $whereClauses[] = "(
@@ -480,6 +486,7 @@ try {
             i.impact_level,
             i.priority,
             i.incident_source,
+            i.category,
             i.attachment_path,
             i.actual_start_time,
             EXISTS(SELECT 1 FROM downtime_incidents di WHERE di.incident_id = i.incident_id) AS causes_downtime,
@@ -687,7 +694,7 @@ try {
                                 value="<?= htmlspecialchars($searchFilter) ?>"
                                 class="block w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm">
                             <?php if ($searchFilter): ?>
-                                <a href="?<?= http_build_query(array_filter(['status' => $statusFilter])) ?>"
+                                <a href="?<?= http_build_query(array_filter(['status' => $statusFilter, 'category' => $categoryFilter])) ?>"
                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
                                     <i class="fas fa-times-circle"></i>
                                 </a>
@@ -720,6 +727,20 @@ try {
                             </button>
                         </div>
                     </div>
+                    <!-- category filter -->
+                    <div class="mt-4 flex md:mt-0 md:ml-3">
+                        <?php
+                            $catLabels = ['' => 'All Categories', 'system_downtime' => 'System Downtime', 'information_security' => 'Info Security', 'fraud' => 'Fraud'];
+                            $catIcons  = ['' => 'fa-filter', 'system_downtime' => 'fa-server', 'information_security' => 'fa-shield-halved', 'fraud' => 'fa-triangle-exclamation'];
+                            $catColors = ['' => 'text-gray-500', 'system_downtime' => 'text-blue-500', 'information_security' => 'text-red-500', 'fraud' => 'text-amber-500'];
+                        ?>
+                        <select id="category-filter"
+                            class="pl-3 pr-8 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                            <?php foreach ($catLabels as $val => $label): ?>
+                                <option value="<?= $val ?>" <?= $categoryFilter === $val ? 'selected' : '' ?>><?= $label ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Results summary -->
@@ -731,10 +752,11 @@ try {
                             Showing <strong class="text-gray-900 dark:text-white"><?= number_format(($offset + 1)) ?>–<?= number_format(min($offset + $itemsPerPage, $totalIncidents)) ?></strong>
                             of <strong class="text-gray-900 dark:text-white"><?= number_format($totalIncidents) ?></strong>
                             <?= $statusFilter ? ucfirst($statusFilter) : '' ?> incidents
+                            <?= $categoryFilter ? ' in <strong>' . htmlspecialchars($catLabels[$categoryFilter]) . '</strong>' : '' ?>
                             <?= $searchFilter ? 'matching "<strong>' . htmlspecialchars($searchFilter) . '</strong>"' : '' ?>
                         <?php endif; ?>
                     </p>
-                    <?php if ($statusFilter || $searchFilter): ?>
+                    <?php if ($statusFilter || $searchFilter || $categoryFilter): ?>
                         <a href="incidents.php" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-medium">
                             <i class="fas fa-times mr-1"></i> Clear filters
                         </a>
@@ -872,6 +894,18 @@ try {
                                                                 <i class="fas <?= $srcIcon ?> text-[9px]"></i>
                                                                 <?= $srcKey === 'internal' ? 'Internal' : 'External' ?>
                                                             </span>
+                                                            <?php
+                                                                $cat = $incident['category'] ?? 'system_downtime';
+                                                                if ($cat === 'information_security'):
+                                                            ?>
+                                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border border-red-300 text-red-700 dark:border-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20">
+                                                                <i class="fas fa-shield-halved text-[9px]"></i> Info Security
+                                                            </span>
+                                                            <?php elseif ($cat === 'fraud'): ?>
+                                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                                                                <i class="fas fa-triangle-exclamation text-[9px]"></i> Fraud
+                                                            </span>
+                                                            <?php endif; ?>
                                                         </div>
                                                     </div>
 
@@ -1139,7 +1173,7 @@ try {
                             <div class="flex items-center gap-1 order-1 sm:order-2">
                                 <!-- Previous -->
                                 <?php if ($currentPage > 1): ?>
-                                            <a href="<?= pageUrl($currentPage - 1, $statusFilter, $searchFilter) ?>"
+                                            <a href="<?= pageUrl($currentPage - 1, $statusFilter, $searchFilter, $categoryFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                                                 <i class="fas fa-chevron-left text-xs"></i>
                                             </a>
@@ -1152,7 +1186,7 @@ try {
 
                                 <!-- First page + ellipsis -->
                                 <?php if ($startPage > 1): ?>
-                                            <a href="<?= pageUrl(1, $statusFilter, $searchFilter) ?>"
+                                            <a href="<?= pageUrl(1, $statusFilter, $searchFilter, $categoryFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">1</a>
                                             <?php if ($startPage > 2): ?>
                                                         <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
@@ -1167,7 +1201,7 @@ try {
                                                             <?= $i ?>
                                                         </span>
                                             <?php else: ?>
-                                                        <a href="<?= pageUrl($i, $statusFilter, $searchFilter) ?>"
+                                                        <a href="<?= pageUrl($i, $statusFilter, $searchFilter, $categoryFilter) ?>"
                                                             class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
                                                             <?= $i ?>
                                                         </a>
@@ -1179,13 +1213,13 @@ try {
                                             <?php if ($endPage < $totalPages - 1): ?>
                                                         <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
                                             <?php endif; ?>
-                                            <a href="<?= pageUrl($totalPages, $statusFilter, $searchFilter) ?>"
+                                            <a href="<?= pageUrl($totalPages, $statusFilter, $searchFilter, $categoryFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"><?= $totalPages ?></a>
                                 <?php endif; ?>
 
                                 <!-- Next -->
                                 <?php if ($currentPage < $totalPages): ?>
-                                            <a href="<?= pageUrl($currentPage + 1, $statusFilter, $searchFilter) ?>"
+                                            <a href="<?= pageUrl($currentPage + 1, $statusFilter, $searchFilter, $categoryFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                                                 <i class="fas fa-chevron-right text-xs"></i>
                                             </a>
@@ -1742,6 +1776,21 @@ try {
                     window.location.href = url.toString();
                 });
             });
+
+            // Category filter dropdown
+            const categoryFilter = document.getElementById('category-filter');
+            if (categoryFilter) {
+                categoryFilter.addEventListener('change', function () {
+                    const url = new URL(window.location);
+                    if (this.value === '') {
+                        url.searchParams.delete('category');
+                    } else {
+                        url.searchParams.set('category', this.value);
+                    }
+                    url.searchParams.delete('page');
+                    window.location.href = url.toString();
+                });
+            }
         });
 
         // Resolve Modal Functions

@@ -27,7 +27,8 @@
       "Bash(grep -A 50 \"CREATE TABLE \\\\`users\\\\`\" \"/c/xampp/htdocs/etz-downtime-tracker/migration/downtimedb ACTUAL DATA.sql\")",
       "Bash(grep -i \"INSERT INTO \\\\`users\\\\`\" \"/c/xampp/htdocs/etz-downtime-tracker/migration/downtimedb ACTUAL DATA.sql\")",
       "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \"SHOW CREATE TABLE incident_components\\\\G\")",
-      "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \"SELECT COUNT\\(*\\) as migrated_rows FROM incident_components;\")"
+      "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \"SELECT COUNT\\(*\\) as migrated_rows FROM incident_components;\")",
+      "Bash(/c/xampp/mysql/bin/mysql -u root downtimedb -e \"SHOW COLUMNS FROM incidents LIKE ''category''; SHOW TABLES LIKE ''incident_%details'';\")"
     ]
   }
 }
