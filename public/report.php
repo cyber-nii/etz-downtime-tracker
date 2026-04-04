@@ -95,7 +95,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // Sanitize and validate inputs
     $service_id = $_POST['service_id'] === 'all' ? 'all' : filter_var($_POST['service_id'] ?? null, FILTER_VALIDATE_INT);
-    $component_id = $_POST['component_id'] === 'all' ? 'all' : (filter_var($_POST['component_id'] ?? null, FILTER_VALIDATE_INT) ?: null);
+    $component_ids_raw = isset($_POST['component_ids']) && is_array($_POST['component_ids']) ? $_POST['component_ids'] : [];
+    $component_ids = [];
+    $use_all_components = false;
+    foreach ($component_ids_raw as $cid) {
+        if ($cid === 'all') { $use_all_components = true; break; }
+        $cid = filter_var($cid, FILTER_VALIDATE_INT);
+        if ($cid) $component_ids[] = $cid;
+    }
+    if ($use_all_components) $component_ids = [];
+    $component_ids = array_values(array_unique($component_ids));
     $incident_type_id = $_POST['incident_type_id'] === 'all' ? 'all' : (filter_var($_POST['incident_type_id'] ?? null, FILTER_VALIDATE_INT) ?: null);
     $impact_level = in_array($_POST['impact_level'] ?? '', ['Low', 'Medium', 'High', 'Critical']) ? $_POST['impact_level'] : 'Low';
     $description = trim(filter_var($_POST['description'] ?? '', FILTER_SANITIZE_STRING));
@@ -110,7 +119,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $causes_downtime = isset($_POST['causes_downtime']) && $_POST['causes_downtime'] == '1';
     $downtime_category = in_array($_POST['downtime_category'] ?? '', ['Network', 'Server', 'Maintenance', 'Third-party', 'Other']) ? $_POST['downtime_category'] : 'Other';
     $priority = in_array($_POST['priority'] ?? '', ['Low', 'Medium', 'High', 'Urgent']) ? $_POST['priority'] : 'Medium';
-    $incident_source = in_array($_POST['incident_source'] ?? '', ['internal', 'external']) ? $_POST['incident_source'] : null;
+    $incident_source = in_array($_POST['incident_source'] ?? '', ['internal', 'external']) ? $_POST['incident_source'] : 'external';
 
     // Handle optional end time (only when causes_downtime is checked)
     $incident_end_date = $_POST['incident_end_date'] ?? null;
@@ -146,6 +155,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
     
     // Handle multiple file uploads
+    $errors = [];
     $attachment_path = null; // Keep for backward compatibility (first file)
     $uploaded_files = [];
     
@@ -217,7 +227,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     // Validation
-    $errors = [];
     if (empty($service_id)) {
         $errors[] = "Please select a service.";
     }
@@ -227,7 +236,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (strlen($root_cause) > 1000) {
         $errors[] = "Root cause is too long (max 1000 characters).";
     }
-    if ($causes_downtime && $incident_source === null) {
+    if ($causes_downtime && empty($_POST['incident_source'])) {
         $errors[] = "Please select whether this downtime is Internal or External.";
     }
 
@@ -261,9 +270,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $service_ids = ($service_id === 'all') ? array_map(function($s) { return $s['service_id']; }, $services) : [$service_id];
             
             foreach ($service_ids as $s_id) {
-                // For components and types, we don't expand into multiple incidents.
-                // Instead, we use NULL to represent "All" or "Any" as per the schema.
-                $c_id = ($component_id === 'all') ? null : $component_id;
+                // For components, NULL means "All / General".
+                // Store the first selected component in incidents.component_id for backward compat.
+                $c_id = !empty($component_ids) ? $component_ids[0] : null;
                 $t_id = ($incident_type_id === 'all') ? null : $incident_type_id;
 
                 // Generate unique incident_ref
@@ -311,7 +320,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     ]);
                 }
                 
-                // 3. Insert into downtime_incidents table ONLY if:
+                // 3. Insert affected components into junction table
+                if (!empty($component_ids)) {
+                    $icomp_stmt = $pdo->prepare("INSERT IGNORE INTO incident_components (incident_id, component_id) VALUES (?, ?)");
+                    foreach ($component_ids as $co_cid) {
+                        $icomp_stmt->execute([$incident_id, $co_cid]);
+                    }
+                }
+
+                // 4. Insert into downtime_incidents table ONLY if:
                 //    - "Causes Downtime" is checked AND
                 //    - "Is Planned Maintenance" is NOT checked
                 // This ensures only UNPLANNED downtime affects SLA calculations
@@ -667,21 +684,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                     <!-- Component and Incident Type Row -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Component Selection -->
+                        <!-- Component Selection (multi-select) -->
                         <div>
-                            <label for="component_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Component Affected
                             </label>
-                            <select name="component_id" id="component_id"
-                                class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Select component...</option>
-                                <option value="all" class="component-option">All Components</option>
-                                <?php foreach ($components as $component): ?>
-                                    <option value="<?= $component['component_id'] ?>" data-services="<?= htmlspecialchars($component['service_ids'] ?? '') ?>" class="component-option hidden">
-                                        <?= htmlspecialchars($component['name']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <div class="relative" id="componentDropdownWrapper">
+                                <button type="button" id="componentDropdownBtn" onclick="toggleComponentDropdown()"
+                                    class="w-full flex items-center justify-between border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white text-left focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <span id="component-selected-text" class="block truncate text-gray-500 dark:text-gray-400">Select components...</span>
+                                    <i class="fas fa-chevron-down text-gray-400 ml-2 flex-shrink-0"></i>
+                                </button>
+                                <div id="componentDropdownMenu" class="hidden absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                    <div class="p-2">
+                                        <!-- All Components option -->
+                                        <label class="flex items-center px-2 py-1.5 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600">
+                                            <input type="checkbox" id="component-all" name="component_ids[]" value="all"
+                                                class="component-checkbox w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                                                <?= (isset($_POST['component_ids']) && in_array('all', $_POST['component_ids'])) ? 'checked' : '' ?>>
+                                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">All Components</span>
+                                        </label>
+                                        <?php foreach ($components as $component): ?>
+                                            <label class="component-option-label flex items-center px-2 py-1.5 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 hidden"
+                                                data-services="<?= htmlspecialchars($component['service_ids'] ?? '') ?>">
+                                                <input type="checkbox" id="component-<?= $component['component_id'] ?>"
+                                                    name="component_ids[]" value="<?= $component['component_id'] ?>"
+                                                    class="component-checkbox w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                                                    <?= (isset($_POST['component_ids']) && in_array($component['component_id'], $_POST['component_ids'])) ? 'checked' : '' ?>>
+                                                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300"><?= htmlspecialchars($component['name']) ?></span>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="selected-components" class="mt-2 flex flex-wrap gap-1.5"></div>
                         </div>
 
                         <!-- Incident Type Selection -->
@@ -1208,25 +1244,76 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 }
             }
             
+            // Component dropdown toggle
+            window.toggleComponentDropdown = function() {
+                const menu = document.getElementById('componentDropdownMenu');
+                menu.classList.toggle('hidden');
+            };
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                const wrapper = document.getElementById('componentDropdownWrapper');
+                if (wrapper && !wrapper.contains(e.target)) {
+                    document.getElementById('componentDropdownMenu').classList.add('hidden');
+                }
+            });
+
+            // Update selected components display
+            function updateSelectedComponents() {
+                const checked = document.querySelectorAll('.component-checkbox:checked');
+                const textEl = document.getElementById('component-selected-text');
+                const badgeContainer = document.getElementById('selected-components');
+                badgeContainer.innerHTML = '';
+
+                if (checked.length === 0) {
+                    textEl.textContent = 'Select components...';
+                    textEl.classList.add('text-gray-500', 'dark:text-gray-400');
+                    return;
+                }
+                const names = Array.from(checked).map(cb => cb.closest('label').querySelector('span').textContent.trim());
+                textEl.textContent = names.join(', ');
+                textEl.classList.remove('text-gray-500', 'dark:text-gray-400');
+
+                names.forEach((name, i) => {
+                    const val = Array.from(checked)[i].value;
+                    badgeContainer.innerHTML += `<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 text-xs rounded-full">${name}</span>`;
+                });
+            }
+
+            // Handle component checkboxes: "All" is exclusive
+            document.querySelectorAll('.component-checkbox').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    if (this.value === 'all' && this.checked) {
+                        document.querySelectorAll('.component-checkbox').forEach(o => {
+                            if (o !== this) o.checked = false;
+                        });
+                    } else if (this.value !== 'all' && this.checked) {
+                        document.getElementById('component-all').checked = false;
+                    }
+                    updateSelectedComponents();
+                });
+            });
+            updateSelectedComponents();
+
             // Service details filtering
             window.filterDetails = function() {
                 const serviceId = document.getElementById('service_id').value;
-                const componentId = document.getElementById('component_id');
                 const incidentTypeId = document.getElementById('incident_type_id');
-                
-                // Reset and hide all
-                componentId.value = '';
+
                 incidentTypeId.value = '';
-                
-                document.querySelectorAll('.component-option').forEach(opt => {
-                    const services = opt.dataset.services ? opt.dataset.services.split(',') : [];
+
+                // Show/hide component checkboxes by service
+                document.querySelectorAll('.component-option-label').forEach(label => {
+                    const services = label.dataset.services ? label.dataset.services.split(',') : [];
                     if (serviceId === '' || serviceId === 'all' || services.includes(serviceId)) {
-                        opt.classList.remove('hidden');
+                        label.classList.remove('hidden');
                     } else {
-                        opt.classList.add('hidden');
+                        label.classList.add('hidden');
+                        const cb = label.querySelector('input[type="checkbox"]');
+                        if (cb) cb.checked = false;
                     }
                 });
-                
+                updateSelectedComponents();
+
                 document.querySelectorAll('.type-option').forEach(opt => {
                     const services = opt.dataset.services ? opt.dataset.services.split(',') : [];
                     if (serviceId === '' || serviceId === 'all' || services.includes(serviceId)) {
@@ -1236,7 +1323,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     }
                 });
             };
-            
+
             // Trigger on load if service is pre-selected
             if (document.getElementById('service_id').value) {
                 filterDetails();
@@ -1338,10 +1425,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     
                     // Pre-fill component if specified
                     if (template.component_id) {
-                        const componentDropdown = document.getElementById('component_id');
-                        if (componentDropdown) {
-                            componentDropdown.value = template.component_id;
-                        }
+                        document.querySelectorAll('.component-checkbox').forEach(cb => cb.checked = false);
+                        const cb = document.getElementById('component-' + template.component_id);
+                        if (cb) { cb.checked = true; }
+                        updateSelectedComponents();
                     }
                     
                     // Pre-fill incident type if specified

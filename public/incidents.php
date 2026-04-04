@@ -190,7 +190,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         // Handle incident editing
         $incidentId = intval($_POST['incident_id']);
         $serviceId = intval($_POST['service_id']);
-        $componentId = !empty($_POST['component_id']) ? intval($_POST['component_id']) : null;
+        $componentIdsRaw = isset($_POST['component_ids']) && is_array($_POST['component_ids']) ? $_POST['component_ids'] : [];
+        $componentIds = array_values(array_unique(array_filter(array_map('intval', $componentIdsRaw))));
+        $componentId = !empty($componentIds) ? $componentIds[0] : null; // backward compat
         $incidentTypeId = !empty($_POST['incident_type_id']) ? intval($_POST['incident_type_id']) : null;
         $impactLevel = $_POST['impact_level'];
         $priority = $_POST['priority'];
@@ -289,6 +291,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         ':incident_id' => $incidentId,
                         ':company_id' => $companyId
                     ]);
+                }
+
+                // Sync incident_components junction table
+                $pdo->prepare("DELETE FROM incident_components WHERE incident_id = ?")->execute([$incidentId]);
+                if (!empty($componentIds)) {
+                    $icStmt = $pdo->prepare("INSERT IGNORE INTO incident_components (incident_id, component_id) VALUES (?, ?)");
+                    foreach ($componentIds as $cid) {
+                        $icStmt->execute([$incidentId, $cid]);
+                    }
                 }
 
                 // Handle attachment deletions
@@ -484,7 +495,7 @@ try {
             i.lessons_learned_file,
             i.resolvers,
             s.service_name,
-            sc.name as component_name,
+            GROUP_CONCAT(DISTINCT sc.name ORDER BY sc.name SEPARATOR ', ') as component_names,
             it.name as incident_type_name,
             CASE
                 WHEN GROUP_CONCAT(DISTINCT c.company_name ORDER BY c.company_name SEPARATOR ', ') LIKE '%All%'
@@ -500,7 +511,8 @@ try {
         LEFT JOIN users res ON i.resolved_by = res.user_id
         LEFT JOIN incident_affected_companies iac ON i.incident_id = iac.incident_id
         LEFT JOIN companies c ON iac.company_id = c.company_id
-        LEFT JOIN components sc ON i.component_id = sc.component_id
+        LEFT JOIN incident_components icomp ON i.incident_id = icomp.incident_id
+        LEFT JOIN components sc ON icomp.component_id = sc.component_id
         LEFT JOIN incident_types it ON i.incident_type_id = it.type_id
         $whereSQL
         GROUP BY i.incident_id
@@ -928,7 +940,7 @@ try {
                                                                         class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
                                                                         Component</p>
                                                                     <p class="text-sm font-medium text-gray-800 dark:text-white truncate">
-                                                                        <?= htmlspecialchars($incident['component_name'] ?? 'All / General') ?>
+                                                                        <?= htmlspecialchars($incident['component_names'] ?? 'All / General') ?>
                                                                     </p>
                                                                 </div>
 
@@ -1412,21 +1424,30 @@ try {
                             </select>
                         </div>
 
-                        <!-- Component -->
+                        <!-- Component (multi-select) -->
                         <div>
-                            <label for="edit_component"
-                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Component
                             </label>
-                            <select id="edit_component" name="component_id"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">All</option>
-                                <?php foreach ($components as $component): ?>
-                                            <option value="<?= $component['component_id'] ?>">
-                                                <?= htmlspecialchars($component['name']) ?>
-                                            </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <div class="relative mt-1" id="editComponentWrapper">
+                                <button type="button" id="editComponentBtn" onclick="toggleEditComponentDropdown()"
+                                    class="w-full flex items-center justify-between border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 text-sm bg-white dark:bg-gray-700 dark:text-white text-left focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <span id="edit-component-text" class="block truncate text-gray-500 dark:text-gray-400">All / General</span>
+                                    <i class="fas fa-chevron-down text-gray-400 ml-2 flex-shrink-0"></i>
+                                </button>
+                                <div id="editComponentMenu" class="hidden absolute z-30 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-44 overflow-y-auto">
+                                    <div class="p-2">
+                                        <?php foreach ($components as $component): ?>
+                                            <label class="flex items-center px-2 py-1.5 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600">
+                                                <input type="checkbox" name="component_ids[]"
+                                                    value="<?= $component['component_id'] ?>"
+                                                    class="edit-component-cb w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500">
+                                                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300"><?= htmlspecialchars($component['name']) ?></span>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Incident Type -->
@@ -1822,7 +1843,14 @@ try {
                     document.getElementById('edit_incident_id').value = data.incident_id;
                     document.getElementById('editModalIncidentInfo').textContent = `Incident #${data.incident_id} - ${data.service_name}`;
                     document.getElementById('edit_service').value = data.service_id || '';
-                    document.getElementById('edit_component').value = data.component_id || '';
+                    // Populate component checkboxes
+                    document.querySelectorAll('.edit-component-cb').forEach(cb => cb.checked = false);
+                    const compIds = data.component_ids || (data.component_id ? [data.component_id] : []);
+                    compIds.forEach(cid => {
+                        const cb = document.querySelector(`.edit-component-cb[value="${cid}"]`);
+                        if (cb) cb.checked = true;
+                    });
+                    updateEditComponentText();
                     document.getElementById('edit_incident_type').value = data.incident_type_id || '';
                     document.getElementById('edit_impact').value = data.impact_level;
                     document.getElementById('edit_priority').value = data.priority;
@@ -2042,6 +2070,34 @@ try {
             if (e.target === this) {
                 hideReopenModal();
             }
+        });
+    </script>
+
+    <script>
+        // Edit modal component dropdown
+        window.toggleEditComponentDropdown = function() {
+            document.getElementById('editComponentMenu').classList.toggle('hidden');
+        };
+        document.addEventListener('click', function(e) {
+            const wrapper = document.getElementById('editComponentWrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                document.getElementById('editComponentMenu').classList.add('hidden');
+            }
+        });
+        window.updateEditComponentText = function() {
+            const checked = document.querySelectorAll('.edit-component-cb:checked');
+            const textEl = document.getElementById('edit-component-text');
+            if (checked.length === 0) {
+                textEl.textContent = 'All / General';
+                textEl.classList.add('text-gray-500', 'dark:text-gray-400');
+            } else {
+                const names = Array.from(checked).map(cb => cb.closest('label').querySelector('span').textContent.trim());
+                textEl.textContent = names.join(', ');
+                textEl.classList.remove('text-gray-500', 'dark:text-gray-400');
+            }
+        };
+        document.querySelectorAll('.edit-component-cb').forEach(cb => {
+            cb.addEventListener('change', updateEditComponentText);
         });
     </script>
 

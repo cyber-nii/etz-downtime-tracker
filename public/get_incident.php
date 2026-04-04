@@ -44,15 +44,18 @@ try {
 
     // Fetch affected companies
     $companiesStmt = $pdo->prepare("
-        SELECT company_id 
-        FROM incident_affected_companies 
+        SELECT company_id
+        FROM incident_affected_companies
         WHERE incident_id = ?
     ");
     $companiesStmt->execute([$incidentId]);
     $affectedCompanies = $companiesStmt->fetchAll(PDO::FETCH_COLUMN);
-
-    // Convert to integers
     $incident['affected_companies'] = array_map('intval', $affectedCompanies);
+
+    // Fetch affected components from junction table
+    $compStmt = $pdo->prepare("SELECT component_id FROM incident_components WHERE incident_id = ?");
+    $compStmt->execute([$incidentId]);
+    $incident['component_ids'] = array_map('intval', $compStmt->fetchAll(PDO::FETCH_COLUMN));
 
     // Fetch attachments if requested
     if (isset($_GET['include_attachments']) && $_GET['include_attachments'] == '1') {
