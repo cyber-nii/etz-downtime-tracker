@@ -3,8 +3,89 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../src/includes/auth.php';
 requireLogin();
 
-// Handle status update
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+// ── Active tab (downtime | security | fraud) ────────────────
+$activeTab = in_array($_GET['tab'] ?? '', ['downtime', 'security', 'fraud']) ? $_GET['tab'] : 'downtime';
+
+// ── CSRF token ──────────────────────────────────────────────
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// ── POST: reopen security incident ──────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reopen_security') {
+    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
+        $_SESSION['error'] = 'Invalid CSRF token.';
+        header('Location: incidents.php?tab=security');
+        exit;
+    }
+    $id = intval($_POST['incident_id'] ?? 0);
+    if ($id > 0) {
+        try {
+            require_once __DIR__ . '/../src/includes/activity_logger.php';
+            $pdo->prepare("UPDATE security_incidents SET status = 'pending', resolved_by = NULL, resolved_at = NULL WHERE id = ?")->execute([$id]);
+            $pdo->prepare("INSERT INTO security_incident_updates (incident_id, user_id, user_name, update_text) VALUES (?, ?, 'System', ?)")
+                ->execute([$id, $_SESSION['user_id'], 'Incident was reopened by ' . $_SESSION['full_name']]);
+            logActivity($_SESSION['user_id'], 'reopen_security_incident', "Reopened security incident ID {$id}");
+            $_SESSION['success'] = 'Security incident reopened.';
+        } catch (PDOException $e) {
+            $_SESSION['error'] = 'Could not reopen incident: ' . $e->getMessage();
+        }
+    }
+    header('Location: incidents.php?tab=security');
+    exit;
+}
+
+// ── POST: reopen fraud incident ──────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reopen_fraud') {
+    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
+        $_SESSION['error'] = 'Invalid CSRF token.';
+        header('Location: incidents.php?tab=fraud');
+        exit;
+    }
+    $id = intval($_POST['incident_id'] ?? 0);
+    if ($id > 0) {
+        try {
+            require_once __DIR__ . '/../src/includes/activity_logger.php';
+            $pdo->prepare("UPDATE fraud_incidents SET status = 'pending', resolved_by = NULL, resolved_at = NULL WHERE id = ?")->execute([$id]);
+            $pdo->prepare("INSERT INTO fraud_incident_updates (incident_id, user_id, user_name, update_text) VALUES (?, ?, 'System', ?)")
+                ->execute([$id, $_SESSION['user_id'], 'Incident was reopened by ' . $_SESSION['full_name']]);
+            logActivity($_SESSION['user_id'], 'reopen_fraud_incident', "Reopened fraud incident ID {$id}");
+            $_SESSION['success'] = 'Fraud incident reopened.';
+        } catch (PDOException $e) {
+            $_SESSION['error'] = 'Could not reopen incident: ' . $e->getMessage();
+        }
+    }
+    header('Location: incidents.php?tab=fraud');
+    exit;
+}
+
+// ── POST: add update to security incident ────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_security_update') {
+    $id   = intval($_POST['incident_id'] ?? 0);
+    $text = trim($_POST['update_text'] ?? '');
+    if ($id > 0 && $text !== '') {
+        $pdo->prepare("INSERT INTO security_incident_updates (incident_id, user_id, user_name, update_text) VALUES (?, ?, ?, ?)")
+            ->execute([$id, $_SESSION['user_id'], trim($_SESSION['full_name']), $text]);
+    }
+    header('Location: incidents.php?tab=security');
+    exit;
+}
+
+// ── POST: add update to fraud incident ───────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_fraud_update') {
+    $id   = intval($_POST['incident_id'] ?? 0);
+    $text = trim($_POST['update_text'] ?? '');
+    if ($id > 0 && $text !== '') {
+        $pdo->prepare("INSERT INTO fraud_incident_updates (incident_id, user_id, user_name, update_text) VALUES (?, ?, ?, ?)")
+            ->execute([$id, $_SESSION['user_id'], trim($_SESSION['full_name']), $text]);
+    }
+    header('Location: incidents.php?tab=fraud');
+    exit;
+}
+
+// Handle status update (security/fraud actions are handled separately above)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])
+    && !in_array($_POST['action'], ['resolve_security', 'resolve_fraud', 'reopen_security', 'reopen_fraud', 'add_security_update', 'add_fraud_update'])) {
     if ($_POST['action'] === 'add_update' && !empty($_POST['update_text']) && !empty($_POST['user_name'])) {
         // Add new update
         $stmt = $pdo->prepare("
@@ -414,134 +495,289 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     exit;
 }
 
-// ── Filter params ──────────────────────────────────────────
+// ── POST: resolve security incident ─────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resolve_security') {
+    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
+        $_SESSION['error'] = 'Invalid CSRF token.';
+        header('Location: incidents.php?tab=security');
+        exit;
+    }
+    $id          = intval($_POST['incident_id'] ?? 0);
+    $rootCause   = trim($_POST['root_cause'] ?? '');
+    $lessonsLearned = trim($_POST['lessons_learned'] ?? '');
+    $resolvers   = array_values(array_filter(array_map('trim', (array)($_POST['resolvers'] ?? []))));
+    $resolvedDate = $_POST['resolved_date'] ?? null;
+
+    $errors = [];
+    if (empty($rootCause))       $errors[] = 'Root cause is required.';
+    if (empty($lessonsLearned))  $errors[] = 'Lessons learned is required.';
+    if (empty($resolvers))       $errors[] = 'At least one resolver name is required.';
+    if (empty($resolvedDate))    $errors[] = 'Resolution date is required.';
+    elseif (strtotime($resolvedDate) > time()) $errors[] = 'Resolution date cannot be in the future.';
+
+    if (!empty($errors)) {
+        $_SESSION['error'] = implode(' ', $errors);
+        header('Location: incidents.php?tab=security');
+        exit;
+    }
+
+    if ($id > 0) {
+        try {
+            require_once __DIR__ . '/../src/includes/activity_logger.php';
+            $stmt = $pdo->prepare("
+                UPDATE security_incidents
+                SET status = 'resolved', resolved_by = ?, resolved_at = ?,
+                    root_cause = ?, lessons_learned = ?, resolvers = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([
+                $_SESSION['user_id'],
+                $resolvedDate,
+                $rootCause,
+                $lessonsLearned,
+                json_encode($resolvers),
+                $id,
+            ]);
+            logActivity($_SESSION['user_id'], 'resolve_security_incident', "Resolved security incident ID {$id}");
+            $_SESSION['success'] = 'Security incident marked as resolved.';
+        } catch (PDOException $e) {
+            $_SESSION['error'] = 'Could not resolve incident: ' . $e->getMessage();
+        }
+    }
+    header('Location: incidents.php?tab=security');
+    exit;
+}
+
+// ── POST: resolve fraud incident ─────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resolve_fraud') {
+    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
+        $_SESSION['error'] = 'Invalid CSRF token.';
+        header('Location: incidents.php?tab=fraud');
+        exit;
+    }
+    $id          = intval($_POST['incident_id'] ?? 0);
+    $rootCause   = trim($_POST['root_cause'] ?? '');
+    $lessonsLearned = trim($_POST['lessons_learned'] ?? '');
+    $resolvers   = array_values(array_filter(array_map('trim', (array)($_POST['resolvers'] ?? []))));
+    $resolvedDate = $_POST['resolved_date'] ?? null;
+
+    $errors = [];
+    if (empty($rootCause))       $errors[] = 'Root cause is required.';
+    if (empty($lessonsLearned))  $errors[] = 'Lessons learned is required.';
+    if (empty($resolvers))       $errors[] = 'At least one resolver name is required.';
+    if (empty($resolvedDate))    $errors[] = 'Resolution date is required.';
+    elseif (strtotime($resolvedDate) > time()) $errors[] = 'Resolution date cannot be in the future.';
+
+    if (!empty($errors)) {
+        $_SESSION['error'] = implode(' ', $errors);
+        header('Location: incidents.php?tab=fraud');
+        exit;
+    }
+
+    if ($id > 0) {
+        try {
+            require_once __DIR__ . '/../src/includes/activity_logger.php';
+            $stmt = $pdo->prepare("
+                UPDATE fraud_incidents
+                SET status = 'resolved', resolved_by = ?, resolved_at = ?,
+                    root_cause = ?, lessons_learned = ?, resolvers = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([
+                $_SESSION['user_id'],
+                $resolvedDate,
+                $rootCause,
+                $lessonsLearned,
+                json_encode($resolvers),
+                $id,
+            ]);
+            logActivity($_SESSION['user_id'], 'resolve_fraud_incident', "Resolved fraud incident ID {$id}");
+            $_SESSION['success'] = 'Fraud incident marked as resolved.';
+        } catch (PDOException $e) {
+            $_SESSION['error'] = 'Could not resolve incident: ' . $e->getMessage();
+        }
+    }
+    header('Location: incidents.php?tab=fraud');
+    exit;
+}
+
+// ── Filter & pagination ────────────────────────────────────
 $statusFilter = in_array($_GET['status'] ?? '', ['pending', 'resolved']) ? $_GET['status'] : '';
 $searchFilter = trim($_GET['search'] ?? '');
-
-// ── Pagination ─────────────────────────────────────────────
 $itemsPerPage = 10;
 $currentPage  = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset       = ($currentPage - 1) * $itemsPerPage;
 
-// Helper: build a URL preserving current filters
-function pageUrl(int $page, string $status, string $search): string {
-    $p = ['page' => $page];
+// Helper: build a URL preserving current filters + tab
+function pageUrl(int $page, string $status, string $search, string $tab = 'downtime'): string {
+    $p = ['tab' => $tab, 'page' => $page];
     if ($status) $p['status'] = $status;
     if ($search !== '') $p['search'] = $search;
     return '?' . http_build_query($p);
 }
 
-// Build shared WHERE conditions (no LIMIT/OFFSET yet)
-$whereClauses = [];
-$filterParams  = [];
+// ── Threat / fraud label maps ──────────────────────────────
+$threatLabels = [
+    'phishing'             => 'Phishing',
+    'unauthorized_access'  => 'Unauthorized Access',
+    'data_breach'          => 'Data Breach',
+    'malware'              => 'Malware',
+    'social_engineering'   => 'Social Engineering',
+    'other'                => 'Other',
+];
+$fraudLabels = [
+    'card_fraud'         => 'Card Fraud',
+    'account_takeover'   => 'Account Takeover',
+    'transaction_fraud'  => 'Transaction Fraud',
+    'internal_fraud'     => 'Internal Fraud',
+    'other'              => 'Other',
+];
 
-if ($statusFilter) {
-    $whereClauses[] = "i.status = ?";
-    $filterParams[]  = $statusFilter;
-}
-if ($searchFilter !== '') {
-    $whereClauses[] = "(
-        s.service_name LIKE ?
-        OR i.incident_ref  LIKE ?
-        OR i.root_cause    LIKE ?
-        OR it.name         LIKE ?
-        OR EXISTS (
-            SELECT 1 FROM incident_affected_companies iac2
-            JOIN companies c2 ON iac2.company_id = c2.company_id
-            WHERE iac2.incident_id = i.incident_id AND c2.company_name LIKE ?
-        )
-    )";
-    $wild = "%" . $searchFilter . "%";
-    array_push($filterParams, $wild, $wild, $wild, $wild, $wild);
-}
-$whereSQL = $whereClauses ? "WHERE " . implode(" AND ", $whereClauses) : "";
+// ── Data fetch based on active tab ────────────────────────
+$incidents      = [];
+$otherIncidents = [];
+$totalIncidents = 0;
+$totalPages     = 1;
+$services = $components = $incidentTypes = $companies = [];
 
-// Get all incidents with their updates
 try {
-    $countStmt = $pdo->prepare("
-        SELECT COUNT(DISTINCT i.incident_id)
-        FROM incidents i
-        JOIN services s ON i.service_id = s.service_id
-        LEFT JOIN incident_types it ON i.incident_type_id = it.type_id
-        $whereSQL
-    ");
-    $countStmt->execute($filterParams);
-    $totalIncidents = $countStmt->fetchColumn();
-    $totalPages = ceil($totalIncidents / $itemsPerPage);
+    if ($activeTab === 'downtime') {
+        $whereClauses = [];
+        $filterParams = [];
+        if ($statusFilter) {
+            $whereClauses[] = "i.status = ?";
+            $filterParams[] = $statusFilter;
+        }
+        if ($searchFilter !== '') {
+            $whereClauses[] = "(s.service_name LIKE ? OR i.incident_ref LIKE ? OR i.root_cause LIKE ? OR it.name LIKE ? OR EXISTS (SELECT 1 FROM incident_affected_companies iac2 JOIN companies c2 ON iac2.company_id = c2.company_id WHERE iac2.incident_id = i.incident_id AND c2.company_name LIKE ?))";
+            $wild = "%" . $searchFilter . "%";
+            array_push($filterParams, $wild, $wild, $wild, $wild, $wild);
+        }
+        $whereSQL = $whereClauses ? "WHERE " . implode(" AND ", $whereClauses) : "";
 
-    // Get incidents with service and affected companies (with pagination)
-    $incidents = $pdo->prepare("
-        SELECT
-            i.incident_id,
-            i.incident_ref,
-            i.service_id,
-            i.root_cause,
-            i.status,
-            i.impact_level,
-            i.priority,
-            i.incident_source,
-            i.attachment_path,
-            i.actual_start_time,
-            EXISTS(SELECT 1 FROM downtime_incidents di WHERE di.incident_id = i.incident_id) AS causes_downtime,
-            (SELECT COALESCE(SUM(di.downtime_minutes), 0) FROM downtime_incidents di WHERE di.incident_id = i.incident_id) AS downtime_minutes,
-            i.description,
-            u.full_name as user_name,
-            i.created_at,
-            res.full_name as resolved_by,
-            i.resolved_at,
-            i.updated_at,
-            i.root_cause_file,
-            i.lessons_learned,
-            i.lessons_learned_file,
-            i.resolvers,
-            s.service_name,
-            GROUP_CONCAT(DISTINCT sc.name ORDER BY sc.name SEPARATOR ', ') as component_names,
-            it.name as incident_type_name,
-            CASE
-                WHEN GROUP_CONCAT(DISTINCT c.company_name ORDER BY c.company_name SEPARATOR ', ') LIKE '%All%'
-                THEN 'All'
-                ELSE GROUP_CONCAT(DISTINCT c.company_name ORDER BY c.company_name SEPARATOR ', ')
-            END as affected_companies,
-            COUNT(DISTINCT c.company_id) as company_count,
-            (SELECT COUNT(*) FROM incident_updates iu WHERE iu.incident_id = i.incident_id) as update_count,
-            (SELECT COUNT(*) FROM incident_attachments ia WHERE ia.incident_id = i.incident_id) as attachment_count
-        FROM incidents i
-        JOIN services s ON i.service_id = s.service_id
-        JOIN users u ON i.reported_by = u.user_id
-        LEFT JOIN users res ON i.resolved_by = res.user_id
-        LEFT JOIN incident_affected_companies iac ON i.incident_id = iac.incident_id
-        LEFT JOIN companies c ON iac.company_id = c.company_id
-        LEFT JOIN incident_components icomp ON i.incident_id = icomp.incident_id
-        LEFT JOIN components sc ON icomp.component_id = sc.component_id
-        LEFT JOIN incident_types it ON i.incident_type_id = it.type_id
-        $whereSQL
-        GROUP BY i.incident_id
-        ORDER BY
-            FIELD(i.status, 'pending', 'resolved'),
-            i.updated_at DESC
-        LIMIT ? OFFSET ?
-    ");
-    $incidents->execute(array_merge($filterParams, [$itemsPerPage, $offset]));
-    $incidents = $incidents->fetchAll(PDO::FETCH_ASSOC);
+        $countStmt = $pdo->prepare("SELECT COUNT(DISTINCT i.incident_id) FROM incidents i JOIN services s ON i.service_id = s.service_id LEFT JOIN incident_types it ON i.incident_type_id = it.type_id $whereSQL");
+        $countStmt->execute($filterParams);
+        $totalIncidents = $countStmt->fetchColumn();
+        $totalPages = max(1, ceil($totalIncidents / $itemsPerPage));
 
-    // Get updates for each incident
-    foreach ($incidents as &$incident) {
         $stmt = $pdo->prepare("
-            SELECT * FROM incident_updates 
-            WHERE incident_id = ? 
-            ORDER BY created_at DESC
+            SELECT i.incident_id, i.incident_ref, i.service_id, i.root_cause, i.status,
+                i.impact_level, i.priority, i.incident_source, i.attachment_path, i.actual_start_time,
+                EXISTS(SELECT 1 FROM downtime_incidents di WHERE di.incident_id = i.incident_id) AS causes_downtime,
+                (SELECT COALESCE(SUM(di.downtime_minutes),0) FROM downtime_incidents di WHERE di.incident_id = i.incident_id) AS downtime_minutes,
+                i.description, u.full_name as user_name, i.created_at,
+                res.full_name as resolved_by, i.resolved_at, i.updated_at,
+                i.root_cause_file, i.lessons_learned, i.lessons_learned_file, i.resolvers,
+                s.service_name,
+                GROUP_CONCAT(DISTINCT sc.name ORDER BY sc.name SEPARATOR ', ') as component_names,
+                it.name as incident_type_name,
+                CASE WHEN GROUP_CONCAT(DISTINCT c.company_name ORDER BY c.company_name SEPARATOR ', ') LIKE '%All%' THEN 'All' ELSE GROUP_CONCAT(DISTINCT c.company_name ORDER BY c.company_name SEPARATOR ', ') END as affected_companies,
+                COUNT(DISTINCT c.company_id) as company_count,
+                (SELECT COUNT(*) FROM incident_updates iu WHERE iu.incident_id = i.incident_id) as update_count,
+                (SELECT COUNT(*) FROM incident_attachments ia WHERE ia.incident_id = i.incident_id) as attachment_count
+            FROM incidents i
+            JOIN services s ON i.service_id = s.service_id
+            JOIN users u ON i.reported_by = u.user_id
+            LEFT JOIN users res ON i.resolved_by = res.user_id
+            LEFT JOIN incident_affected_companies iac ON i.incident_id = iac.incident_id
+            LEFT JOIN companies c ON iac.company_id = c.company_id
+            LEFT JOIN incident_components icomp ON i.incident_id = icomp.incident_id
+            LEFT JOIN components sc ON icomp.component_id = sc.component_id
+            LEFT JOIN incident_types it ON i.incident_type_id = it.type_id
+            $whereSQL
+            GROUP BY i.incident_id
+            ORDER BY FIELD(i.status, 'pending', 'resolved'), i.updated_at DESC
+            LIMIT ? OFFSET ?
         ");
-        $stmt->execute([$incident['incident_id']]);
-        $incident['updates'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $stmt->execute(array_merge($filterParams, [$itemsPerPage, $offset]));
+        $incidents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($incidents as &$incident) {
+            $s2 = $pdo->prepare("SELECT * FROM incident_updates WHERE incident_id = ? ORDER BY created_at DESC");
+            $s2->execute([$incident['incident_id']]);
+            $incident['updates'] = $s2->fetchAll(PDO::FETCH_ASSOC);
+        }
+        unset($incident);
+
+        $services      = $pdo->query("SELECT service_id, service_name FROM services ORDER BY service_name")->fetchAll();
+        $components    = $pdo->query("SELECT component_id, name FROM components WHERE is_active = 1 ORDER BY name")->fetchAll();
+        $incidentTypes = $pdo->query("SELECT type_id, name FROM incident_types ORDER BY name")->fetchAll();
+        $companies     = $pdo->query("SELECT company_id, company_name FROM companies ORDER BY company_name")->fetchAll();
+
+    } elseif ($activeTab === 'security') {
+        $whereClauses = [];
+        $filterParams = [];
+        if ($statusFilter !== '') { $whereClauses[] = "s.status = ?"; $filterParams[] = $statusFilter; }
+        if ($searchFilter !== '') {
+            $whereClauses[] = "(s.incident_ref LIKE ? OR s.threat_type LIKE ? OR s.systems_affected LIKE ? OR s.description LIKE ?)";
+            $wild = '%' . $searchFilter . '%';
+            array_push($filterParams, $wild, $wild, $wild, $wild);
+        }
+        $whereSQL = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
+
+        $countStmt = $pdo->prepare("SELECT COUNT(*) FROM security_incidents s $whereSQL");
+        $countStmt->execute($filterParams);
+        $totalIncidents = (int)$countStmt->fetchColumn();
+        $totalPages = max(1, (int)ceil($totalIncidents / $itemsPerPage));
+
+        $stmt = $pdo->prepare("
+            SELECT s.id, s.incident_ref, s.threat_type, s.systems_affected, s.description,
+                s.impact_level, s.priority, s.containment_status, s.escalated_to,
+                s.actual_start_time, s.status, s.resolved_at, u.full_name AS reporter_name
+            FROM security_incidents s
+            JOIN users u ON s.reported_by = u.user_id
+            $whereSQL
+            ORDER BY FIELD(s.status, 'pending', 'resolved'), s.created_at DESC
+            LIMIT ? OFFSET ?
+        ");
+        $stmt->execute(array_merge($filterParams, [$itemsPerPage, $offset]));
+        $otherIncidents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($otherIncidents as &$inc) {
+            $s = $pdo->prepare("SELECT * FROM security_incident_updates WHERE incident_id = ? ORDER BY created_at DESC");
+            $s->execute([$inc['id']]);
+            $inc['updates'] = $s->fetchAll(PDO::FETCH_ASSOC);
+        }
+        unset($inc);
+
+    } else { // fraud
+        $whereClauses = [];
+        $filterParams = [];
+        if ($statusFilter !== '') { $whereClauses[] = "f.status = ?"; $filterParams[] = $statusFilter; }
+        if ($searchFilter !== '') {
+            $whereClauses[] = "(f.incident_ref LIKE ? OR f.fraud_type LIKE ? OR f.description LIKE ?)";
+            $wild = '%' . $searchFilter . '%';
+            array_push($filterParams, $wild, $wild, $wild);
+        }
+        $whereSQL = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
+
+        $countStmt = $pdo->prepare("SELECT COUNT(*) FROM fraud_incidents f $whereSQL");
+        $countStmt->execute($filterParams);
+        $totalIncidents = (int)$countStmt->fetchColumn();
+        $totalPages = max(1, (int)ceil($totalIncidents / $itemsPerPage));
+
+        $stmt = $pdo->prepare("
+            SELECT f.id, f.incident_ref, f.fraud_type, f.service_id, f.description,
+                f.financial_impact, f.impact_level, f.priority, f.regulatory_reported,
+                f.actual_start_time, f.status, f.resolved_at,
+                u.full_name AS reporter_name, sv.service_name
+            FROM fraud_incidents f
+            JOIN users u ON f.reported_by = u.user_id
+            LEFT JOIN services sv ON f.service_id = sv.service_id
+            $whereSQL
+            ORDER BY FIELD(f.status, 'pending', 'resolved'), f.created_at DESC
+            LIMIT ? OFFSET ?
+        ");
+        $stmt->execute(array_merge($filterParams, [$itemsPerPage, $offset]));
+        $otherIncidents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($otherIncidents as &$inc) {
+            $s = $pdo->prepare("SELECT * FROM fraud_incident_updates WHERE incident_id = ? ORDER BY created_at DESC");
+            $s->execute([$inc['id']]);
+            $inc['updates'] = $s->fetchAll(PDO::FETCH_ASSOC);
+        }
+        unset($inc);
     }
-    unset($incident); // Break the reference
-
-    // Fetch data for edit modal dropdowns
-    $services = $pdo->query("SELECT service_id, service_name FROM services ORDER BY service_name")->fetchAll();
-    $components = $pdo->query("SELECT component_id, name FROM components WHERE is_active = 1 ORDER BY name")->fetchAll();
-    $incidentTypes = $pdo->query("SELECT type_id, name FROM incident_types ORDER BY name")->fetchAll();
-    $companies = $pdo->query("SELECT company_id, company_name FROM companies ORDER BY company_name")->fetchAll();
-
 } catch (PDOException $e) {
     die("ERROR: Could not fetch incidents. " . $e->getMessage());
 }
@@ -672,6 +908,36 @@ try {
                     </div>
                 </div>
 
+                <!-- ── 3-Tab Switcher: Downtime / Security / Fraud ── -->
+                <?php
+                    $dtUrl  = '?tab=downtime'  . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '');
+                    $secUrl = '?tab=security'  . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '');
+                    $frUrl  = '?tab=fraud'     . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '');
+                ?>
+                <div class="flex border-b border-gray-200 dark:border-gray-700 mb-6">
+                    <a href="<?= $dtUrl ?>"
+                       class="px-5 py-3 text-sm font-medium -mb-px transition-colors
+                              <?= $activeTab === 'downtime'
+                                    ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200' ?>">
+                        <i class="fas fa-clock-rotate-left mr-1.5"></i>Downtime
+                    </a>
+                    <a href="<?= $secUrl ?>"
+                       class="px-5 py-3 text-sm font-medium -mb-px transition-colors
+                              <?= $activeTab === 'security'
+                                    ? 'border-b-2 border-red-600 text-red-600 dark:text-red-400 dark:border-red-400'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200' ?>">
+                        <i class="fas fa-shield-halved mr-1.5"></i>Security
+                    </a>
+                    <a href="<?= $frUrl ?>"
+                       class="px-5 py-3 text-sm font-medium -mb-px transition-colors
+                              <?= $activeTab === 'fraud'
+                                    ? 'border-b-2 border-amber-500 text-amber-600 dark:text-amber-400 dark:border-amber-400'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200' ?>">
+                        <i class="fas fa-triangle-exclamation mr-1.5"></i>Fraud
+                    </a>
+                </div>
+
                 <!-- Search and Filter Bar -->
                 <div class="mb-6 flex flex-col sm:flex-row gap-4">
                     <div class="flex-1">
@@ -683,11 +949,11 @@ try {
                                 </svg>
                             </div>
                             <input type="text" id="incident-search"
-                                placeholder="Search by service, company, ref, type or root cause..."
+                                placeholder="<?= $activeTab === 'security' ? 'Search by ref, threat type, systems or description…' : ($activeTab === 'fraud' ? 'Search by ref, fraud type or description…' : 'Search by service, company, ref, type or root cause…') ?>"
                                 value="<?= htmlspecialchars($searchFilter) ?>"
                                 class="block w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm">
                             <?php if ($searchFilter): ?>
-                                <a href="?<?= http_build_query(array_filter(['status' => $statusFilter])) ?>"
+                                <a href="?tab=<?= urlencode($activeTab) ?><?= $statusFilter ? '&status=' . urlencode($statusFilter) : '' ?>"
                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
                                     <i class="fas fa-times-circle"></i>
                                 </a>
@@ -730,20 +996,217 @@ try {
                         <?php else: ?>
                             Showing <strong class="text-gray-900 dark:text-white"><?= number_format(($offset + 1)) ?>–<?= number_format(min($offset + $itemsPerPage, $totalIncidents)) ?></strong>
                             of <strong class="text-gray-900 dark:text-white"><?= number_format($totalIncidents) ?></strong>
-                            <?= $statusFilter ? ucfirst($statusFilter) : '' ?> incidents
+                            <?= $statusFilter ? ucfirst($statusFilter) . ' ' : '' ?><?= ucfirst($activeTab) ?> incidents
                             <?= $searchFilter ? 'matching "<strong>' . htmlspecialchars($searchFilter) . '</strong>"' : '' ?>
                         <?php endif; ?>
                     </p>
                     <?php if ($statusFilter || $searchFilter): ?>
-                        <a href="incidents.php" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-medium">
+                        <a href="incidents.php?tab=<?= urlencode($activeTab) ?>" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-medium">
                             <i class="fas fa-times mr-1"></i> Clear filters
                         </a>
                     <?php endif; ?>
                 </div>
 
-                <!-- Incidents List -->
+                <!-- Incidents Content (switches based on active tab) -->
                 <div class="space-y-4">
 
+                <?php if ($activeTab === 'security' || $activeTab === 'fraud'): ?>
+                    <?php if (empty($otherIncidents)): ?>
+                        <div class="text-center py-16">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No <?= $activeTab ?> incidents found</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                <?= ($searchFilter || $statusFilter) ? 'Try adjusting your filters.' : 'No ' . $activeTab . ' incidents have been reported yet.' ?>
+                            </p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($otherIncidents as $inc):
+                            $impactKey = strtolower($inc['impact_level'] ?? 'low');
+                            $impactBadge = [
+                                'critical' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+                                'high'     => 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+                                'medium'   => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+                                'low'      => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                            ][$impactKey] ?? 'bg-gray-100 text-gray-700';
+
+                            $priorityKey = strtolower($inc['priority'] ?? 'medium');
+                            $priorityBadge = [
+                                'urgent' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+                                'high'   => 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+                                'medium' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+                                'low'    => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                            ][$priorityKey] ?? 'bg-gray-100 text-gray-700';
+
+                            $borderAccent = ($activeTab === 'security') ? 'border-l-red-500' : 'border-l-amber-500';
+                        ?>
+                        <div class="incident-card bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-4 p-5 border-l-4 <?= $borderAccent ?> overflow-hidden">
+                            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-semibold
+                                        <?= $activeTab === 'security' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' ?>">
+                                        <i class="fas fa-hashtag text-[9px]"></i><?= htmlspecialchars($inc['incident_ref']) ?>
+                                    </span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium <?= $impactBadge ?>">
+                                        <?= ucfirst($impactKey) ?> Impact
+                                    </span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium <?= $priorityBadge ?>">
+                                        <?= ucfirst($priorityKey) ?> Priority
+                                    </span>
+                                    <?php if ($activeTab === 'security'): ?>
+                                        <?php
+                                            $c = $inc['containment_status'] ?? '';
+                                            $cBadge = match($c) {
+                                                'contained' => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+                                                'ongoing'   => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+                                                'under_investigation' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+                                                default => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                                            };
+                                            $cLabel = match($c) {
+                                                'contained' => 'Contained', 'ongoing' => 'Ongoing',
+                                                'under_investigation' => 'Under Investigation',
+                                                default => ucfirst(str_replace('_', ' ', $c)),
+                                            };
+                                        ?>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium <?= $cBadge ?>">
+                                            <?= htmlspecialchars($cLabel) ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <?php if (!empty($inc['regulatory_reported'])): ?>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                                                <i class="fas fa-landmark mr-1 text-[9px]"></i>Regulatory
+                                            </span>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </div>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border
+                                    <?= $inc['status'] === 'pending'
+                                        ? 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-700'
+                                        : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700' ?>">
+                                    <i class="fas <?= $inc['status'] === 'pending' ? 'fa-clock' : 'fa-check-circle' ?> mr-1.5 text-[10px]"></i>
+                                    <?= $inc['status'] === 'pending' ? 'Pending' : 'Resolved' ?>
+                                </span>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
+                                    <?php if ($activeTab === 'security'): ?>
+                                        <span class="font-semibold text-gray-800 dark:text-gray-200">
+                                            <i class="fas fa-shield-halved mr-1 text-red-500"></i>
+                                            <?= htmlspecialchars($threatLabels[$inc['threat_type']] ?? ucfirst(str_replace('_', ' ', $inc['threat_type'] ?? ''))) ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="font-semibold text-gray-800 dark:text-gray-200">
+                                            <i class="fas fa-triangle-exclamation mr-1 text-amber-500"></i>
+                                            <?= htmlspecialchars($fraudLabels[$inc['fraud_type']] ?? ucfirst(str_replace('_', ' ', $inc['fraud_type'] ?? ''))) ?>
+                                        </span>
+                                        <?php if (!empty($inc['service_name'])): ?>
+                                            <span class="text-gray-400 dark:text-gray-500">·</span>
+                                            <span><i class="fas fa-server mr-1 text-gray-400"></i><?= htmlspecialchars($inc['service_name']) ?></span>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                    <?php if (!empty($inc['actual_start_time'])): ?>
+                                        <span class="text-gray-400 dark:text-gray-500">·</span>
+                                        <span><i class="fas fa-calendar mr-1 text-gray-400"></i><?= date('M j, Y g:i A', strtotime($inc['actual_start_time'])) ?></span>
+                                    <?php endif; ?>
+                                    <span class="text-gray-400 dark:text-gray-500">·</span>
+                                    <span><i class="fas fa-user mr-1 text-gray-400"></i><?= htmlspecialchars($inc['reporter_name'] ?? 'Unknown') ?></span>
+                                </div>
+                            </div>
+
+                            <div class="mb-4 space-y-2">
+                                <?php if (!empty($inc['description'])): ?>
+                                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                                        <?= htmlspecialchars(mb_strlen($inc['description']) > 120 ? mb_substr($inc['description'], 0, 120) . '…' : $inc['description']) ?>
+                                    </p>
+                                <?php endif; ?>
+                                <?php if ($activeTab === 'security' && !empty($inc['systems_affected'])): ?>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        <span class="font-medium text-gray-600 dark:text-gray-300">Systems affected:</span>
+                                        <?= htmlspecialchars(mb_strlen($inc['systems_affected']) > 120 ? mb_substr($inc['systems_affected'], 0, 120) . '…' : $inc['systems_affected']) ?>
+                                    </p>
+                                <?php endif; ?>
+                                <?php if ($activeTab === 'fraud' && isset($inc['financial_impact']) && $inc['financial_impact'] !== null && $inc['financial_impact'] !== ''): ?>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        <span class="font-medium text-gray-600 dark:text-gray-300">Financial impact:</span>
+                                        <span class="font-semibold text-amber-700 dark:text-amber-400">GH₵ <?= number_format((float)$inc['financial_impact'], 2) ?></span>
+                                    </p>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- Activity Timeline -->
+                            <div class="border-t border-gray-100 dark:border-gray-700 pt-3 mt-4">
+                                <p class="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                    <i class="fas fa-history text-gray-400"></i> Activity
+                                    <span class="ml-1 px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-bold"><?= count($inc['updates']) ?></span>
+                                </p>
+                                <div class="space-y-2 max-h-52 overflow-y-auto pr-1 mb-3 scrollbar-thin">
+                                    <?php if (empty($inc['updates'])): ?>
+                                        <p class="text-xs text-gray-400 italic text-center py-4">No activity logged yet.</p>
+                                    <?php else: ?>
+                                        <?php foreach ($inc['updates'] as $update): ?>
+                                            <div class="flex gap-2.5 text-sm">
+                                                <div class="flex-shrink-0 mt-1">
+                                                    <div class="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                                        <i class="fas <?= $update['user_name'] === 'System' ? 'fa-robot text-purple-400' : 'fa-user text-blue-400' ?> text-[9px]"></i>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex items-baseline gap-1.5 flex-wrap">
+                                                        <span class="text-xs font-semibold text-gray-700 dark:text-gray-300"><?= htmlspecialchars($update['user_name']) ?></span>
+                                                        <span class="text-[10px] text-gray-400"><?= date('M j, g:i A', strtotime($update['created_at'])) ?></span>
+                                                    </div>
+                                                    <p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5 leading-relaxed"><?= nl2br(htmlspecialchars($update['update_text'])) ?></p>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
+
+                                <?php if ($inc['status'] === 'pending'): ?>
+                                    <form method="POST" class="mt-2 border-t border-gray-100 dark:border-gray-700 pt-3">
+                                        <input type="hidden" name="action" value="<?= $activeTab === 'security' ? 'add_security_update' : 'add_fraud_update' ?>">
+                                        <input type="hidden" name="incident_id" value="<?= (int)$inc['id'] ?>">
+                                        <div class="flex flex-col gap-2">
+                                            <input type="text" name="update_text" placeholder="Describe action taken…" required
+                                                class="w-full text-xs border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg py-2 px-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-gray-400">
+                                            <input type="hidden" name="user_name" value="<?= htmlspecialchars($_SESSION['full_name']) ?>">
+                                            <div class="flex items-center justify-between">
+                                                <button type="button"
+                                                    onclick="showResolveModal(<?= (int)$inc['id'] ?>, '<?= $activeTab === 'security' ? 'resolve_security' : 'resolve_fraud' ?>')"
+                                                    class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors
+                                                        <?= $activeTab === 'security'
+                                                            ? 'bg-white dark:bg-gray-700 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                                                            : 'bg-white dark:bg-gray-700 border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20' ?>">
+                                                    <i class="fas fa-check mr-1.5"></i>Mark as Resolved
+                                                </button>
+                                                <button type="submit"
+                                                    class="self-end inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-gray-800 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 transition-colors">
+                                                    <i class="fas fa-paper-plane text-[10px]"></i> Post Update
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                <?php else: ?>
+                                    <div class="mt-2 border-t border-gray-100 dark:border-gray-700 pt-3 flex items-center justify-between flex-wrap gap-2">
+                                        <p class="text-[11px] text-gray-400 flex items-center gap-1.5">
+                                            <i class="fas fa-lock text-gray-300"></i>
+                                            Resolved <?= !empty($inc['resolved_at']) ? date('M j, Y', strtotime($inc['resolved_at'])) : '' ?>
+                                        </p>
+                                        <button type="button"
+                                            onclick="showReopenModal(<?= (int)$inc['id'] ?>, '<?= $activeTab === 'security' ? 'reopen_security' : 'reopen_fraud' ?>')"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-orange-400 text-orange-600 dark:text-orange-400 bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-gray-700 transition-colors">
+                                            <i class="fas fa-rotate-left text-[10px]"></i> Reopen
+                                        </button>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+
+                <?php else: /* downtime tab */ ?>
                     <?php if (empty($incidents)): ?>
                                 <div class="text-center py-12">
                                     <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24"
@@ -1111,6 +1574,7 @@ try {
                                             </div><!-- /incident-card -->
                                 <?php endforeach; ?>
                     <?php endif; ?>
+                <?php endif; /* end security/fraud vs downtime */ ?>
                 </div>
             </div>
 
@@ -1215,6 +1679,7 @@ try {
                     <input type="hidden" name="action" value="update_status">
                     <input type="hidden" name="incident_id" id="modal_incident_id" value="">
                     <input type="hidden" name="status" value="resolved">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 
                     <div>
                         <label for="resolve_name" class="block text-sm font-medium text-gray-700">Your Name</label>
@@ -1321,6 +1786,7 @@ try {
                     <input type="hidden" name="action" value="update_status">
                     <input type="hidden" name="incident_id" id="reopen_incident_id" value="">
                     <input type="hidden" name="status" value="pending">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 
                     <div class="flex justify-end space-x-3 pt-2">
                         <button type="button" onclick="hideReopenModal()"
@@ -1742,16 +2208,25 @@ try {
                     window.location.href = url.toString();
                 });
             });
+
         });
 
         // Resolve Modal Functions
-        function showResolveModal(incidentId, serviceName, rootCause = '') {
+        function showResolveModal(incidentId, actionOrServiceName, rootCause = '') {
             const modal = document.getElementById('resolveModal');
             const modalContent = document.getElementById('modalContent');
 
+            const isSecOrFraud = actionOrServiceName === 'resolve_security' || actionOrServiceName === 'resolve_fraud';
+
+            // Update the hidden action field so the correct PHP handler runs
+            document.querySelector('#resolveForm input[name="action"]').value =
+                isSecOrFraud ? actionOrServiceName : 'update_status';
+
             // Set the incident ID and service name
             document.getElementById('modal_incident_id').value = incidentId;
-            document.getElementById('modalServiceName').textContent = `Service: ${serviceName}`;
+            document.getElementById('modalServiceName').textContent = isSecOrFraud
+                ? (actionOrServiceName === 'resolve_security' ? 'Security Incident' : 'Fraud Incident')
+                : `Service: ${actionOrServiceName}`;
 
             // Set current date/time as default resolution date
             const now = new Date();
@@ -2033,13 +2508,21 @@ try {
         });
 
         // Reopen Modal Functions
-        function showReopenModal(incidentId, serviceName) {
+        function showReopenModal(incidentId, actionOrServiceName) {
             const modal = document.getElementById('reopenModal');
             const modalContent = document.getElementById('reopenModalContent');
 
-            // Set the incident ID and service name
+            const isSecOrFraud = actionOrServiceName === 'reopen_security' || actionOrServiceName === 'reopen_fraud';
+
+            // Update the hidden action field so the correct PHP handler runs
+            document.querySelector('#reopenForm input[name="action"]').value =
+                isSecOrFraud ? actionOrServiceName : 'update_status';
+
+            // Set the incident ID and label
             document.getElementById('reopen_incident_id').value = incidentId;
-            document.getElementById('reopenModalServiceName').textContent = `Service: ${serviceName}`;
+            document.getElementById('reopenModalServiceName').textContent = isSecOrFraud
+                ? (actionOrServiceName === 'reopen_security' ? 'Security Incident' : 'Fraud Incident')
+                : `Service: ${actionOrServiceName}`;
 
             // Show modal with animation
             modal.classList.remove('hidden');

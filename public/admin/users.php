@@ -57,6 +57,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: users.php');
         exit;
     }
+
+    if ($action === 'reset_password') {
+        $userId = (int)($_POST['user_id'] ?? 0);
+
+        if ($userId === (int)$currentUser['user_id']) {
+            $_SESSION['message'] = ['type' => 'error', 'text' => 'Cannot reset your own password here.'];
+        } elseif ($userId > 0) {
+            try {
+                $defaultPassword = 'Etz@1234566';
+                $hash = password_hash($defaultPassword, PASSWORD_DEFAULT);
+                $stmt = $pdo->prepare("UPDATE users SET password_hash = ?, changed_password = 0 WHERE user_id = ?");
+                $stmt->execute([$hash, $userId]);
+                logUserAction($_SESSION['user_id'], 'reset_password', $userId);
+                $_SESSION['message'] = ['type' => 'success', 'text' => 'Password has been reset to the default password.'];
+            } catch (PDOException $e) {
+                $_SESSION['message'] = ['type' => 'error', 'text' => 'Error resetting password.'];
+            }
+        }
+        header('Location: users.php');
+        exit;
+    }
 }
 
 // Get search and filter parameters
@@ -341,6 +362,16 @@ $users = $stmt->fetchAll();
                                                             <i
                                                                 class="fas <?= $user['is_active'] ? 'fa-user-slash' : 'fa-user-check' ?> mr-1"></i>
                                                             <?= $user['is_active'] ? 'Deactivate' : 'Activate' ?>
+                                                        </button>
+                                                    </form>
+
+                                                    <form method="POST" class="inline"
+                                                        onsubmit="return confirm('Reset password for <?= htmlspecialchars(addslashes($user['full_name'])) ?> to the default password?');">
+                                                        <input type="hidden" name="action" value="reset_password">
+                                                        <input type="hidden" name="user_id" value="<?= $user['user_id'] ?>">
+                                                        <button type="submit"
+                                                            class="inline-flex items-center justify-center px-3 py-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 text-xs font-semibold rounded-lg transition-colors min-h-[44px] sm:min-h-0 w-full sm:w-auto">
+                                                            <i class="fas fa-key mr-1"></i> Reset Password
                                                         </button>
                                                     </form>
                                                 <?php endif; ?>
