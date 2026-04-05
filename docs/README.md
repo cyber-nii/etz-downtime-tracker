@@ -14,7 +14,7 @@
 - [User Guide](#user-guide)
 - [Developer Guide](#developer-guide)
 - [Security Features](#security-features)
-- [Activity Logging](#activity-logging-system) ⭐ NEW
+- [Activity Logging](#activity-logging-system)
 - [XAMPP-Specific Troubleshooting](#xampp-specific-troubleshooting)
 - [General Troubleshooting](#general-troubleshooting)
 - [Additional Documentation](#additional-documentation)
@@ -27,11 +27,12 @@
 
 1. **Install XAMPP** → Download from [apachefriends.org](https://www.apachefriends.org/)
 2. **Start Services** → Open XAMPP Control Panel, start Apache & MySQL
-3. **Copy Files** → Extract this project to `C:\xampp\htdocs\etz-downtime-tracker-final-test-app`
+3. **Copy Files** → Extract this project to `C:\xampp\htdocs\etz-downtime-tracker`
 4. **Install Dependencies** → Run `composer install` in the project folder
-5. **Import Database** → Open [localhost/phpmyadmin](http://localhost/phpmyadmin), import `downtimedb.sql`
-6. **Configure** → Copy `config.php.example` to `config.php`, set DB credentials (user: `root`, password: empty)
-7. **Launch** → Visit [localhost/etz-downtime-tracker-final-test-app](http://localhost/etz-downtime-tracker-final-test-app)
+5. **Import Database** → Open [localhost/phpmyadmin](http://localhost/phpmyadmin), import `database/emptydb.sql`
+6. **Configure** → Copy `config/config.php.example` to `config/config.php`, set DB credentials (user: `root`, password: empty)
+7. **Launch** → Visit [localhost/etz-downtime-tracker/public](http://localhost/etz-downtime-tracker/public)
+8. **Login** → Use your admin credentials created during setup
 
 > 📖 **New to XAMPP?** See the detailed [XAMPP Installation Guide](#method-1-xampp-installation-recommended-for-windows) below.
 
@@ -39,50 +40,70 @@
 
 ## 🎯 Overview
 
-The **eTranzact Downtime Tracking System** is a comprehensive web application designed to monitor, track, and analyze service downtime incidents across multiple companies and services. Built with PHP and MySQL, it provides real-time incident management, detailed analytics, and SLA compliance reporting.
+The **eTranzact Downtime Tracking System** is a comprehensive web application designed to monitor, track, and analyze service downtime incidents, security threats, and fraud events across multiple companies and services. Built with PHP and MySQL, it provides real-time incident management, detailed analytics, SLA compliance reporting, a knowledge base, and a full admin control panel.
 
 ### Key Capabilities
 
-- **Real-time Incident Tracking**: Monitor service outages as they occur
-- **Multi-Company Support**: Track incidents across 17+ partner companies
-- **Service Coverage**: Monitor 8 critical services including Mobile Money, Fundgate, GHQR, and more
+- **Three Incident Streams**: Separate tracking for Downtime, Security, and Fraud incidents via a unified tabbed interface
+- **Multi-Company Support**: Track incidents across partner companies
+- **Service & Component Coverage**: Monitor services and their sub-components
 - **Advanced Analytics**: Visualize trends with interactive Chart.js dashboards
 - **SLA Reporting**: Generate comprehensive uptime and compliance reports
+- **Knowledge Base**: Document resolution guides and best practices
 - **PDF Export**: Export analytics and SLA reports in professional PDF format
+- **Full Admin Panel**: User management, role-based access, incident templates, and audit logs
+- **Authentication**: Session-based login with role-based access control (Admin / User)
 
 ---
 
 ## ✨ Features
 
-### 1. **Dashboard** (`index.php`)
+### 1. **Dashboard** (`public/index.php`)
 
 - **Quick Statistics**: View total, resolved, and pending incidents at a glance
-- **Recent Incidents Table**: See the latest 10 incidents with service, affected companies, dates, and status
+- **Recent Incidents Table**: See the latest incidents with service, affected companies, dates, and status
 - **Real-time Updates**: Refresh button to get the latest data
-- **Status Badges**: Color-coded badges (Pending, Resolved, Investigating)
+- **Status Badges**: Color-coded badges (Pending, Resolved)
 - **Dark Mode Support**: Toggle between light and dark themes
 
-### 2. **Incident Reporting** (`report.php`)
+### 2. **Incident Reporting**
 
-- **Multi-Company Selection**: Report incidents affecting multiple companies simultaneously
-- **Service Selection**: Choose from 8 predefined services
-- **Impact Level Classification**: Low, Medium, High, Critical
-- **Root Cause Documentation**: Detailed text field for incident analysis
-- **Duplicate Prevention**: Automatic detection of existing incidents
-- **CSRF Protection**: Secure form submission with token validation
-- **Rate Limiting**: Prevents spam submissions (5 requests per minute)
+Incidents are categorized at the point of creation:
 
-### 3. **Incident Management** (`incidents.php`)
+- **`public/report_category.php`** — Entry point: choose an incident category (Downtime, Security, or Fraud)
+- **`public/report.php`** — Downtime incident reporting form
+- **`public/report_security.php`** — Security threat reporting form (phishing, unauthorized access, data breach, etc.)
+- **`public/report_fraud.php`** — Fraud incident reporting form (card fraud, account takeover, transaction fraud, etc.)
 
-- **Comprehensive Incident View**: See all incidents grouped by service
+All forms share:
+- **Service & Component Selection**: Link incident to a service and optional sub-component
+- **Incident Types**: Pre-configured types per service for consistent categorization
+- **Impact & Priority Classification**: Low / Medium / High / Critical (impact) + Urgency (priority)
+- **Attachment Upload**: File attachments for supporting documentation
+- **Templates**: Auto-populate reports using saved incident templates
+- **CSRF Protection** and **Rate Limiting**
+
+### 3. **Incident Management** (`public/incidents.php`)
+
+A unified tabbed interface managing all three incident streams:
+
+- **Downtime Tab**: Service outage incidents linked to companies and downtime metrics
+- **Security Tab**: Security threat incidents (phishing, breaches, malware, etc.)
+- **Fraud Tab**: Financial fraud incidents with regulatory tracking
+
+All tabs support:
 - **Status Management**: Update incident status (Pending → Resolved)
-- **Resolvers Tracking**: Mandatory input of engineers/staff who assisted in resolving an incident
-- **Update Timeline**: Add and view chronological updates for each incident
-- **Company Grouping**: View all affected companies per incident
-- **Bulk Updates**: Resolve all incidents for a specific service at once
-- **Impact Level Display**: Visual indicators for incident severity
+- **Resolvers Tracking**: Mandatory input of engineers/staff who resolved the incident
+- **Root Cause & Lessons Learned**: Required on resolution (text or file upload)
+- **Update Timeline**: Add and view chronological updates
+- **File Attachments**: View and manage supporting documents
+- **Impact Level Display**: Color-coded severity indicators
 
-### 4. **Analytics Dashboard** (`analytics.php`)
+### 4. **Other Incidents** (`public/other_incidents.php`)
+
+A separate viewing area for non-primary incident records and historical data.
+
+### 5. **Analytics Dashboard** (`public/analytics.php`)
 
 - **Interactive Charts**:
   - Status Distribution (Doughnut Chart)
@@ -94,46 +115,50 @@ The **eTranzact Downtime Tracking System** is a comprehensive web application de
 - **PDF Export**: Generate professional analytics reports
 - **Responsive Design**: Charts adapt to screen size
 
-### 5. **SLA Reporting** (`sla_report.php`)
+### 6. **SLA Reporting** (`public/sla_report.php`)
 
 - **Uptime Calculation**: Precise uptime percentage tracking
-- **Business Hours Support**: Configure business hours per company/service
+- **Business Hours Support**: Configurable business hours per company/service
 - **Downtime Analysis**: Detailed breakdown of downtime incidents
 - **Target Compliance**: Compare actual vs. target uptime (default 99.99%)
 - **Multi-Service Reports**: View SLA compliance across all services
 - **Excel Export**: Download SLA data in spreadsheet format
 - **PDF Export**: Professional SLA compliance reports
 
-### 6. **Activity Logging** (`admin/activity_logs.php`) ⭐ NEW
+### 7. **Knowledge Base** (`public/knowledge_base.php` / `public/kb_article.php`)
 
-- **Comprehensive Audit Trail**: Track all user actions and system events
-- **Statistics Dashboard**: View total logs, unique users, top actions, and most active users
-- **Advanced Filtering**:
-  - Date range filtering (start/end dates)
-  - User-specific filtering
-  - Action type multi-select (22 action types)
-  - Full-text search in descriptions
-- **Detailed Log Information**:
-  - User identification with avatars
-  - Color-coded action types
-  - IP address tracking
-  - User agent logging
-  - JSON metadata for context
-- **Detail Modal**: View complete log information including metadata
+- **Article Management**: Create and manage resolution guides and best practices
+- **Article Detail View**: Full article pages with formatted content
+- **Searchable & Categorized**: Browse by topic or search for articles
+
+### 8. **Activity Logging** (`public/admin/activity_logs.php`)
+
+- **Comprehensive Audit Trail**: Tracks all user actions and system events
+- **Statistics Dashboard**: View total logs, unique users, top actions
+- **Advanced Filtering**: Date range, user, action type, full-text search
 - **CSV Export**: Download filtered logs for external analysis
-- **Pagination**: Configurable results per page (25/50/100)
-- **Logged Actions**:
-  - Authentication (login/logout/failed attempts)
-  - User management (create/update/delete with change tracking)
-  - Incident operations (creation/updates)
-  - Report exports (with applied filters)
+- **Pagination**: Configurable results per page
 
-### 7. **Admin Panel** (`admin/`)
+### 9. **Admin Panel** (`public/admin/`)
 
-- **User Management**: Create, edit, and delete user accounts
-- **Role-Based Access**: Admin, User, and Viewer roles
-- **Activity Monitoring**: View all system activity logs
-- **Dark Mode Support**: Consistent theme across admin pages
+| Page | Purpose |
+|------|---------|
+| `admin/index.php` | Admin dashboard overview |
+| `admin/users.php` | User listing and management |
+| `admin/user_create.php` | Create new user accounts |
+| `admin/user_edit.php` | Edit existing users |
+| `admin/user_delete.php` | Delete user accounts |
+| `admin/user_bulk_import.php` | Bulk import users via CSV |
+| `admin/manage.php` | Manage services, companies, components, and incident types |
+| `admin/templates.php` | Manage incident report templates |
+| `admin/activity_logs.php` | View full activity/audit logs |
+| `admin/delete_incidents.php` | Admin-only incident deletion |
+
+### 10. **User Account Features**
+
+- **`public/login.php`** / **`public/logout.php`** — Authentication entry/exit
+- **`public/profile.php`** — View and update user profile (name, phone, location)
+- **`public/change_password.php`** — Change account password (requires current password)
 
 ---
 
@@ -142,8 +167,8 @@ The **eTranzact Downtime Tracking System** is a comprehensive web application de
 ### Server Requirements
 
 - **Web Server**: Apache 2.4+ (with mod_rewrite)
-- **PHP**: 7.4 or higher (8.0+ recommended)
-- **Database**: MySQL 5.7+ or MariaDB 10.3+
+- **PHP**: 7.4 or higher (8.0+ recommended, 8.2 used in development)
+- **Database**: MySQL 5.7+ or MariaDB 10.3+ (10.4.32 used in development)
 - **Extensions**:
   - PDO
   - PDO_MySQL
@@ -168,8 +193,6 @@ The **eTranzact Downtime Tracking System** is a comprehensive web application de
 
 ### Method 1: XAMPP Installation (Recommended for Windows)
 
-This is the easiest way to get started, especially if you're new to PHP development.
-
 #### Step 1: Install XAMPP
 
 1. **Download XAMPP**:
@@ -182,7 +205,7 @@ This is the easiest way to get started, especially if you're new to PHP developm
    - Default installation path: `C:\xampp`
 
 3. **Start XAMPP Services**:
-   - Open **XAMPP Control Panel** (search for it in Windows Start menu)
+   - Open **XAMPP Control Panel**
    - Click **Start** next to **Apache**
    - Click **Start** next to **MySQL**
    - Both should show green "Running" status
@@ -196,14 +219,13 @@ This is the easiest way to get started, especially if you're new to PHP developm
    ```
 
 2. **Option A - Download ZIP**:
-   - Download the project as a ZIP file
-   - Extract it to `C:\xampp\htdocs\etz-downtime-tracker-final-test-app`
+   - Extract the project to `C:\xampp\htdocs\etz-downtime-tracker`
 
-3. **Option B - Git Clone** (if you have Git installed):
+3. **Option B - Git Clone**:
    ```bash
    cd C:\xampp\htdocs
-   git clone <repository-url> etz-downtime-tracker-final-test-app
-   cd etz-downtime-tracker-final-test-app
+   git clone <repository-url> etz-downtime-tracker
+   cd etz-downtime-tracker
    ```
 
 #### Step 3: Install PHP Dependencies
@@ -214,112 +236,106 @@ This is the easiest way to get started, especially if you're new to PHP developm
    - Restart your command prompt/terminal
 
 2. **Install Project Dependencies**:
-   - Open Command Prompt or PowerShell
-   - Navigate to the project folder:
-     ```bash
-     cd C:\xampp\htdocs\etz-downtime-tracker-final-test-app
-     ```
-   - Run Composer:
-     ```bash
-     composer install
-     ```
-   - Wait for dependencies to download (this installs the PDF library)
+   ```bash
+   cd C:\xampp\htdocs\etz-downtime-tracker
+   composer install
+   ```
 
 #### Step 4: Create the Database
 
 1. **Open phpMyAdmin**:
-   - In your web browser, go to: [http://localhost/phpmyadmin](http://localhost/phpmyadmin)
-   - You should see the phpMyAdmin interface
+   - In your browser, go to: [http://localhost/phpmyadmin](http://localhost/phpmyadmin)
 
 2. **Import the Database**:
-   - Click on **"New"** in the left sidebar to create a new database
-   - Or click on the **"Import"** tab at the top
-   - Click **"Choose File"** button
-   - Navigate to `C:\xampp\htdocs\etz-downtime-tracker-final-test-app\downtimedb.sql`
-   - Select the file and click **"Open"**
-   - Scroll down and click **"Import"** button
-   - Wait for the success message
+   - Click **New** in the left sidebar to create a new database named `downtimedb`
+   - Select the `downtimedb` database, then click the **Import** tab
+   - Click **Choose File**, navigate to:
+     ```
+     C:\xampp\htdocs\etz-downtime-tracker\database\emptydb.sql
+     ```
+   - Click **Import**
 
 3. **Verify Database Creation**:
-   - You should see a new database called `downtimedb` in the left sidebar
-   - Click on it to expand and verify these tables exist:
-     - `companies` (17 companies)
-     - `services` (8 services)
-     - `issues_reported`
-     - `incident_updates`
+   - You should see `downtimedb` in the left sidebar with these tables:
+     - `activity_logs`
+     - `companies`
+     - `components`
      - `downtime_incidents`
+     - `fraud_incidents` + `fraud_incident_attachments` + `fraud_incident_updates`
+     - `incidents`
+     - `incident_affected_companies`
+     - `incident_attachments`
+     - `incident_company_history`
+     - `incident_components`
+     - `incident_templates`
+     - `incident_types` + `incident_type_service_map`
+     - `incident_updates`
+     - `security_incidents` + `security_incident_attachments` + `security_incident_updates`
+     - `service_component_map`
+     - `services`
      - `sla_targets`
+     - `users`
 
 #### Step 5: Configure Database Connection
 
 1. **Create Configuration File**:
-   - Navigate to `C:\xampp\htdocs\etz-downtime-tracker-final-test-app\`
-   - Find the file `config.php.example`
-   - Make a copy and rename it to `config.php`
+   - Navigate to `C:\xampp\htdocs\etz-downtime-tracker\config\`
+   - Copy `config.php.example` → rename copy to `config.php`
 
 2. **Edit `config.php`**:
-   - Open `config.php` in any text editor (Notepad, VS Code, etc.)
-   - Update the database credentials:
-
    ```php
    <?php
-   // Database Configuration
    define('DB_HOST', 'localhost');
    define('DB_USER', 'root');           // Default XAMPP username
    define('DB_PASS', '');               // Default XAMPP password is empty
-   define('DB_NAME', 'downtimedb');     // Database name
+   define('DB_NAME', 'downtimedb');
 
-   // Application Configuration
    define('APP_ENV', 'development');    // Use 'production' when deploying
+   define('SITE_NAME', 'eTranzact Downtime Management System');
    ```
 
-3. **Save the file**
+> **Note**: XAMPP's default MySQL username is `root` with an **empty password**.
 
-> **Note**: XAMPP's default MySQL username is `root` with an **empty password**. If you've changed your MySQL password, use that instead.
+#### Step 6: Create the First Admin User
 
-#### Step 6: Access the Application
+After importing the database, you need to create your first admin account. Insert directly via phpMyAdmin or CLI:
+
+```sql
+INSERT INTO users (username, email, password_hash, full_name, role, is_active)
+VALUES (
+  'admin',
+  'admin@etranzact.com',
+  '$2y$10$REPLACE_WITH_BCRYPT_HASH',  -- Use PHP: password_hash('your_password', PASSWORD_BCRYPT)
+  'System Administrator',
+  'admin',
+  1
+);
+```
+
+Or use PHP via CLI to generate a hash first:
+```bash
+php -r "echo password_hash('YourSecurePassword', PASSWORD_BCRYPT);"
+```
+
+#### Step 7: Access the Application
 
 1. **Open Your Browser**:
-   - Navigate to: [http://localhost/etz-downtime-tracker-final-test-app/](http://localhost/etz-downtime-tracker-final-test-app/public)
-   - You should see the **Dashboard** page
+   - Navigate to: [http://localhost/etz-downtime-tracker/public/](http://localhost/etz-downtime-tracker/public/)
+   - You will be redirected to the login page
 
-2. **Verify Installation**:
-   - The dashboard should load without errors
-   - You should see statistics cards (Total Incidents, Resolved, Pending)
-   - The navigation bar should have links to: Dashboard, Report Incident, Incidents, Analytics, SLA Report
+2. **Login** with your admin credentials
 
-#### Step 7: Test the Application
-
-1. **Report a Test Incident**:
-   - Click **"Report Incident"** in the navbar
-   - Fill in the form:
-     - Your Name: `Test User`
-     - Service: Select any service (e.g., "Mobile Money")
-     - Companies: Check one or more companies
-     - Impact Level: Select any level
-     - Root Cause: Enter a test description
-   - Click **"Submit Report"**
-   - You should see a success message
-
-2. **View the Incident**:
-   - Click **"Dashboard"** to return to the homepage
-   - Your test incident should appear in the "Recent Incidents" table
-   - Click **"Incidents"** to see all incidents grouped by service
-
-3. **Check Analytics**:
-   - Click **"Analytics"** in the navbar
-   - You should see charts displaying your incident data
+3. **Verify Installation**:
+   - The dashboard should load with statistics cards
+   - The navigation should include: Dashboard, Report Incident, Incidents, Analytics, SLA Report, Knowledge Base
 
 ---
 
 ### Method 2: Manual Installation (Advanced Users)
 
-If you're not using XAMPP or prefer a custom setup:
-
 #### Step 1: Prerequisites
 
 Ensure you have:
-
 - Apache 2.4+ or Nginx
 - PHP 7.4+ (with PDO, PDO_MySQL, mbstring, GD extensions)
 - MySQL 5.7+ or MariaDB 10.3+
@@ -328,8 +344,8 @@ Ensure you have:
 #### Step 2: Clone/Download the Repository
 
 ```bash
-git clone <repository-url>
-cd etz-downtime-tracker-final-test-app
+git clone <repository-url> etz-downtime-tracker
+cd etz-downtime-tracker
 ```
 
 #### Step 3: Install Dependencies
@@ -340,50 +356,43 @@ composer install
 
 #### Step 4: Database Setup
 
-1. **Create the Database**:
-
-   ```bash
-   mysql -u root -p < downtimedb.sql
-   ```
-
-2. **Verify Tables Created**:
-   - `companies` - Partner companies
-   - `services` - Monitored services
-   - `issues_reported` - Incident records
-   - `incident_updates` - Update timeline
-   - `downtime_incidents` - Detailed downtime tracking
-   - `sla_targets` - SLA configuration
+```bash
+mysql -u root -p < database/emptydb.sql
+```
 
 #### Step 5: Configure Database Connection
 
-1. **Copy the example config**:
+```bash
+# Windows
+copy config\config.php.example config\config.php
 
-   ```bash
-   copy config.php.example config.php
-   ```
+# Linux/Mac
+cp config/config.php.example config/config.php
+```
 
-2. **Edit `config.php`** with your database credentials:
-   ```php
-   define('DB_HOST', 'localhost');
-   define('DB_USER', 'your_username');
-   define('DB_PASS', 'your_password');
-   define('DB_NAME', 'downtimedb');
-   define('APP_ENV', 'production'); // or 'development'
-   ```
+Edit `config/config.php` with your database credentials:
+```php
+define('DB_HOST', 'localhost');
+define('DB_USER', 'your_username');
+define('DB_PASS', 'your_password');
+define('DB_NAME', 'downtimedb');
+define('APP_ENV', 'production');
+```
 
 #### Step 6: Set Permissions
 
 ```bash
 # Linux/Mac
-chmod 644 config.php
-chmod 755 includes/
+chmod 644 config/config.php
+chmod 755 src/includes/
+chmod 755 public/uploads/
 
-# Windows - Ensure IIS_IUSRS or IUSR has read permissions
+# Windows — Ensure the web server user has read/write permissions on public/uploads/
 ```
 
-#### Step 7: Access the Application
+#### Step 7: Configure Web Server
 
-Navigate to your configured web server URL (e.g., `http://localhost/etz-downtime-tracker-final-test-app/`)
+Point your web server document root to `public/`. For Apache, a sample `.htaccess` may redirect all requests through `router.php` at the project root.
 
 ---
 
@@ -391,231 +400,382 @@ Navigate to your configured web server URL (e.g., `http://localhost/etz-downtime
 
 ### Core Tables
 
-#### `companies`
+#### `users`
 
-Stores partner company information.
+User authentication and role-based access control.
 
 ```sql
-company_id (PK)    - Auto-increment ID
-company_name       - Company name (e.g., "MTN", "AirtelTigo")
-category           - Optional categorization
-created_at         - Timestamp
-updated_at         - Auto-updated timestamp
+user_id (PK)           - Auto-increment ID
+username               - Unique username
+email                  - Unique email address
+password_hash          - Bcrypt hashed password
+full_name              - User's display name
+phone                  - Optional phone number
+location               - Optional location/office
+role                   - ENUM('admin', 'user')
+is_active              - Account enabled flag
+last_login             - Last login timestamp
+changed_password       - Flag: has user changed their initial password
+created_at / updated_at
+```
+
+#### `companies`
+
+Partner company records.
+
+```sql
+company_id (PK)
+company_name
+category               - Optional grouping
+created_at / updated_at
 ```
 
 #### `services`
 
-Defines monitored services.
+Monitored services (e.g., Mobile Money, Fundgate, GHQR).
 
 ```sql
-service_id (PK)    - Auto-increment ID
-service_name       - Service name (e.g., "Mobile Money")
-created_at         - Timestamp
-updated_at         - Auto-updated timestamp
+service_id (PK)
+service_name
+created_at / updated_at
 ```
 
-#### `issues_reported`
+#### `components`
 
-Main incident tracking table.
+Sub-components within services (e.g., API, Database, Gateway).
 
 ```sql
-issue_id (PK)      - Auto-increment ID
-user_name          - Reporter name
-service_id (FK)    - References services
-company_id (FK)    - References companies
-root_cause         - Incident description
-status             - ENUM('pending', 'resolved')
-impact_level       - ENUM('Low', 'Medium', 'High', 'Critical')
-resolved_by        - User who resolved the issue
-resolvers          - JSON array of names of people who assisted in resolution
-resolved_at        - Resolution timestamp
-created_at         - Report timestamp
-updated_at         - Auto-updated timestamp
+component_id (PK)
+name                   - Unique component name
+is_active              - Enable/disable flag
+```
+
+#### `incident_types`
+
+Pre-defined incident categories per service.
+
+```sql
+type_id (PK)
+service_id (FK)        - Associated service (optional)
+name                   - Incident type name
+is_active
+```
+
+#### `incidents`
+
+Primary downtime incident tracking table.
+
+```sql
+incident_id (PK)
+incident_ref           - Auto-generated unique reference (e.g., INC-20260405-0001)
+service_id (FK)
+component_id (FK)      - Optional sub-component
+incident_type_id (FK)  - Optional type classification
+description            - Detailed description
+impact_level           - ENUM('Low','Medium','High','Critical')
+priority               - ENUM('Low','Medium','High','Urgent')
+incident_source        - ENUM('internal','external')
+root_cause             - Root cause text
+root_cause_file        - Path to root cause attachment
+lessons_learned        - Post-incident analysis
+lessons_learned_file   - Path to lessons file
+attachment_path        - Primary attachment
+actual_start_time      - When the incident began
+status                 - ENUM('pending','resolved')
+reported_by (FK)       - User who reported
+resolved_by (FK)       - User who resolved
+resolved_at
+resolvers              - JSON array of resolver names
+created_at / updated_at
+```
+
+#### `incident_affected_companies`
+
+Many-to-many: incidents ↔ companies.
+
+```sql
+incident_id (FK, PK)
+company_id (FK, PK)
 ```
 
 #### `incident_updates`
 
-Timeline of incident updates.
+Chronological update timeline per downtime incident.
 
 ```sql
-update_id (PK)     - Auto-increment ID
-issue_id (FK)      - References issues_reported
-user_name          - Update author
-update_text        - Update content
-created_at         - Update timestamp
-updated_at         - Auto-updated timestamp
+update_id (PK)
+incident_id (FK)
+user_id (FK)           - Optional (nullable)
+user_name              - Preserved username at time of update
+update_text
+created_at
+```
+
+#### `incident_attachments`
+
+File attachments for downtime incidents.
+
+```sql
+attachment_id (PK)
+incident_id (FK)
+file_path / file_name / file_type / file_size
+uploaded_at
+```
+
+#### `incident_templates`
+
+Reusable report templates to speed up incident reporting.
+
+```sql
+template_id (PK)
+template_name          - Unique template name
+service_id (FK)
+component_id (FK)
+incident_type_id (FK)
+impact_level
+description            - Template body text
+root_cause             - Pre-filled root cause
+is_active
+usage_count            - Tracks how often it's used
+created_by (FK)
+created_at / updated_at
 ```
 
 #### `downtime_incidents`
 
-Detailed downtime tracking for SLA calculations.
+Granular downtime timing records for SLA calculations.
 
 ```sql
-incident_id (PK)       - Auto-increment ID
-issue_id (FK)          - References issues_reported
-actual_start_time      - Downtime start
-actual_end_time        - Downtime end
-downtime_minutes       - Auto-calculated duration
-is_planned             - Boolean flag
-downtime_category      - ENUM('Network', 'Server', 'Maintenance', etc.)
-created_at             - Timestamp
-updated_at             - Auto-updated timestamp
+downtime_id (PK)
+incident_id (FK)
+actual_start_time
+actual_end_time
+downtime_minutes       - Auto-calculated via trigger
+is_planned             - Boolean (planned maintenance vs. unplanned outage)
+downtime_category      - ENUM('Network','Server','Maintenance','Third-party','Other')
+created_at / updated_at
 ```
+
+**Trigger**: `calculate_downtime_minutes` — auto-calculates duration on INSERT and UPDATE.
+
+#### `security_incidents`
+
+Security threat incident tracking.
+
+```sql
+id (PK)
+incident_ref           - Unique reference (e.g., SEC-20260405-0001)
+threat_type            - ENUM('phishing','unauthorized_access','data_breach','malware','social_engineering','other')
+systems_affected       - Text description of affected systems
+description
+impact_level / priority
+containment_status     - ENUM('contained','ongoing','under_investigation')
+escalated_to           - Who the incident was escalated to
+root_cause / lessons_learned
+attachment_path
+actual_start_time
+status                 - ENUM('pending','resolved')
+reported_by (FK) / resolved_by (FK) / resolved_at
+resolvers              - JSON array
+created_at / updated_at
+```
+
+Plus: `security_incident_updates`, `security_incident_attachments`
+
+#### `fraud_incidents`
+
+Financial fraud incident tracking.
+
+```sql
+id (PK)
+incident_ref           - Unique reference (e.g., FRD-20260405-0001)
+fraud_type             - ENUM('card_fraud','account_takeover','transaction_fraud','internal_fraud','other')
+service_id (FK)
+description
+financial_impact       - Decimal (monetary value)
+impact_level / priority
+regulatory_reported    - Boolean flag
+regulatory_details     - Details of regulatory notification
+root_cause / lessons_learned
+attachment_path
+actual_start_time
+status / reported_by / resolved_by / resolved_at
+resolvers              - JSON array
+created_at / updated_at
+```
+
+Plus: `fraud_incident_updates`, `fraud_incident_attachments`
 
 #### `sla_targets`
 
 SLA configuration per company/service.
 
 ```sql
-target_id (PK)         - Auto-increment ID
-company_id (FK)        - References companies (nullable)
-service_id (FK)        - References services (nullable)
+target_id (PK)
+company_id (FK)        - Nullable (global target if NULL)
+service_id (FK)        - Nullable
 target_uptime          - Decimal (default 99.99%)
 business_hours_start   - Time (default 09:00:00)
 business_hours_end     - Time (default 17:00:00)
-business_days          - SET('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
-created_at             - Timestamp
-updated_at             - Auto-updated timestamp
+business_days          - SET('Mon','Tue','Wed','Thu','Fri','Sat','Sun')
+created_at / updated_at
 ```
 
-#### `activity_logs` ⭐ NEW
+#### `activity_logs`
 
-Comprehensive audit trail for all user actions and system events.
+Full audit trail of user actions.
 
 ```sql
-log_id (PK)            - Auto-increment ID (BIGINT)
-user_id (FK)           - References users (nullable for system actions)
-username               - Username at time of action (preserved even if user deleted)
-action_type            - ENUM (22 types: login, logout, user_created, incident_created, etc.)
-entity_type            - Type of entity affected (user, incident, etc.)
-entity_id              - ID of the affected entity
-description            - Human-readable description of the action
-ip_address             - IP address of the user (supports IPv4 and IPv6)
-user_agent             - Browser/client user agent string
-metadata               - JSON field for additional context data
-created_at             - Timestamp of when the action occurred
+log_id (PK)
+user_id (FK)           - References users
+action                 - Short action code (e.g., 'incident_created', 'user_login')
+description            - Human-readable description
+ip_address             - IPv4 or IPv6
+user_agent             - Browser string
+created_at
 ```
-
-**Indexes**: Optimized for performance on user_id, action_type, created_at, entity, and username.
-
-#### `users` ⭐ NEW
-
-User authentication and authorization.
-
-```sql
-user_id (PK)           - Auto-increment ID
-username               - Unique username
-email                  - User email address
-password_hash          - Bcrypt hashed password
-full_name              - User's full name
-role                   - ENUM('admin', 'user', 'viewer')
-is_active              - Boolean flag for account status
-last_login             - Last login timestamp
-created_at             - Account creation timestamp
-updated_at             - Auto-updated timestamp
-```
-
-### Database Triggers
-
-**`calculate_downtime_minutes`**: Automatically calculates downtime duration when `actual_end_time` is updated.
 
 ---
 
 ## 📁 Application Structure
 
 ```
-etz-downtime-tracker-final-test-app/
-├── index.php                      # Dashboard homepage
-├── report.php                     # Incident reporting form
-├── incidents.php                  # Incident management page
-├── analytics.php                  # Analytics dashboard
-├── sla_report.php                 # SLA compliance reporting
-├── export_analytics_pdf.php       # PDF export for analytics
-├── export_sla_report.php          # Excel export for SLA
-├── export_sla_report_pdf.php      # PDF export for SLA
-├── config.php                     # Database configuration (gitignored)
-├── config.php.example             # Configuration template
-├── downtimedb.sql                 # Database schema and seed data
-├── composer.json                  # PHP dependencies
-├── composer.lock                  # Locked dependency versions
-├── .gitignore                     # Git ignore rules
+etz-downtime-tracker/
 │
-├── includes/                      # Shared components
-│   ├── navbar.php                 # Navigation bar with dark mode
-│   ├── loading.php                # Loading overlay component
-│   ├── pdf_config.php             # PDF generation configuration
-│   └── logo1.png                  # Application logo
+├── public/                         # Web-accessible root (point Apache here)
+│   ├── index.php                   # Dashboard homepage
+│   ├── login.php                   # Login page
+│   ├── logout.php                  # Session termination
+│   ├── report_category.php         # Incident type selection
+│   ├── report.php                  # Downtime incident reporting
+│   ├── report_security.php         # Security incident reporting
+│   ├── report_fraud.php            # Fraud incident reporting
+│   ├── incidents.php               # Unified incident management (tabbed)
+│   ├── other_incidents.php         # Additional incident records
+│   ├── analytics.php               # Analytics dashboard with charts
+│   ├── sla_report.php              # SLA compliance reporting
+│   ├── knowledge_base.php          # Knowledge base article list
+│   ├── kb_article.php              # Knowledge base article detail
+│   ├── get_incident.php            # AJAX: fetch incident details
+│   ├── profile.php                 # User profile management
+│   ├── change_password.php         # Password change
+│   │
+│   ├── admin/                      # Admin-only pages
+│   │   ├── index.php               # Admin dashboard
+│   │   ├── users.php               # User list
+│   │   ├── user_create.php         # Create user
+│   │   ├── user_edit.php           # Edit user
+│   │   ├── user_delete.php         # Delete user
+│   │   ├── user_bulk_import.php    # Bulk CSV import
+│   │   ├── manage.php              # Manage services, companies, components, types
+│   │   ├── templates.php           # Incident templates CRUD
+│   │   ├── activity_logs.php       # Audit log viewer
+│   │   └── delete_incidents.php    # Admin incident deletion
+│   │
+│   ├── api/                        # Lightweight AJAX endpoints
+│   │   ├── get_templates.php       # Fetch templates for a service
+│   │   └── use_template.php        # Load template data into form
+│   │
+│   ├── assets/                     # Static assets (images, fonts)
+│   ├── css/                        # Page-specific or compiled CSS
+│   └── uploads/                    # User-uploaded files (gitignored)
 │
-└── vendor/                        # Composer dependencies (gitignored)
-    └── ...
+├── src/                            # Backend shared PHP source
+│   ├── includes/                   # Shared PHP components
+│   │   ├── navbar.php              # Main navigation bar
+│   │   ├── admin_navbar.php        # Admin panel navigation
+│   │   ├── loading.php             # Loading overlay
+│   │   ├── auth.php                # Authentication guard
+│   │   ├── activity_logger.php     # Activity logging helper
+│   │   ├── pdf_config.php          # TCPDF configuration
+│   │   ├── admin_manage_services.php
+│   │   ├── admin_manage_companies.php
+│   │   ├── admin_manage_components.php
+│   │   └── admin_manage_incident_types.php
+│   ├── assets/                     # Shared backend assets
+│   ├── css/                        # Global CSS
+│   └── exports/                    # Export generation helpers
+│
+├── config/                         # Configuration (gitignored credentials)
+│   ├── config.php                  # Database + app settings (DO NOT COMMIT)
+│   └── config.php.example          # Template for config.php
+│
+├── database/                       # Database files
+│   ├── emptydb.sql                 # Clean schema (no seed data)
+│   └── *.sql                       # Migration scripts
+│
+├── migration/                      # Data migration scripts
+├── docs/                           # Documentation
+│   ├── README.md                   # This file
+│   ├── TECHNICAL_DOCS.md           # Developer technical reference
+│   ├── ACTIVITY_LOGGING.md         # Activity logging guide
+│   └── NGROK_SETUP.md              # Remote access instructions
+│
+├── vendor/                         # Composer packages (gitignored)
+├── composer.json
+├── composer.lock
+└── router.php                      # Entry routing for dev server
 ```
 
 ---
 
 ## 📖 User Guide
 
+### Logging In
+
+1. Navigate to [http://localhost/etz-downtime-tracker/public/](http://localhost/etz-downtime-tracker/public/)
+2. Enter your username and password on the login page
+3. Admin and regular user roles have different menu access
+
 ### Reporting a New Incident
 
-1. Navigate to **Report Incident** from the navbar
-2. Fill in the form:
-   - **Your Name**: Enter your full name
-   - **Service**: Select the affected service
-   - **Companies**: Check all affected companies
-   - **Impact Level**: Choose severity (Low/Medium/High/Critical)
-   - **Root Cause**: Describe the issue in detail
-3. Click **Submit Report**
-4. Confirmation message appears on success
+1. Click **Report Incident** in the navbar
+2. On the **Category** page, select the incident type:
+   - **Downtime** — Service outage or performance degradation
+   - **Security** — Phishing, unauthorized access, data breach
+   - **Fraud** — Card fraud, account takeover, financial fraud
+3. Fill in the form for the selected type
+4. Optionally load a **Template** to pre-fill common fields
+5. Upload any supporting attachments
+6. Click **Submit Report**
 
-### Managing Incidents
+### Managing Incidents (`incidents.php`)
 
-1. Go to **Incidents** page
-2. View all incidents grouped by service
+1. Go to **Incidents** in the navbar
+2. Use the tabs to switch between **Downtime**, **Security**, and **Fraud** views
 3. **To add an update**:
    - Click "Add Update" on an incident card
-   - Enter your name and update text
-   - Submit
+   - Enter your update text and submit
 4. **To resolve an incident**:
    - Click "Resolve Incident"
-   - Enter your name
+   - Enter root cause and lessons learned (or upload a file)
+   - Add at least one resolver name
    - Confirm resolution
-   - All incidents for that service are marked as resolved
 
 ### Viewing Analytics
 
 1. Navigate to **Analytics**
-2. **Filter data**:
-   - Select company (or "All Companies")
-   - Choose date range
-   - Click "Apply Filters"
-3. **View charts**:
-   - Status Distribution
-   - Incidents by Company
-   - Monthly Trends
-   - Impact Levels
-4. **Export**: Click "Export PDF" for a report
+2. Filter by company and date range
+3. View distribution, trend, and severity charts
+4. Click **Export PDF** for a downloadable report
 
 ### Generating SLA Reports
 
 1. Go to **SLA Report**
-2. **Configure filters**:
-   - Select company
-   - Select service
-   - Choose date range
+2. Select company and service, choose date range
 3. Click **Generate Report**
-4. View:
-   - Uptime percentage
-   - Total downtime
-   - Incident count
-   - SLA compliance status
-5. **Export options**:
-   - Excel: Click "Export to Excel"
-   - PDF: Click "Export to PDF"
+4. Export as **Excel** or **PDF**
+
+### Knowledge Base
+
+1. Navigate to **Knowledge Base**
+2. Browse or search for resolution articles
+3. Click any article to view full details
 
 ### Using Dark Mode
 
 1. Click the **moon icon** (🌙) in the navbar
-2. Toggle between light and dark themes
-3. Preference is saved in browser localStorage
+2. Preference is saved in browser localStorage
 
 ---
 
@@ -623,37 +783,57 @@ etz-downtime-tracker-final-test-app/
 
 ### Adding a New Service
 
-1. **Database**:
+```sql
+INSERT INTO services (service_name) VALUES ('New Service Name');
 
-   ```sql
-   INSERT INTO services (service_name) VALUES ('New Service Name');
-   ```
+-- Add SLA targets for all companies
+INSERT INTO sla_targets (company_id, service_id, target_uptime)
+SELECT c.company_id, LAST_INSERT_ID(), 99.99
+FROM companies c;
+```
 
-2. **Update SLA Targets**:
-   ```sql
-   INSERT INTO sla_targets (company_id, service_id, target_uptime)
-   SELECT c.company_id, LAST_INSERT_ID(), 99.99
-   FROM companies c WHERE c.company_name != 'All';
-   ```
+### Adding a New Component to a Service
+
+```sql
+INSERT INTO components (name) VALUES ('New Component');
+
+INSERT INTO service_component_map (service_id, component_id)
+VALUES (<service_id>, LAST_INSERT_ID());
+```
 
 ### Adding a New Company
 
-1. **Database**:
+```sql
+INSERT INTO companies (company_name, category) VALUES ('Company Name', 'Category');
 
-   ```sql
-   INSERT INTO companies (company_name, category) VALUES ('Company Name', 'Category');
-   ```
+-- Add SLA targets for all services
+INSERT INTO sla_targets (company_id, service_id, target_uptime)
+SELECT LAST_INSERT_ID(), s.service_id, 99.99
+FROM services s;
+```
 
-2. **Update SLA Targets**:
-   ```sql
-   INSERT INTO sla_targets (company_id, service_id, target_uptime)
-   SELECT LAST_INSERT_ID(), s.service_id, 99.99
-   FROM services s;
-   ```
+### Adding a New Incident Type
+
+```sql
+INSERT INTO incident_types (name, is_active) VALUES ('New Type', 1);
+
+-- Map to a service
+INSERT INTO incident_type_service_map (service_id, type_id)
+VALUES (<service_id>, LAST_INSERT_ID());
+```
+
+### Creating an Incident Template
+
+Via Admin Panel → Templates, or via SQL:
+
+```sql
+INSERT INTO incident_templates
+  (template_name, service_id, component_id, incident_type_id, impact_level, description, root_cause, created_by)
+VALUES
+  ('Internet Downtime Template', 1, 2, 3, 'High', 'Internet connectivity lost...', 'ISP outage', 1);
+```
 
 ### Customizing SLA Targets
-
-Edit the `sla_targets` table:
 
 ```sql
 UPDATE sla_targets
@@ -664,37 +844,15 @@ SET target_uptime = 99.95,
 WHERE company_id = 1 AND service_id = 2;
 ```
 
-### Modifying Chart Colors
+### Authentication Guard
 
-Edit the color arrays in `analytics.php`:
+All protected pages must include:
 
 ```php
-$statusColorMap = [
-    'pending' => '#f59e0b',    // Yellow
-    'resolved' => '#10b981',   // Green
-    'investigating' => '#3b82f6' // Blue
-];
+require_once __DIR__ . '/../../src/includes/auth.php';
 ```
 
-### Adding New Impact Levels
-
-1. **Modify database ENUM**:
-
-   ```sql
-   ALTER TABLE issues_reported
-   MODIFY impact_level ENUM('Low','Medium','High','Critical','Severe');
-   ```
-
-2. **Update PHP code** in `report.php` and `incidents.php` to handle the new level
-
-### Customizing PDF Exports
-
-Edit `includes/pdf_config.php` to modify:
-
-- Page size and orientation
-- Fonts and colors
-- Header/footer content
-- Logo placement
+`auth.php` checks the session and redirects to `login.php` if not authenticated. Admin-only pages should additionally check `$_SESSION['role'] === 'admin'`.
 
 ---
 
@@ -702,42 +860,23 @@ Edit `includes/pdf_config.php` to modify:
 
 ### Implemented Security Measures
 
-1. **CSRF Protection**
-   - Token generation and validation on all forms
-   - Prevents cross-site request forgery attacks
-
-2. **SQL Injection Prevention**
-   - Prepared statements with PDO
-   - Parameter binding for all queries
-
-3. **XSS Protection**
-   - `htmlspecialchars()` on all output
-   - Content Security Policy headers (recommended to add)
-
-4. **Rate Limiting**
-   - Session-based rate limiting (5 requests/minute)
-   - Prevents spam and DoS attacks
-
-5. **Input Validation**
-   - Server-side validation for all inputs
-   - Length limits and type checking
-   - Sanitization of user data
-
-6. **Error Handling**
-   - Production mode hides detailed errors
-   - Development mode shows full error details
-   - Error logging for debugging
-
-7. **Session Security**
-   - Session-based authentication (can be extended)
-   - Secure session configuration recommended
+1. **Authentication**: Session-based login with bcrypt password hashing
+2. **Role-Based Access Control**: Admin vs User roles with enforced restrictions
+3. **CSRF Protection**: Token generation and validation on all forms
+4. **SQL Injection Prevention**: Prepared statements with PDO parameter binding
+5. **XSS Protection**: `htmlspecialchars()` on all output
+6. **Rate Limiting**: Session-based (5 requests/minute) on report forms
+7. **Input Validation**: Server-side for all inputs (length limits, type checking, sanitization)
+8. **Error Handling**: Production mode suppresses detailed errors; development mode shows them
+9. **Security Headers**: `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`
+10. **Activity Logging**: All significant actions are audited with IP and user agent
 
 ### Recommended Additional Security
 
-1. **HTTPS**: Always use SSL/TLS in production
+1. **HTTPS**: Always use SSL/TLS in production; set `session.cookie_secure = 1` in `config.php`
 2. **Database User**: Create a dedicated MySQL user with minimal privileges
-3. **File Permissions**: Restrict write access to necessary directories only
-4. **Regular Updates**: Keep PHP, MySQL, and dependencies updated
+3. **File Permissions**: Restrict `config/config.php` and `public/uploads/` carefully
+4. **Regular Updates**: Keep PHP, MySQL, and Composer dependencies updated
 5. **Backup Strategy**: Regular automated database backups
 
 ---
@@ -746,28 +885,16 @@ Edit `includes/pdf_config.php` to modify:
 
 ### Apache Won't Start
 
-**Problem**: Apache shows "Port 80 in use by another application"
+**Problem**: Apache shows "Port 80 in use"
 
 **Solutions**:
 
-1. **Check if Skype is using Port 80**:
-   - Open Skype → Tools → Options → Advanced → Connection
-   - Uncheck "Use port 80 and 443 as alternatives"
-   - Restart Skype
+1. **Disable IIS**:
+   - Run `services.msc`, find "World Wide Web Publishing Service" → stop it
 
-2. **Check if IIS is running**:
-   - Open Services (Win + R, type `services.msc`)
-   - Find "World Wide Web Publishing Service"
-   - Right-click → Stop
-   - Set Startup type to "Disabled"
-
-3. **Change Apache Port**:
-   - Open XAMPP Control Panel
-   - Click "Config" next to Apache → "httpd.conf"
-   - Find `Listen 80` and change to `Listen 8080`
-   - Find `ServerName localhost:80` and change to `ServerName localhost:8080`
-   - Save and restart Apache
-   - Access app at: `http://localhost:8080/etz-downtime-tracker-final-test-app/`
+2. **Change Apache Port** (in XAMPP → Config → httpd.conf):
+   - Change `Listen 80` → `Listen 8080`
+   - Access app at: `http://localhost:8080/etz-downtime-tracker/public/`
 
 ### MySQL Won't Start
 
@@ -775,240 +902,91 @@ Edit `includes/pdf_config.php` to modify:
 
 **Solutions**:
 
-1. **Check for other MySQL installations**:
-   - Open Task Manager (Ctrl + Shift + Esc)
-   - Look for `mysqld.exe` processes
-   - End any MySQL processes not from XAMPP
-
-2. **Change MySQL Port**:
-   - Open XAMPP Control Panel
-   - Click "Config" next to MySQL → "my.ini"
-   - Find `port=3306` and change to `port=3307`
-   - Update `config.php`: `define('DB_HOST', 'localhost:3307');`
-   - Save and restart MySQL
+1. Kill conflicting MySQL processes in Task Manager (`mysqld.exe`)
+2. Or change MySQL to port 3307 and update `config/config.php`:
+   ```php
+   define('DB_HOST', 'localhost:3307');
+   ```
 
 ### Composer Not Found
 
-**Problem**: `'composer' is not recognized as an internal or external command`
-
 **Solutions**:
 
-1. **Install Composer**:
-   - Download from [https://getcomposer.org/download/](https://getcomposer.org/download/)
-   - Run the Windows installer
-   - Restart Command Prompt/PowerShell
-
-2. **Use XAMPP's PHP**:
-   - Add to Windows PATH: `C:\xampp\php`
-   - Restart Command Prompt
-   - Try `composer install` again
+1. Download from [getcomposer.org](https://getcomposer.org/download/) and run installer
+2. Add `C:\xampp\php` to Windows PATH and restart terminal
 
 ### Database Import Failed
 
-**Problem**: Error importing `downtimedb.sql` in phpMyAdmin
+**Problem**: Error importing `emptydb.sql`
 
 **Solutions**:
 
-1. **File too large**:
-   - Edit `php.ini` in XAMPP Control Panel → Config → PHP (php.ini)
-   - Find and increase these values:
-     ```ini
-     upload_max_filesize = 64M
-     post_max_size = 64M
-     max_execution_time = 300
-     ```
-   - Restart Apache
+1. **File too large** — Edit `php.ini`:
+   ```ini
+   upload_max_filesize = 64M
+   post_max_size = 64M
+   max_execution_time = 300
+   ```
 
 2. **Import via Command Line**:
-   - Open Command Prompt
-   - Navigate to XAMPP's MySQL bin:
-     ```bash
-     cd C:\xampp\mysql\bin
-     ```
-   - Run import:
-     ```bash
-     mysql -u root -p downtimedb < "C:\xampp\htdocs\etz-downtime-tracker-final-test-app\downtimedb.sql"
-     ```
-   - Press Enter (no password by default)
-
-### Permission Denied Errors
-
-**Problem**: "Permission denied" when accessing files
-
-**Solutions**:
-
-1. **Run XAMPP as Administrator**:
-   - Right-click XAMPP Control Panel
-   - Select "Run as administrator"
-
-2. **Check File Permissions**:
-   - Right-click project folder → Properties → Security
-   - Ensure your user account has "Full control"
+   ```bash
+   cd C:\xampp\mysql\bin
+   mysql -u root downtimedb < "C:\xampp\htdocs\etz-downtime-tracker\database\emptydb.sql"
+   ```
 
 ### Blank Page / White Screen
 
-**Problem**: Application shows blank white page
-
-**Solutions**:
-
-1. **Enable Error Display**:
-   - Edit `config.php`:
-     ```php
-     define('APP_ENV', 'development');
-     ```
-   - Refresh the page to see actual errors
-
-2. **Check Apache Error Log**:
-   - XAMPP Control Panel → Logs → Apache (error.log)
-   - Look for PHP errors
-
-3. **Check PHP Extensions**:
-   - Open `php.ini` (XAMPP Control Panel → Config → PHP)
-   - Ensure these are enabled (remove `;` at start):
-     ```ini
-     extension=pdo_mysql
-     extension=mbstring
-     extension=gd
-     ```
-   - Restart Apache
+1. Set `APP_ENV` to `'development'` in `config/config.php` to show errors
+2. Check Apache error log: `C:\xampp\apache\logs\error.log`
+3. Ensure PHP extensions are enabled in `php.ini`: `pdo_mysql`, `mbstring`, `gd`
 
 ### Charts Not Showing
 
-**Problem**: Analytics page loads but charts are empty
-
-**Solutions**:
-
-1. **Check Internet Connection**:
-   - Charts use CDN for Chart.js library
-   - Ensure you have internet access
-
-2. **Check Browser Console**:
-   - Press F12 in browser
-   - Look for JavaScript errors in Console tab
-   - Look for failed network requests in Network tab
+- Charts use CDN for Chart.js — ensure internet access
+- Check browser console (F12) for JavaScript errors
 
 ### PDF Export Not Working
 
-**Problem**: "Failed to generate PDF" error
+1. Run `composer install` to ensure dependencies are present
+2. Enable PHP GD extension in `php.ini` (remove `;` from `extension=gd`)
 
-**Solutions**:
+### Login Loops / Session Issues
 
-1. **Verify Composer Dependencies**:
-
-   ```bash
-   cd C:\xampp\htdocs\etz-downtime-tracker-final-test-app
-   composer install
-   ```
-
-2. **Check vendor folder exists**:
-   - Verify `C:\xampp\htdocs\etz-downtime-tracker-final-test-app\vendor` folder exists
-   - Should contain TCPDF library
-
-3. **Enable GD Extension**:
-   - Edit `php.ini`: Remove `;` from `extension=gd`
-   - Restart Apache
+- Ensure `session.cookie_httponly = 1` in PHP configuration
+- Clear browser cookies and try again
+- Check that `config/config.php` has correct `SESSION_TIMEOUT` value
 
 ---
 
 ## 🐛 General Troubleshooting
 
-### Common Issues
+### Database Connection Failed
 
-#### 1. **Database Connection Failed**
-
-**Error**: "Could not connect to database"
-
-**Solutions**:
-
-- Verify database credentials in `config.php`
-- Ensure MySQL service is running
+- Verify credentials in `config/config.php`
+- Ensure MySQL is running
 - Check database exists: `SHOW DATABASES;`
 - Verify user permissions: `GRANT ALL ON downtimedb.* TO 'user'@'localhost';`
 
-#### 2. **Charts Not Displaying**
-
-**Error**: Blank chart areas on analytics page
-
-**Solutions**:
-
-- Check browser console for JavaScript errors
-- Verify Chart.js CDN is accessible
-- Ensure data is being returned from database queries
-- Clear browser cache
-
-#### 3. **PDF Export Not Working**
-
-**Error**: "Failed to generate PDF"
-
-**Solutions**:
-
-- Verify Composer dependencies are installed: `composer install`
-- Check PHP GD extension is enabled: `php -m | grep gd`
-- Ensure write permissions on temp directory
-- Check error logs for specific TCPDF errors
-
-#### 4. **Dark Mode Not Persisting**
-
-**Error**: Theme resets on page reload
-
-**Solutions**:
-
-- Enable localStorage in browser
-- Check browser console for JavaScript errors
-- Clear browser cache and cookies
-- Verify Alpine.js is loading correctly
-
-#### 5. **Duplicate Incident Prevention Not Working**
-
-**Error**: Same incident can be reported multiple times
-
-**Solutions**:
-
-- Check database constraints are in place
-- Verify the duplicate check query in `report.php`
-- Ensure transaction rollback is working
-- Check for race conditions with concurrent submissions
-
-#### 6. **SLA Calculations Incorrect**
-
-**Error**: Uptime percentages don't match expectations
-
-**Solutions**:
-
-- Verify `downtime_incidents` table has correct data
-- Check trigger `calculate_downtime_minutes` is active
-- Ensure timezone settings are correct
-- Review business hours configuration in `sla_targets`
-
 ### Debug Mode
 
-Enable detailed error reporting in `config.php`:
+Enable detailed error reporting in `config/config.php`:
 
 ```php
 define('APP_ENV', 'development');
 ```
 
-This will display:
+This enables PHP error display and detailed SQL errors.
 
-- PHP errors and warnings
-- SQL query errors
-- Stack traces
+> ⚠️ **Never use `development` mode in production!**
 
-**⚠️ Never use development mode in production!**
-
-### Logging
-
-Check server error logs:
+### Server Error Logs
 
 ```bash
-# Apache
-tail -f /var/log/apache2/error.log
-
 # XAMPP Windows
 C:\xampp\apache\logs\error.log
 
-# PHP-FPM
-tail -f /var/log/php-fpm/error.log
+# Linux Apache
+tail -f /var/log/apache2/error.log
 ```
 
 ---
@@ -1018,9 +996,9 @@ tail -f /var/log/php-fpm/error.log
 For issues, questions, or feature requests:
 
 1. Check this documentation
-2. Review the troubleshooting section
+2. Review the troubleshooting sections
 3. Check application error logs
-4. Contact the development team
+4. Contact the eTranzact development team
 
 ---
 
@@ -1033,38 +1011,39 @@ This application is proprietary software developed for eTranzact. All rights res
 ## 🙏 Credits
 
 **Developed by**: eTranzact Development Team  
-**Framework**: Tailwind CSS v3.4.17  
-**Charts**: Chart.js v4.4.1  
-**Icons**: Font Awesome 6.5.1  
+**CSS Framework**: Tailwind CSS v3  
+**Charts**: Chart.js v4  
+**Icons**: Font Awesome 6  
 **Fonts**: Inter (Google Fonts)  
 **PDF Library**: TCPDF (via Composer)  
-**JavaScript**: Alpine.js v3.x
+**JavaScript Reactivity**: Alpine.js v3  
 
 ---
 
-**Last Updated**: January 2026  
-**Version**: 1.0.0
+## 📚 Additional Documentation
+
+- **[TECHNICAL_DOCS.md](TECHNICAL_DOCS.md)** — Developer technical reference (queries, patterns, chart config)
+- **[ACTIVITY_LOGGING.md](ACTIVITY_LOGGING.md)** — Activity logging implementation guide
+- **[NGROK_SETUP.md](NGROK_SETUP.md)** — Remote/public access via ngrok
 
 ---
 
-##  Activity Logging System
+## 🗓️ Activity Logging System
 
 The application includes a comprehensive activity logging system that tracks all user actions and system events.
 
 ### Key Features
-- **Comprehensive Audit Trail**: Tracks 22 different action types
-- **Advanced Filtering**: Filter by date, user, action type, and search
-- **Statistics Dashboard**: View total logs, unique users, and top actions
+
+- **Audit Trail**: Tracks authentication, incident operations, report exports, and admin actions
+- **Advanced Filtering**: Filter by date, user, action type, full-text search
+- **Statistics Dashboard**: Total logs, unique users, most active users
 - **CSV Export**: Download filtered logs for analysis
 
 ### Documentation
-See **[ACTIVITY_LOGGING.md](ACTIVITY_LOGGING.md)** for complete details.
+
+See **[ACTIVITY_LOGGING.md](ACTIVITY_LOGGING.md)** for complete implementation details.
 
 ---
 
-##  Additional Documentation
-
-- **[ACTIVITY_LOGGING.md](ACTIVITY_LOGGING.md)**  NEW - Activity logging guide
-- **[TECHNICAL_DOCS.md](TECHNICAL_DOCS.md)** - Technical details
-- **[NGROK_SETUP.md](NGROK_SETUP.md)** - Remote access setup
-
+**Last Updated**: April 2026  
+**Version**: 2.0.0
