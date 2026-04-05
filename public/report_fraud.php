@@ -79,35 +79,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $pdo->beginTransaction();
 
+            // Generate unique ref
             $incident_ref = 'FRD-IN#' . date('ymd') . str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
-            while ($pdo->query("SELECT COUNT(*) FROM incidents WHERE incident_ref = '$incident_ref'")->fetchColumn() > 0) {
+            while ($pdo->query("SELECT COUNT(*) FROM fraud_incidents WHERE incident_ref = '$incident_ref'")->fetchColumn() > 0) {
                 $incident_ref = 'FRD-IN#' . date('ymd') . str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
             }
 
+            // Insert into fraud_incidents
             $stmt = $pdo->prepare("
-                INSERT INTO incidents (incident_ref, category, service_id, impact_level, priority, incident_source, description, root_cause, attachment_path, actual_start_time, status, reported_by)
-                VALUES (:ref, 'fraud', :service_id, :impact, :priority, 'internal', :description, :root_cause, :attachment, :start_time, 'pending', :reported_by)
+                INSERT INTO fraud_incidents
+                    (incident_ref, fraud_type, service_id, description, financial_impact, impact_level, priority,
+                     regulatory_reported, regulatory_details, root_cause, attachment_path, actual_start_time, status, reported_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
             ");
             $stmt->execute([
-                ':ref'         => $incident_ref,
-                ':service_id'  => $service_id,
-                ':impact'      => $impact_level,
-                ':priority'    => $priority,
-                ':description' => $description ?: null,
-                ':root_cause'  => $root_cause ?: null,
-                ':attachment'  => $attachment_path,
-                ':start_time'  => $actual_start_time,
-                ':reported_by' => $_SESSION['user_id'],
+                $incident_ref,
+                $fraud_type,
+                $service_id,
+                $description ?: null,
+                $financial_impact,
+                $impact_level,
+                $priority,
+                $regulatory_reported,
+                $regulatory_details ?: null,
+                $root_cause ?: null,
+                $attachment_path,
+                $actual_start_time,
+                $_SESSION['user_id'],
             ]);
             $incident_id = $pdo->lastInsertId();
 
-            $pdo->prepare("
-                INSERT INTO incident_fraud_details (incident_id, fraud_type, financial_impact, service_id, regulatory_reported, regulatory_details)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ")->execute([$incident_id, $fraud_type, $financial_impact, $service_id, $regulatory_reported, $regulatory_details ?: null]);
-
             if (!empty($uploaded_files)) {
-                $att = $pdo->prepare("INSERT INTO incident_attachments (incident_id, file_path, file_name, file_type, file_size) VALUES (?,?,?,?,?)");
+                $att = $pdo->prepare("INSERT INTO fraud_incident_attachments (incident_id, file_path, file_name, file_type, file_size) VALUES (?,?,?,?,?)");
                 foreach ($uploaded_files as $f) {
                     $att->execute([$incident_id, $f['file_path'], $f['file_name'], $f['file_type'], $f['file_size']]);
                 }
@@ -119,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             logActivity($_SESSION['user_id'], 'incident_created', "Reported fraud incident: {$incident_ref}");
 
             $_SESSION['success'] = "Fraud incident {$incident_ref} reported successfully.";
-            header('Location: ' . url('incidents.php'));
+            header('Location: ' . url('other_incidents.php'));
             exit;
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();

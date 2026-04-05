@@ -55,6 +55,7 @@ function isMobileActive($page)
                         class="<?php echo isActive('analytics.php'); ?> px-4 py-2 text-sm font-medium transition-colors duration-150">
                         Analytics
                     </a>
+
                 </div>
 
                 <!-- Right Side Actions -->
@@ -178,6 +179,7 @@ function isMobileActive($page)
                 class="<?php echo isMobileActive('analytics.php'); ?> block pl-3 pr-4 py-2.5 border-l-4 text-sm font-medium transition-colors duration-150">
                 Analytics
             </a>
+
             <?php if ($currentUser['role'] === 'admin'): ?>
                 <a href="<?= url('admin/index.php') ?>"
                     class="<?php echo isMobileActive('admin/index.php'); ?> block pl-3 pr-4 py-2.5 border-l-4 text-sm font-medium transition-colors duration-150">
