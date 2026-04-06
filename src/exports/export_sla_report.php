@@ -180,8 +180,8 @@ function buildSlaSheet(
         foreach ($months as $m) {
             $dm     = monthDowntime($cData['incidents'], $m['start'], $m['end'], $source);
             $uptime = $m['total_minutes'] > 0
-                ? max(0, min(1.0, ($m['total_minutes'] - $dm) / $m['total_minutes']))
-                : 1.0;
+                ? max(0, min($slaDecimal, ($m['total_minutes'] - $dm) / $m['total_minutes']))
+                : $slaDecimal;
             $cell = Coordinate::stringFromColumnIndex($col) . $row;
             $ws->setCellValue($cell, $uptime);
             $ws->getStyle($cell)->getNumberFormat()->setFormatCode('0.00%');

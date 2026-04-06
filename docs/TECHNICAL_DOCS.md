@@ -1,1051 +1,1183 @@
-# Technical Documentation — eTranzact Downtime System
+# Technical Reference — eTranzact Downtime System
 
-## 📚 Table of Contents
+## Table of Contents
 
 - [Architecture Overview](#architecture-overview)
-- [Project Structure](#project-structure)
-- [Authentication & Authorization](#authentication--authorization)
-- [Database Queries Reference](#database-queries-reference)
-- [Frontend Components](#frontend-components)
-- [Backend Logic](#backend-logic)
-- [Three Incident Types](#three-incident-types)
-- [API Endpoints](#api-endpoints)
-- [Chart.js Implementation](#chartjs-implementation)
-- [PDF Generation](#pdf-generation)
-- [Session & Security Management](#session--security-management)
+- [Request Lifecycle](#request-lifecycle)
+- [Authentication Deep-Dive](#authentication-deep-dive)
+- [Session Variables Reference](#session-variables-reference)
+- [PHP Function Index](#php-function-index)
+- [Database Schema](#database-schema)
+- [API Endpoint Reference](#api-endpoint-reference)
+- [Incident Types Reference](#incident-types-reference)
+- [Form Processing Patterns](#form-processing-patterns)
+- [SLA Calculation](#sla-calculation)
 - [Activity Logging](#activity-logging)
-- [Admin Management Modules](#admin-management-modules)
-- [Performance Optimization](#performance-optimization)
-- [Testing Checklist](#testing-checklist)
-- [Deployment Checklist](#deployment-checklist)
+- [Admin Modules](#admin-modules)
+- [Frontend Patterns](#frontend-patterns)
+- [PDF and Excel Export](#pdf-and-excel-export)
+- [Security Model](#security-model)
+- [Debugging Guide](#debugging-guide)
+- [Adding New Features](#adding-new-features)
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
-### Technology Stack
+### Technology stack
 
 ```
-┌──────────────────────────────────────────────┐
-│               Frontend Layer                 │
-│  - HTML5 + Tailwind CSS v3 (CDN)            │
-│  - Alpine.js v3.x (Reactivity)              │
-│  - Chart.js v4 (Visualizations)             │
-│  - Font Awesome 6 (Icons)                   │
-│  - Inter (Google Fonts)                     │
-└──────────────────────────────────────────────┘
-                      ↓
-┌──────────────────────────────────────────────┐
-│          Application Layer (PHP)             │
-│  - PHP 8.2 (7.4+ compatible)               │
-│  - PDO for Database Access                  │
-│  - Session-based Auth + CSRF Tokens         │
-│  - TCPDF for PDF Generation                 │
-│  - Activity Logger (src/includes/)          │
-└──────────────────────────────────────────────┘
-                      ↓
-┌──────────────────────────────────────────────┐
-│           Data Layer (MySQL/MariaDB)         │
-│  - MariaDB 10.4+ / MySQL 5.7+              │
-│  - InnoDB Engine + Foreign Key Constraints  │
-│  - Triggers for Auto-calculations           │
-│  - 20 tables across 3 incident domains      │
-└──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│                  Browser                         │
+│  Alpine.js v3  ·  Tailwind CSS v3  ·  Chart.js  │
+└────────────────────────┬─────────────────────────┘
+                         │ HTTP
+┌────────────────────────▼─────────────────────────┐
+│              PHP 8.2 (Apache / built-in)         │
+│  config/config.php     — DB + app constants      │
+│  src/includes/auth.php — session + XPortal auth  │
+│  src/includes/activity_logger.php — audit trail  │
+│  public/*.php          — page controllers        │
+│  public/api/*.php      — JSON endpoints          │
+└────────────────────────┬─────────────────────────┘
+                         │ PDO (utf8mb4)
+┌────────────────────────▼─────────────────────────┐
+│              MySQL / MariaDB (downtimedb)         │
+│  InnoDB  ·  20 tables  ·  FK constraints         │
+│  2 triggers for downtime auto-calculation        │
+└──────────────────────────────────────────────────┘
+                         │ cURL (login only)
+┌────────────────────────▼─────────────────────────┐
+│          XPortal Authentication API              │
+│  POST https://webpay.etranzactgh.com/XPortal/... │
+│  RSA-encrypted payload, JSON response            │
+└──────────────────────────────────────────────────┘
 ```
 
-### Design Patterns
+### Design patterns
 
-1. **MVC-Inspired** — Page-level PHP controllers, embedded templates, direct PDO queries
-2. **Auth Guard Middleware** — `src/includes/auth.php` enforces login on every protected page
-3. **Shared Components** — `navbar.php`, `loading.php`, `pdf_config.php` via `src/includes/`
-4. **Three Incident Domains** — Downtime (`incidents`), Security (`security_incidents`), Fraud (`fraud_incidents`) tracked independently with shared resolution patterns
-5. **Tabbed Interface** — `incidents.php` unifies all three streams in one UI
-6. **Template System** — `incident_templates` table + API endpoints enable reusable report starters
+- **Page-level controllers** — each PHP file in `public/` handles its own GET/POST logic, then renders HTML. No framework routing.
+- **Auth guard** — every protected page calls `requireLogin()` (and `requireRole('admin')` for admin pages) at the top, before any output.
+- **Shared components** — navigation, loading overlay, and PDF config are included via `src/includes/`.
+- **Three incident domains** — downtime, security, and fraud each have their own tables (`incidents`, `security_incidents`, `fraud_incidents`) with parallel structure (ref, status, updates, attachments).
+- **Template system** — `incident_templates` table + two API endpoints enable pre-filled report forms.
+- **Global component pool** — components (`components` table) are shared across services via `service_component_map`. Disabling a component (`is_active = 0`) hides it without deleting.
 
 ---
 
-## 📂 Project Structure
+## Request Lifecycle
 
 ```
-etz-downtime-tracker/         ← Project root
-│
-├── public/                   ← Apache document root (web-accessible)
-│   ├── index.php             ← Dashboard
-│   ├── login.php / logout.php
-│   ├── report_category.php   ← Incident type chooser
-│   ├── report.php            ← Downtime report form
-│   ├── report_security.php   ← Security report form
-│   ├── report_fraud.php      ← Fraud report form
-│   ├── incidents.php         ← Unified tabbed incident management
-│   ├── other_incidents.php
-│   ├── analytics.php
-│   ├── sla_report.php
-│   ├── knowledge_base.php
-│   ├── kb_article.php
-│   ├── get_incident.php      ← AJAX: incident detail fetch
-│   ├── profile.php
-│   ├── change_password.php
-│   │
-│   ├── admin/                ← Admin-only pages
-│   │   ├── index.php
-│   │   ├── users.php / user_create.php / user_edit.php / user_delete.php
-│   │   ├── user_bulk_import.php
-│   │   ├── manage.php        ← Services, companies, components, types
-│   │   ├── templates.php     ← Incident template management
-│   │   ├── activity_logs.php
-│   │   └── delete_incidents.php
-│   │
-│   ├── api/                  ← Lightweight AJAX JSON endpoints
-│   │   ├── get_templates.php
-│   │   └── use_template.php
-│   │
-│   └── uploads/              ← User-uploaded files (gitignored)
-│
-├── src/includes/             ← Shared backend components
-│   ├── auth.php              ← Authentication guard
-│   ├── activity_logger.php   ← Logging helper class/functions
-│   ├── navbar.php            ← Main nav (with dark mode)
-│   ├── admin_navbar.php      ← Admin panel nav
-│   ├── loading.php           ← Loading overlay
-│   ├── pdf_config.php        ← TCPDF custom class
-│   ├── admin_manage_services.php
-│   ├── admin_manage_companies.php
-│   ├── admin_manage_components.php
-│   └── admin_manage_incident_types.php
-│
-├── config/
-│   ├── config.php            ← DB credentials + app settings (gitignored)
-│   └── config.php.example
-│
-└── database/
-    ├── emptydb.sql           ← Clean schema (no seed data)
-    └── *.sql                 ← Migration patches
+Browser GET /etz-downtime-tracker/public/incidents.php
+    │
+    ▼
+Apache routes to public/incidents.php
+    │
+    ├─ require_once config/config.php
+    │       Sets DB constants, creates $pdo (PDO), sets timezone,
+    │       configures sessions, sends security headers
+    │
+    ├─ require_once src/includes/auth.php
+    │       Defines all auth functions (does not call them)
+    │
+    ├─ requireLogin()
+    │       Calls isLoggedIn() → checks $_SESSION['user_id'] + timeout
+    │       If not logged in: redirect to login.php
+    │       If logged in but changed_password==0 and role!=admin:
+    │           redirect to change_password.php
+    │
+    ├─ Business logic (queries, form handling)
+    │
+    └─ HTML output (inline PHP templates with Alpine.js components)
 ```
 
-### Standard Page Lifecycle
-
-```php
-<?php
-// All protected pages follow this structure:
-
-// 1. Load config (DB connection, constants, security headers)
-require_once __DIR__ . '/../../config/config.php';
-
-// 2. Enforce authentication
-require_once __DIR__ . '/../../src/includes/auth.php';
-
-// 3. Handle POST (form submissions)
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // CSRF check → Input sanitization → Validation → DB transaction → Redirect
-}
-
-// 4. Fetch display data
-try {
-    $stmt = $pdo->prepare("SELECT ...");
-    $stmt->execute([...]);
-    $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    // Handle error
-}
-
-// 5. Render HTML
-include __DIR__ . '/../../src/includes/navbar.php';
-?>
-<!-- Template HTML with embedded PHP -->
-```
+**Key: `$pdo` is a global PDO instance created by `config.php`.** Every page that includes `config.php` gets `$pdo` automatically. Auth functions use `global $pdo`.
 
 ---
 
-## 🔐 Authentication & Authorization
+## Authentication Deep-Dive
 
-### Auth Guard (`src/includes/auth.php`)
+### login()
 
-Every protected page starts with:
-
-```php
-require_once __DIR__ . '/../../src/includes/auth.php';
-```
-
-This file:
-- Calls `session_start()`
-- Checks `$_SESSION['user_id']` is set and valid
-- Redirects to `login.php` if not authenticated
-- Enforces `SESSION_TIMEOUT` (default: 3600 seconds)
-
-### Login Flow (`public/login.php`)
+**File:** `src/includes/auth.php:22`
 
 ```php
-// Verify credentials
-$stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? AND is_active = 1");
-$stmt->execute([$username]);
-$user = $stmt->fetch();
-
-if ($user && password_verify($password, $user['password_hash'])) {
-    session_regenerate_id(true); // Prevent session fixation
-    $_SESSION['user_id']   = $user['user_id'];
-    $_SESSION['username']  = $user['username'];
-    $_SESSION['full_name'] = $user['full_name'];
-    $_SESSION['role']      = $user['role'];
-    header("Location: index.php");
-    exit();
-}
+function login(string $usernameOrEmail, string $password): array|false
 ```
 
-### Role Checks
+1. Calls `callExternalAuthApi($usernameOrEmail, $password)`
+2. Checks `$apiResponse['userExists']` (the `EXTERNAL_AUTH_RES_SUCCESS` constant)
+3. On failure: calls `logActivity(null, 'login_failed', ...)`, returns `false`
+4. On success: calls `findOrProvisionUser($apiUsername, $apiUserData)`
+5. Sets `$_SESSION` variables (see [Session Variables Reference](#session-variables-reference))
+6. Calls `session_regenerate_id(true)` — prevents session fixation
+7. Calls `updateLastLogin()` and `logLogin()`
+8. Returns the user row array
+
+### callExternalAuthApi()
+
+**File:** `src/includes/auth.php:72`
 
 ```php
-// Admin-only pages
-if ($_SESSION['role'] !== 'admin') {
-    header("Location: ../index.php");
-    exit();
-}
+function callExternalAuthApi(string $username, string $password): array|null
 ```
 
-### Password Management
+1. Builds JSON payload: `{"username": "...", "password": "..."}`
+2. RSA-encrypts with `openssl_public_encrypt($credentials, $encrypted, EXTERNAL_AUTH_PUBLIC_KEY, OPENSSL_PKCS1_PADDING)`
+3. Base64-encodes the ciphertext, wraps it: `{"payload": "<base64>"}`
+4. POSTs to `EXTERNAL_AUTH_API_URL` with `Content-Type: application/json`
+5. cURL timeout: `EXTERNAL_AUTH_API_TIMEOUT` (10 seconds)
+6. SSL verification: **enabled in production, disabled in development** (`CURLOPT_SSL_VERIFYPEER => (APP_ENV !== 'development')`)
+7. Returns decoded JSON array, or `null` on network error / non-200 / invalid JSON
+
+**Expected API response shape:**
 
-Passwords are hashed with bcrypt:
-
-```php
-// Hash on creation/update
-$hash = password_hash($newPassword, PASSWORD_BCRYPT);
-
-// Verify on login or password change
-password_verify($inputPassword, $storedHash);
-```
-
----
-
-## 🗃️ Database Queries Reference
-
-### 1. Dashboard — Recent Incidents
-
-```sql
-SELECT
-    i.incident_id,
-    i.incident_ref,
-    s.service_name,
-    c.name AS component_name,
-    i.impact_level,
-    i.status,
-    i.actual_start_time,
-    i.created_at,
-    GROUP_CONCAT(DISTINCT co.company_name ORDER BY co.company_name) AS companies,
-    COUNT(DISTINCT iac.company_id) AS company_count
-FROM incidents i
-JOIN services s ON i.service_id = s.service_id
-LEFT JOIN components c ON i.component_id = c.component_id
-LEFT JOIN incident_affected_companies iac ON i.incident_id = iac.incident_id
-LEFT JOIN companies co ON iac.company_id = co.company_id
-GROUP BY i.incident_id
-ORDER BY i.created_at DESC
-LIMIT 20
-```
-
-### 2. Incidents Page — Downtime Tab
-
-```sql
-SELECT
-    i.*,
-    s.service_name,
-    c.name AS component_name,
-    it.name AS incident_type,
-    GROUP_CONCAT(DISTINCT co.company_name ORDER BY co.company_name) AS companies,
-    COUNT(DISTINCT iac.company_id) AS company_count,
-    u_rep.full_name AS reporter_name,
-    u_res.full_name AS resolver_name
-FROM incidents i
-JOIN services s ON i.service_id = s.service_id
-LEFT JOIN components c ON i.component_id = c.component_id
-LEFT JOIN incident_types it ON i.incident_type_id = it.type_id
-LEFT JOIN incident_affected_companies iac ON i.incident_id = iac.incident_id
-LEFT JOIN companies co ON iac.company_id = co.company_id
-JOIN users u_rep ON i.reported_by = u_rep.user_id
-LEFT JOIN users u_res ON i.resolved_by = u_res.user_id
-GROUP BY i.incident_id
-ORDER BY
-    FIELD(i.status, 'pending', 'resolved'),
-    i.created_at DESC
-```
-
-### 3. Security Incidents Tab
-
-```sql
-SELECT
-    si.*,
-    u_rep.full_name AS reporter_name,
-    u_res.full_name AS resolver_name
-FROM security_incidents si
-JOIN users u_rep ON si.reported_by = u_rep.user_id
-LEFT JOIN users u_res ON si.resolved_by = u_res.user_id
-ORDER BY
-    FIELD(si.status, 'pending', 'resolved'),
-    si.created_at DESC
-```
-
-### 4. Fraud Incidents Tab
-
-```sql
-SELECT
-    fi.*,
-    s.service_name,
-    u_rep.full_name AS reporter_name,
-    u_res.full_name AS resolver_name
-FROM fraud_incidents fi
-LEFT JOIN services s ON fi.service_id = s.service_id
-JOIN users u_rep ON fi.reported_by = u_rep.user_id
-LEFT JOIN users u_res ON fi.resolved_by = u_res.user_id
-ORDER BY
-    FIELD(fi.status, 'pending', 'resolved'),
-    fi.created_at DESC
-```
-
-### 5. Analytics — Status Distribution
-
-```sql
-SELECT
-    status,
-    COUNT(*) AS count
-FROM incidents
-WHERE created_at >= ? AND created_at < ?
-GROUP BY status
-```
-
-### 6. SLA Report — Uptime Calculation
-
-```sql
-SELECT
-    SUM(di.downtime_minutes) AS total_downtime,
-    COUNT(di.downtime_id) AS incident_count
-FROM downtime_incidents di
-JOIN incidents i ON di.incident_id = i.incident_id
-JOIN incident_affected_companies iac ON i.incident_id = iac.incident_id
-WHERE i.service_id = ?
-  AND iac.company_id = ?
-  AND di.actual_start_time >= ?
-  AND di.actual_start_time < ?
-```
-
-**Formula**: `Uptime % = ((Total Minutes in Period − Downtime Minutes) / Total Minutes) * 100`
-
-### 7. Incident Templates — Filtered by Service
-
-```sql
-SELECT t.*, s.service_name, c.name AS component_name, it.name AS type_name
-FROM incident_templates t
-LEFT JOIN services s ON t.service_id = s.service_id
-LEFT JOIN components c ON t.component_id = c.component_id
-LEFT JOIN incident_types it ON t.incident_type_id = it.type_id
-WHERE t.is_active = 1
-  AND (t.service_id = ? OR t.service_id IS NULL)
-ORDER BY t.usage_count DESC, t.template_name ASC
-```
-
-### 8. Activity Logs — Filtered & Paginated
-
-```sql
-SELECT al.*, u.full_name
-FROM activity_logs al
-LEFT JOIN users u ON al.user_id = u.user_id
-WHERE (? IS NULL OR al.user_id = ?)
-  AND (? IS NULL OR al.action = ?)
-  AND (? IS NULL OR al.created_at >= ?)
-  AND (? IS NULL OR al.created_at <= ?)
-  AND (? IS NULL OR al.description LIKE CONCAT('%', ?, '%'))
-ORDER BY al.created_at DESC
-LIMIT ? OFFSET ?
-```
-
----
-
-## 🎨 Frontend Components
-
-### Navbar Component (`src/includes/navbar.php`)
-
-**Features**:
-- Responsive mobile menu (hamburger toggle)
-- Active page highlighting based on `$_SERVER['PHP_SELF']`
-- Dark mode toggle with localStorage persistence
-- User profile dropdown (username, profile link, logout)
-- Admin-only "Admin" menu item based on `$_SESSION['role']`
-
-**Dark Mode Implementation**:
-
-```javascript
-// Alpine.js component on <html> element
-{
-    darkMode: localStorage.getItem('darkMode') === 'true',
-
-    toggleDarkMode() {
-        this.darkMode = !this.darkMode;
-        localStorage.setItem('darkMode', this.darkMode);
-        document.documentElement.classList.toggle('dark', this.darkMode);
-    },
-
-    init() {
-        if (this.darkMode) document.documentElement.classList.add('dark');
-    }
-}
-```
-
-### Loading Overlay (`src/includes/loading.php`)
-
-Provides a full-screen overlay during page loads and AJAX requests.
-
-```javascript
-// Show
-window.showLoading();
-
-// Auto-hide on load
-window.addEventListener("load", () => {
-    setTimeout(() => window.hideLoading(), 300);
-});
-```
-
-### Status Badges
-
-```php
-$statusClass = match($status) {
-    'pending'  => 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    'resolved' => 'bg-green-100 text-green-800 border-green-200',
-    default    => 'bg-gray-100 text-gray-800 border-gray-200',
-};
-```
-
-### Impact Level Badges
-
-```php
-$impactClass = match($impact) {
-    'Critical' => 'bg-red-50 text-red-700 border-red-200',
-    'High'     => 'bg-orange-50 text-orange-700 border-orange-200',
-    'Medium'   => 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    'Low'      => 'bg-green-50 text-green-700 border-green-200',
-    default    => 'bg-gray-50 text-gray-700 border-gray-200',
-};
-```
-
----
-
-## ⚙️ Backend Logic
-
-### Standard Form Processing Pattern
-
-```php
-// 1. CSRF Token Validation
-if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-    die("Invalid request");
-}
-
-// 2. Input Sanitization
-$description = trim(htmlspecialchars($_POST['description'] ?? ''));
-$service_id  = filter_var($_POST['service_id'], FILTER_VALIDATE_INT);
-
-// 3. Server-Side Validation
-$errors = [];
-if (empty($description)) $errors[] = "Description is required.";
-if (!$service_id)         $errors[] = "Invalid service.";
-
-// 4. Database Transaction
-if (empty($errors)) {
-    $pdo->beginTransaction();
-    try {
-        // Execute queries
-        $pdo->commit();
-        $_SESSION['success'] = "Incident reported successfully!";
-        header("Location: " . $_SERVER['PHP_SELF']);
-        exit();
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        $error = "Database error: " . $e->getMessage();
-    }
-}
-```
-
-### Incident Resolution & Resolvers
-
-When resolving any incident type, the system requires:
-- **Root Cause**: Text input OR uploaded file (at least one required)
-- **Lessons Learned**: Same requirement
-- **Resolvers**: JSON array of at least one person who assisted
-
-```php
-if ($status === 'resolved') {
-    $resolvers = $_POST['resolvers'] ?? [];
-    $valid_resolvers = array_values(array_filter(
-        array_map('trim', is_array($resolvers) ? $resolvers : [])
-    ));
-
-    if (empty($valid_resolvers)) {
-        $errors[] = 'At least one resolver name is required.';
-    }
-
-    // ...
-    $params[':resolvers'] = json_encode($valid_resolvers);
-    $params[':resolved_at'] = date('Y-m-d H:i:s');
-}
-```
-
-### File Upload Handling
-
-```php
-// Allowed types
-$allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword',
-                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-
-if ($_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime  = finfo_file($finfo, $_FILES['attachment']['tmp_name']);
-
-    if (!in_array($mime, $allowed_types)) {
-        $errors[] = "Invalid file type.";
-    } else {
-        $filename   = uniqid() . '_' . basename($_FILES['attachment']['name']);
-        $uploadPath = __DIR__ . '/../uploads/' . $filename;
-        move_uploaded_file($_FILES['attachment']['tmp_name'], $uploadPath);
-    }
-}
-```
-
-### Incident Reference Generation
-
-```php
-// Auto-generated ref format: INC-YYYYMMDD-NNNN
-$prefix = match($type) {
-    'security' => 'SEC',
-    'fraud'    => 'FRD',
-    default    => 'INC',
-};
-$date    = date('Ymd');
-$stmt    = $pdo->query("SELECT COUNT(*) FROM incidents WHERE DATE(created_at) = CURDATE()");
-$count   = $stmt->fetchColumn() + 1;
-$ref     = sprintf('%s-%s-%04d', $prefix, $date, $count);
-```
-
-### Rate Limiting Implementation
-
-```php
-$rateLimitKey = 'rate_limit_' . $_SERVER['REMOTE_ADDR'];
-$maxRequests  = 5;
-$timeWindow   = 60; // seconds
-
-if (isset($_SESSION[$rateLimitKey])) {
-    [$count, $timestamp] = explode('|', $_SESSION[$rateLimitKey]);
-
-    if (time() - $timestamp < $timeWindow) {
-        if ($count >= $maxRequests) {
-            die("Too many requests. Please try again later.");
-        }
-        $count++;
-    } else {
-        $count = 1;
-    }
-} else {
-    $count = 1;
-}
-
-$_SESSION[$rateLimitKey] = "$count|" . time();
-```
-
----
-
-## 🗂️ Three Incident Types
-
-The system manages three independent incident domains, each with their own tables, report forms, and update streams. They share the same resolution pattern (resolvers + root cause required) but differ in domain-specific fields.
-
-| Attribute | Downtime (`incidents`) | Security (`security_incidents`) | Fraud (`fraud_incidents`) |
-|-----------|------------------------|----------------------------------|---------------------------|
-| Reference | `INC-YYYYMMDD-NNNN` | `SEC-YYYYMMDD-NNNN` | `FRD-YYYYMMDD-NNNN` |
-| Report Page | `report.php` | `report_security.php` | `report_fraud.php` |
-| Domain Fields | Service, Component, Type, Downtime Minutes | Threat Type, Systems Affected, Containment Status, Escalated To | Fraud Type, Financial Impact, Regulatory Reported |
-| Updates Table | `incident_updates` | `security_incident_updates` | `fraud_incident_updates` |
-| Attachments Table | `incident_attachments` | `security_incident_attachments` | `fraud_incident_attachments` |
-| Affected Companies | `incident_affected_companies` (M2M) | Described in text field | N/A (per-service) |
-| SLA Tracking | Yes (via `downtime_incidents`) | No | No |
-
-### Unified Tab Interface (`incidents.php`)
-
-The `incidents.php` page uses an Alpine.js tab switcher:
-
-```javascript
-// Alpine.js tab state
-{
-    activeTab: 'downtime',  // 'downtime' | 'security' | 'fraud'
-    switchTab(tab) {
-        this.activeTab = tab;
-    }
-}
-```
-
----
-
-## 🔌 API Endpoints
-
-### `GET public/api/get_templates.php?service_id={id}`
-
-Returns active incident templates filtered by service.
-
-**Response**:
 ```json
-[
+{
+  "userExists": true,
+  "userData": {
+    "username": "jdoe",
+    "email": "jdoe@etranzact.com",
+    "firstname": "John",
+    "lastname": "Doe",
+    "admin": "NONE"
+  }
+}
+```
+
+`admin` field: `"NONE"` → local role `user`; any other value → local role `admin`.
+
+### findOrProvisionUser()
+
+**File:** `src/includes/auth.php:128`
+
+```php
+function findOrProvisionUser(string $apiUsername, array $apiUserData): array|false
+```
+
+1. Queries `users` WHERE `username = ? OR email = ?` AND `is_active = 1`
+2. If found: syncs `full_name` and `email` from API data if they differ, returns the row
+3. If not found: INSERTs a new row with `changed_password = 1` (admin) or `0` (user), empty `password_hash`, then returns the new row
+
+**Note:** The INSERT sets `changed_password = 1` for admins (no forced password change) and `0` for regular users (forces change on next page load).
+
+### requireLogin()
+
+**File:** `src/includes/auth.php:231`
+
+Calls `isLoggedIn()`. If false → stores `$_SERVER['REQUEST_URI']` in `$_SESSION['redirect_after_login']` and redirects to `login.php`.
+
+If logged in but `$_SESSION['changed_password'] == 0` and `$_SESSION['role'] !== 'admin'` → redirects to `change_password.php` (except when already on `change_password.php` or `logout.php`).
+
+### requireRole()
+
+**File:** `src/includes/auth.php:276`
+
+```php
+function requireRole(string $role): void
+```
+
+Calls `requireLogin()` first, then checks `hasRole($role)`. If role does not match: sends HTTP 403 and `die()`. All `admin/` pages call `requireRole('admin')`.
+
+---
+
+## Session Variables Reference
+
+Set by `login()` in `src/includes/auth.php`:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `$_SESSION['user_id']` | int | Local `users.user_id` |
+| `$_SESSION['username']` | string | Username (from XPortal, synced to local DB) |
+| `$_SESSION['full_name']` | string | Display name (firstname + lastname from XPortal) |
+| `$_SESSION['role']` | string | `'admin'` or `'user'` |
+| `$_SESSION['changed_password']` | int | `0` = must change password, `1` = ok |
+| `$_SESSION['login_time']` | int | Unix timestamp — updated on each `isLoggedIn()` call; used for idle timeout |
+| `$_SESSION['redirect_after_login']` | string | Set before redirect to login; consumed after successful login |
+
+`isLoggedIn()` refreshes `login_time` on every call, implementing a sliding-window idle timeout.
+
+---
+
+## PHP Function Index
+
+### src/includes/auth.php
+
+| Function | Signature | Returns | Description |
+|----------|-----------|---------|-------------|
+| `login` | `(string $user, string $pass)` | `array\|false` | Full login flow: calls XPortal API, provisions user, sets session |
+| `callExternalAuthApi` | `(string $user, string $pass)` | `array\|null` | RSA-encrypts and POSTs to XPortal; returns decoded response |
+| `findOrProvisionUser` | `(string $apiUsername, array $apiData)` | `array\|false` | Looks up or creates local user from API data |
+| `logout` | `()` | `void` | Logs the action, clears session, destroys cookie |
+| `isLoggedIn` | `()` | `bool` | Checks session vars and idle timeout |
+| `requireLogin` | `(?string $redirectTo)` | `void` | Redirects to login if not authenticated; enforces password change |
+| `hasRole` | `(string $role)` | `bool` | Returns true if logged in and `$_SESSION['role'] === $role` |
+| `requireRole` | `(string $role)` | `void` | Sends 403 and dies if role does not match |
+| `getCurrentUser` | `()` | `array\|null` | Returns `[user_id, username, full_name, role]` from session |
+| `url` | `(string $path)` | `string` | Generates root-relative URL; adds `?v=<filemtime>` for static assets |
+| `updateLastLogin` | `(int $userId)` | `void` | Sets `users.last_login = NOW()` |
+| `getLoginUrl` | `()` | `string` | Returns `url('login.php')` |
+| `validatePassword` | `(string $password)` | `array` | Returns `['valid' => bool, 'errors' => string[]]`; enforces strength rules |
+
+### src/includes/activity_logger.php
+
+| Function | Signature | Returns | Description |
+|----------|-----------|---------|-------------|
+| `logActivity` | `(?int $userId, string $action, string $desc)` | `void` | Base log writer; captures IP and user agent |
+| `logLogin` | `(int $userId, bool $success)` | `void` | Logs `login` or `login_failed` |
+| `logLogout` | `(int $userId)` | `void` | Logs `logout` |
+| `logUserAction` | `(int $userId, string $action, int $targetId, array $changes)` | `void` | Logs user management actions |
+| `logIncidentAction` | `(int $userId, string $action, int $incidentId, array $changes)` | `void` | Logs incident CRUD actions |
+| `logExport` | `(int $userId, string $exportType, array $filters)` | `void` | Logs analytics/report export events |
+| `getActivityLogs` | `(array $filters, int $limit, int $offset)` | `array` | Paginated log retrieval with optional filters |
+| `getActivityLogsCount` | `(array $filters)` | `int` | Total count matching filters (for pagination) |
+| `getUserActivitySummary` | `(int $userId, int $days)` | `array` | Stats for a single user over N days |
+| `getRecentActivity` | `(int $limit)` | `array` | Latest N log entries across all users |
+| `getActivityStats` | `(string $startDate, string $endDate)` | `array` | Top actions and top users in a date range |
+| `cleanupOldLogs` | `(int $daysToKeep)` | `int` | Deletes logs older than N days; returns count deleted |
+| `exportActivityLogsCSV` | `(array $filters)` | `void` | Streams CSV download of filtered logs |
+
+### Logged action codes (reference)
+
+| Code | Triggered by |
+|------|-------------|
+| `login` | Successful login |
+| `login_failed` | Failed login attempt |
+| `logout` | User logout |
+| `user_created` | Admin creates a user |
+| `user_updated` | Admin edits a user |
+| `user_deleted` | Admin deletes a user |
+| `user_role_changed` | Admin changes a user's role |
+| `incident_created` | New downtime incident submitted |
+| `incident_updated` | Incident updated or resolved |
+| `incident_deleted` | Admin deletes an incident |
+| `incident_viewed` | Incident detail viewed |
+| `reopen_security_incident` | Security incident set back to pending |
+| `reopen_fraud_incident` | Fraud incident set back to pending |
+| `analytics_exported` | Analytics PDF downloaded |
+| `sla_report_exported` | SLA report Excel/PDF downloaded |
+| `incident_exported` | Individual incident exported |
+| `used_template` | Template applied to a report form |
+| `created_service` | Admin creates a service |
+| `updated_service` | Admin edits a service |
+| `deleted_service` | Admin deletes a service |
+| `created_company` / `updated_company` / `deleted_company` | Company CRUD |
+| `created_component` / `updated_component` / `deleted_component` | Component CRUD |
+
+---
+
+## Database Schema
+
+Database name: `downtimedb`. Engine: InnoDB. Charset: utf8mb4.
+
+### users
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `user_id` | INT AUTO_INCREMENT PK | |
+| `username` | VARCHAR(50) UNIQUE | Synced from XPortal on login |
+| `email` | VARCHAR(100) UNIQUE | Synced from XPortal on login |
+| `password_hash` | VARCHAR(255) | Empty string for API-provisioned users; populated only after `change_password.php` |
+| `full_name` | VARCHAR(100) | |
+| `phone` | VARCHAR(20) | Set via `change_password.php` (required for non-admins) |
+| `location` | VARCHAR(100) | Optional |
+| `role` | ENUM('admin','user') | Derived from XPortal `admin` field on first provision |
+| `is_active` | TINYINT(1) | 0 = disabled (cannot log in) |
+| `last_login` | DATETIME | Updated on every successful login |
+| `changed_password` | TINYINT(1) | 0 = must change; 1 = changed |
+| `created_at` / `updated_at` | DATETIME | |
+
+### companies
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `company_id` | INT AUTO_INCREMENT PK | |
+| `company_name` | VARCHAR(100) | |
+| `category` | VARCHAR(50) | Optional grouping label |
+| `created_at` / `updated_at` | DATETIME | |
+
+### services
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `service_id` | INT AUTO_INCREMENT PK | |
+| `service_name` | VARCHAR(100) | |
+| `created_at` / `updated_at` | DATETIME | |
+
+### components
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `component_id` | INT AUTO_INCREMENT PK | |
+| `name` | VARCHAR(100) UNIQUE | |
+| `is_active` | TINYINT(1) | Soft-delete: 0 = hidden from forms |
+
+### service_component_map
+
+Junction table: services ↔ components (many-to-many).
+
+| Column | Type |
+|--------|------|
+| `service_id` | INT FK → services |
+| `component_id` | INT FK → components |
+| PK | composite (service_id, component_id) |
+
+### incident_types
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `type_id` | INT AUTO_INCREMENT PK | |
+| `service_id` | INT FK → services | Nullable |
+| `name` | VARCHAR(100) | |
+| `is_active` | TINYINT(1) | |
+
+### incident_type_service_map
+
+Junction table: incident_types ↔ services.
+
+| Column | Type |
+|--------|------|
+| `type_id` | INT FK → incident_types |
+| `service_id` | INT FK → services |
+
+### incidents (downtime)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `incident_id` | INT AUTO_INCREMENT PK | |
+| `incident_ref` | VARCHAR(30) UNIQUE | Format: `INC-YYYYMMDD-NNN` |
+| `service_id` | INT FK → services | |
+| `component_id` | INT FK → components | Nullable (legacy single-component) |
+| `incident_type_id` | INT FK → incident_types | Nullable |
+| `description` | TEXT | |
+| `impact_level` | ENUM('Low','Medium','High','Critical') | |
+| `priority` | ENUM('Low','Medium','High','Urgent') | |
+| `incident_source` | ENUM('internal','external') | |
+| `root_cause` | TEXT | |
+| `root_cause_file` | VARCHAR(255) | File path |
+| `lessons_learned` | TEXT | |
+| `lessons_learned_file` | VARCHAR(255) | File path |
+| `attachment_path` | VARCHAR(255) | Legacy single attachment; see `incident_attachments` |
+| `actual_start_time` | DATETIME | When the incident started |
+| `status` | ENUM('pending','resolved') | |
+| `reported_by` | INT FK → users | |
+| `resolved_by` | INT FK → users | Nullable |
+| `resolved_at` | DATETIME | Nullable |
+| `resolvers` | JSON | Array of resolver name strings |
+| `created_at` / `updated_at` | DATETIME | |
+
+### incident_affected_companies
+
+| Column | Type |
+|--------|------|
+| `incident_id` | INT FK → incidents |
+| `company_id` | INT FK → companies |
+| PK | composite |
+
+### incident_components
+
+Junction table for multi-component incidents (newer style, preferred over `incidents.component_id`).
+
+| Column | Type |
+|--------|------|
+| `incident_id` | INT FK → incidents |
+| `component_id` | INT FK → components |
+| PK | composite |
+
+### incident_updates
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `update_id` | INT AUTO_INCREMENT PK | |
+| `incident_id` | INT FK → incidents | |
+| `user_id` | INT FK → users | Nullable |
+| `user_name` | VARCHAR(100) | Preserved at time of update |
+| `update_text` | TEXT | |
+| `created_at` | DATETIME | |
+
+### incident_attachments
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `attachment_id` | INT AUTO_INCREMENT PK | |
+| `incident_id` | INT FK → incidents | |
+| `file_path` | VARCHAR(255) | Relative path under `public/uploads/incidents/` |
+| `file_name` | VARCHAR(255) | Original filename |
+| `file_type` | VARCHAR(100) | MIME type |
+| `file_size` | INT | Bytes |
+| `uploaded_at` | DATETIME | |
+
+### incident_templates
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `template_id` | INT AUTO_INCREMENT PK | |
+| `template_name` | VARCHAR(100) UNIQUE | |
+| `service_id` | INT FK → services | Nullable = global template |
+| `component_id` | INT FK → components | Nullable |
+| `incident_type_id` | INT FK → incident_types | Nullable |
+| `impact_level` | VARCHAR(20) | |
+| `description` | TEXT | |
+| `root_cause` | TEXT | |
+| `is_active` | TINYINT(1) | |
+| `usage_count` | INT | Auto-incremented by `use_template.php` |
+| `created_by` | INT FK → users | |
+| `created_at` / `updated_at` | DATETIME | |
+
+### downtime_incidents
+
+Stores granular downtime windows for SLA calculation.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `downtime_id` | INT AUTO_INCREMENT PK | |
+| `incident_id` | INT FK → incidents | |
+| `actual_start_time` | DATETIME | |
+| `actual_end_time` | DATETIME | Nullable |
+| `downtime_minutes` | INT | **Auto-calculated by trigger** |
+| `is_planned` | TINYINT(1) | 1 = planned maintenance |
+| `downtime_category` | ENUM('Network','Server','Maintenance','Third-party','Other') | |
+| `created_at` / `updated_at` | DATETIME | |
+
+**Triggers on this table:**
+- `calculate_downtime_minutes` (BEFORE UPDATE) — sets `downtime_minutes = TIMESTAMPDIFF(MINUTE, actual_start_time, actual_end_time)`
+- `calculate_downtime_minutes_insert` (BEFORE INSERT) — same logic on insert
+
+### security_incidents
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | INT AUTO_INCREMENT PK | |
+| `incident_ref` | VARCHAR(30) UNIQUE | Format: `SEC-IN#YYYYMMDDNNN` |
+| `threat_type` | ENUM('phishing','unauthorized_access','data_breach','malware','social_engineering','other') | |
+| `systems_affected` | TEXT | |
+| `description` | TEXT | |
+| `impact_level` | ENUM('Low','Medium','High','Critical') | |
+| `priority` | ENUM('Low','Medium','High','Urgent') | |
+| `containment_status` | ENUM('contained','ongoing','under_investigation') | |
+| `escalated_to` | VARCHAR(100) | Whitelist: CISO, IT Security Team, Regulatory Body, Law Enforcement |
+| `root_cause` / `lessons_learned` | TEXT | |
+| `attachment_path` | VARCHAR(255) | |
+| `actual_start_time` | DATETIME | |
+| `status` | ENUM('pending','resolved') | |
+| `reported_by` / `resolved_by` | INT FK → users | |
+| `resolved_at` | DATETIME | |
+| `resolvers` | JSON | |
+| `created_at` / `updated_at` | DATETIME | |
+
+Plus `security_incident_updates` and `security_incident_attachments` with the same structure as their downtime equivalents.
+
+### fraud_incidents
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | INT AUTO_INCREMENT PK | |
+| `incident_ref` | VARCHAR(30) UNIQUE | Format: `FRD-IN#YYYYMMDDNNN` |
+| `fraud_type` | ENUM('card_fraud','account_takeover','transaction_fraud','internal_fraud','other') | |
+| `service_id` | INT FK → services | |
+| `description` | TEXT | |
+| `financial_impact` | DECIMAL(15,2) | Monetary loss amount |
+| `impact_level` / `priority` | ENUM | |
+| `regulatory_reported` | TINYINT(1) | Was this reported to a regulator? |
+| `regulatory_details` | TEXT | |
+| `root_cause` / `lessons_learned` | TEXT | |
+| `attachment_path` | VARCHAR(255) | |
+| `actual_start_time` | DATETIME | |
+| `status` / `reported_by` / `resolved_by` / `resolved_at` / `resolvers` | — | Same as security_incidents |
+
+Plus `fraud_incident_updates` and `fraud_incident_attachments`.
+
+### sla_targets
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `target_id` | INT AUTO_INCREMENT PK | |
+| `company_id` | INT FK → companies | Nullable = global target |
+| `service_id` | INT FK → services | Nullable = all services |
+| `target_uptime_percentage` | DECIMAL(5,2) | Default 99.99 |
+| `business_hours_start` | TIME | Default 09:00:00 |
+| `business_hours_end` | TIME | Default 17:00:00 |
+| `business_days` | SET('Mon','Tue','Wed','Thu','Fri','Sat','Sun') | |
+| `created_at` / `updated_at` | DATETIME | |
+
+### activity_logs
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `log_id` | INT AUTO_INCREMENT PK | |
+| `user_id` | INT FK → users | Nullable (anonymous failed logins) |
+| `action` | VARCHAR(100) | Short action code |
+| `description` | TEXT | Human-readable detail |
+| `ip_address` | VARCHAR(45) | IPv4 or IPv6 |
+| `user_agent` | TEXT | Browser string |
+| `created_at` | DATETIME | |
+
+### incident_company_history
+
+Tracks changes to the `incident_affected_companies` junction (who was added/removed and when).
+
+---
+
+## API Endpoint Reference
+
+All endpoints require an active session (`requireLogin()` is called). There is no token-based API — authentication is session-cookie-based.
+
+---
+
+### GET /get_incident.php
+
+Fetch a single downtime incident with related companies, components, and optionally attachments.
+
+**Auth:** Session required
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | int | Yes | `incidents.incident_id` |
+| `include_attachments` | `1` | No | If `1`, includes attachment array |
+
+**Success response (200):**
+
+```json
+{
+  "incident_id": 42,
+  "incident_ref": "INC-20260401-001",
+  "service_id": "3",
+  "component_id": "7",
+  "incident_type_id": "2",
+  "description": "Internet connectivity lost across all branches",
+  "impact_level": "High",
+  "priority": "Urgent",
+  "incident_source": "external",
+  "actual_start_time": "2026-04-01 09:15:00",
+  "attachment_path": null,
+  "service_name": "Internet",
+  "affected_companies": [1, 4, 7],
+  "component_ids": [7, 12],
+  "attachments": [
     {
-        "template_id": 1,
-        "template_name": "Internet Downtime",
-        "service_id": 2,
-        "impact_level": "High",
-        "description": "...",
-        "root_cause": "..."
+      "attachment_id": "5",
+      "file_path": "uploads/incidents/1743500000_report.pdf",
+      "file_name": "report.pdf",
+      "file_type": "application/pdf",
+      "file_size": "204800",
+      "uploaded_at": "2026-04-01 09:20:00"
     }
-]
+  ]
+}
 ```
 
-### `POST public/api/use_template.php`
+**Notes:**
+- `attachments` key is only present when `include_attachments=1`
+- Legacy `attachment_path` from the `incidents` table is merged into the `attachments` array if not already in `incident_attachments`
+- `affected_companies` and `component_ids` are arrays of integers
 
-Logs template usage (increments `usage_count`) and returns full template data.
+**Error responses:**
 
-**Request**: `{ "template_id": 1 }`  
-**Response**: Full template object
-
-### `GET public/get_incident.php?id={incident_id}`
-
-Returns full incident details (used in AJAX detail modal).
-
-**Response**: JSON object with incident fields, updates, and attachments.
-
----
-
-## 📊 Chart.js Implementation
-
-### Shared Chart Configuration
-
-```javascript
-const defaultTooltip = {
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    padding: 12,
-    titleFont: { size: 13 },
-    bodyFont: { size: 12 }
-};
-
-const defaultLegend = {
-    position: 'bottom',
-    labels: { padding: 15, usePointStyle: true }
-};
-```
-
-### Status Distribution (Doughnut)
-
-```javascript
-new Chart(document.getElementById('statusChart'), {
-    type: 'doughnut',
-    data: {
-        labels: ['Pending', 'Resolved'],
-        datasets: [{
-            data: <?= json_encode([$pending, $resolved]) ?>,
-            backgroundColor: ['#f59e0b', '#10b981'],
-            borderWidth: 2,
-            borderColor: '#fff'
-        }]
-    },
-    options: {
-        cutout: '60%',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: defaultLegend, tooltip: defaultTooltip }
-    }
-});
-```
-
-### Monthly Trend (Line)
-
-```javascript
-new Chart(document.getElementById('trendChart'), {
-    type: 'line',
-    data: {
-        labels: <?= json_encode($months) ?>,
-        datasets: [{
-            label: 'Incidents',
-            data: <?= json_encode($counts) ?>,
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59,130,246,0.1)',
-            tension: 0.4,
-            fill: true
-        }]
-    },
-    options: {
-        responsive: true,
-        scales: { y: { beginAtZero: true } },
-        plugins: { legend: defaultLegend, tooltip: defaultTooltip }
-    }
-});
-```
-
-### Company Incidents (Bar)
-
-```javascript
-new Chart(document.getElementById('companyChart'), {
-    type: 'bar',
-    data: {
-        labels: <?= json_encode($companies) ?>,
-        datasets: [{
-            label: 'Incidents',
-            data: <?= json_encode($companyCounts) ?>,
-            backgroundColor: 'rgba(99,102,241,0.7)',
-            borderRadius: 4
-        }]
-    },
-    options: {
-        indexAxis: 'y', // Horizontal bar
-        plugins: { legend: { display: false } }
-    }
-});
+```json
+{ "error": "Incident ID is required" }   // missing ?id=
+{ "error": "Incident not found" }         // no row matches
+{ "error": "Database error: ..." }        // PDO exception (development only shows detail)
 ```
 
 ---
 
-## 📄 PDF Generation
+### GET /api/get_templates.php
 
-### TCPDF Configuration (`src/includes/pdf_config.php`)
+Fetch active incident templates, optionally filtered by service.
 
-```php
-require_once __DIR__ . '/../../vendor/autoload.php';
+**Auth:** Session required
 
-class CustomPDF extends TCPDF {
-    public function Header() {
-        $this->Image('includes/logo1.png', 15, 10, 30);
-        $this->SetFont('helvetica', 'B', 16);
-        $this->Cell(0, 15, 'eTranzact Downtime Report', 0, false, 'C');
-        $this->Line(15, 30, 195, 30);
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `service_id` | int | No | Filter to templates for this service (also returns global templates where `service_id IS NULL`) |
+
+**Success response (200):**
+
+```json
+{
+  "success": true,
+  "templates": [
+    {
+      "template_id": "3",
+      "template_name": "Internet Downtime",
+      "service_id": "2",
+      "component_id": "5",
+      "incident_type_id": "1",
+      "impact_level": "High",
+      "description": "Internet service is unavailable...",
+      "root_cause": "ISP outage"
     }
-
-    public function Footer() {
-        $this->SetY(-15);
-        $this->SetFont('helvetica', 'I', 8);
-        $this->Cell(0, 10, 'Page ' . $this->getAliasNumPage() . ' of ' . $this->getAliasNbPages(), 0, false, 'C');
-    }
+  ]
 }
 ```
 
-### Analytics PDF Export
+Templates are ordered by `usage_count DESC, template_name ASC`.
 
-```php
-$pdf = new CustomPDF('P', 'mm', 'A4', true, 'UTF-8');
-$pdf->SetCreator('eTranzact');
-$pdf->SetTitle('Analytics Report - ' . date('Y-m'));
-$pdf->AddPage();
+**Error response (500):**
 
-$html = '<table border="1" cellpadding="5">' .
-    '<thead><tr style="background-color:#1e40af;color:#fff">' .
-    '<th>Status</th><th>Count</th></tr></thead><tbody>';
-
-foreach ($data as $row) {
-    $html .= '<tr><td>' . htmlspecialchars($row['status']) . '</td>'
-           . '<td>' . $row['count'] . '</td></tr>';
-}
-
-$html .= '</tbody></table>';
-$pdf->writeHTML($html, true, false, true, false, '');
-$pdf->Output('analytics_report.pdf', 'D');
-```
-
-### SLA Excel Export
-
-```php
-header('Content-Type: application/vnd.ms-excel');
-header('Content-Disposition: attachment; filename="sla_report_' . date('Ymd') . '.xls"');
-
-// Output HTML table — Excel interprets it as spreadsheet
-echo '<table border="1">
-    <thead>
-        <tr>
-            <th>Service</th><th>Company</th><th>Uptime %</th>
-            <th>Downtime (min)</th><th>Incidents</th><th>Status</th>
-        </tr>
-    </thead>
-    <tbody>';
-
-foreach ($slaData as $row) {
-    $met  = $row['uptime'] >= $row['target'];
-    echo '<tr>
-        <td>' . htmlspecialchars($row['service'])  . '</td>
-        <td>' . htmlspecialchars($row['company'])  . '</td>
-        <td>' . number_format($row['uptime'], 2)   . '%</td>
-        <td>' . $row['downtime']                   . '</td>
-        <td>' . $row['incidents']                  . '</td>
-        <td>' . ($met ? 'Met' : 'Missed')          . '</td>
-    </tr>';
-}
-echo '</tbody></table>';
+```json
+{ "success": false, "error": "Database error: ..." }
 ```
 
 ---
 
-## 🔐 Session & Security Management
+### POST /api/use_template.php
 
-### Config Settings (`config/config.php`)
+Record that a template was applied (increments `usage_count`).
 
-```php
-// Session hardening
-ini_set('session.cookie_httponly', 1);
-ini_set('session.use_only_cookies', 1);
-ini_set('session.cookie_secure', 0);    // Set to 1 for HTTPS production
-ini_set('session.cookie_samesite', 'Strict');
+**Auth:** Session required
 
-define('SESSION_TIMEOUT', 3600);         // 1 hour
-define('PASSWORD_MIN_LENGTH', 8);
-define('ACTIVITY_LOG_RETENTION_DAYS', 365);
+**Request body:** `application/x-www-form-urlencoded`
 
-// Security Headers
-header("X-Content-Type-Options: nosniff");
-header("X-Frame-Options: SAMEORIGIN");
-header("X-XSS-Protection: 1; mode=block");
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `template_id` | int | Yes | `incident_templates.template_id` |
+
+**Success response (200):**
+
+```json
+{ "success": true }
 ```
 
-### Session Timeout Enforcement (`auth.php`)
+**Error responses:**
 
-```php
-if (isset($_SESSION['last_activity'])
-    && (time() - $_SESSION['last_activity'] > SESSION_TIMEOUT)) {
-    session_unset();
-    session_destroy();
-    header("Location: /public/login.php?timeout=1");
-    exit();
-}
-$_SESSION['last_activity'] = time();
+```json
+{ "success": false, "error": "Template ID is required" }
+{ "success": false, "error": "Template not found" }
+{ "success": false, "error": "Database error" }
 ```
 
-### CSRF Token Management
+Also logs `used_template` to activity_logs.
+
+---
+
+## Incident Types Reference
+
+### Downtime incidents
+
+| Field | Values |
+|-------|--------|
+| `incident_ref` format | `INC-YYYYMMDD-NNN` (zero-padded sequential) |
+| `status` | `pending`, `resolved` |
+| `impact_level` | `Low`, `Medium`, `High`, `Critical` |
+| `priority` | `Low`, `Medium`, `High`, `Urgent` |
+| `incident_source` | `internal`, `external` |
+| Main table | `incidents` |
+| Updates table | `incident_updates` |
+| Attachments table | `incident_attachments` |
+| Companies | `incident_affected_companies` (many-to-many) |
+| Components | `incident_components` (many-to-many) + legacy `incidents.component_id` |
+| Timing | `downtime_incidents` (triggers auto-calculate `downtime_minutes`) |
+
+### Security incidents
+
+| Field | Values |
+|-------|--------|
+| `incident_ref` format | `SEC-IN#YYYYMMDDNNN` (3-digit random suffix) |
+| `threat_type` | `phishing`, `unauthorized_access`, `data_breach`, `malware`, `social_engineering`, `other` |
+| `containment_status` | `contained`, `ongoing`, `under_investigation` |
+| `escalated_to` | One of: `CISO`, `IT Security Team`, `Regulatory Body`, `Law Enforcement` (whitelist-validated) |
+| Main table | `security_incidents` |
+| Updates / Attachments | `security_incident_updates`, `security_incident_attachments` |
+
+### Fraud incidents
+
+| Field | Values |
+|-------|--------|
+| `incident_ref` format | `FRD-IN#YYYYMMDDNNN` (3-digit random suffix) |
+| `fraud_type` | `card_fraud`, `account_takeover`, `transaction_fraud`, `internal_fraud`, `other` |
+| `financial_impact` | Decimal — monetary value of the fraud |
+| `regulatory_reported` | Boolean — was this reported to a regulator? |
+| Main table | `fraud_incidents` |
+| Updates / Attachments | `fraud_incident_updates`, `fraud_incident_attachments` |
+
+---
+
+## Form Processing Patterns
+
+### CSRF protection
+
+Every state-changing form generates and validates a CSRF token:
 
 ```php
-// Generate once per session
+// Generate (at top of page, before output)
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// In form
-echo '<input type="hidden" name="csrf_token" value="' . $_SESSION['csrf_token'] . '">';
+// In HTML form
+<input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
 
-// Validate on submission
-if ($_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-    die("Invalid CSRF token");
+// Validate on POST
+if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
+    die('CSRF validation failed');
 }
 ```
 
-### Flash Messages
+### Rate limiting
+
+Applied in `report.php`, `incidents.php` (and similar) — 5 requests per minute per session:
 
 ```php
-// Set
-$_SESSION['success'] = "Incident reported successfully!";
-$_SESSION['error']   = "An error occurred.";
+$now = time();
+$_SESSION['request_times'] = array_filter(
+    $_SESSION['request_times'] ?? [],
+    fn($t) => $now - $t < 60
+);
+if (count($_SESSION['request_times']) >= 5) {
+    // show error, exit
+}
+$_SESSION['request_times'][] = $now;
+```
 
-// Display and clear
-if (isset($_SESSION['success'])) {
-    echo '<div class="alert-success">' . htmlspecialchars($_SESSION['success']) . '</div>';
-    unset($_SESSION['success']);
+### File upload validation
+
+```php
+$allowedExtensions = ['jpg', 'jpeg', 'gif', 'png', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt'];
+$maxSize = 10 * 1024 * 1024; // 10 MB
+
+$ext = strtolower(pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION));
+if (!in_array($ext, $allowedExtensions)) { /* reject */ }
+if ($_FILES['file']['size'] > $maxSize) { /* reject */ }
+
+$filename = time() . '_' . basename($_FILES['file']['name']);
+$uploadPath = __DIR__ . '/uploads/incidents/' . $filename;
+move_uploaded_file($_FILES['file']['tmp_name'], $uploadPath);
+```
+
+### Output escaping
+
+All user-sourced data in HTML is escaped:
+
+```php
+echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+```
+
+### PDO prepared statements
+
+All queries use named or positional placeholders — never string interpolation with user input:
+
+```php
+$stmt = $pdo->prepare("SELECT * FROM incidents WHERE service_id = ? AND status = ?");
+$stmt->execute([$serviceId, $status]);
+$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+```
+
+PDO is configured with `ATTR_EMULATE_PREPARES => false` (server-side preparation).
+
+### Transactions (multi-insert operations)
+
+Used in `report_security.php` and `report_fraud.php`:
+
+```php
+$pdo->beginTransaction();
+try {
+    $pdo->prepare("INSERT INTO security_incidents (...) VALUES (...)")->execute([...]);
+    $incidentId = $pdo->lastInsertId();
+    $pdo->prepare("INSERT INTO security_incident_attachments (...) VALUES (...)")->execute([...]);
+    $pdo->commit();
+} catch (Exception $e) {
+    $pdo->rollBack();
+    // handle error
 }
 ```
 
 ---
 
-## 📋 Activity Logging
+## SLA Calculation
 
-### Logger Helper (`src/includes/activity_logger.php`)
+**File:** `public/sla_report.php`
 
-```php
-/**
- * Log a user action.
- *
- * @param PDO    $pdo
- * @param int    $userId
- * @param string $action      Short code e.g. 'incident_created'
- * @param string $description Human-readable description
- */
-function logActivity(PDO $pdo, int $userId, string $action, string $description): void {
-    $stmt = $pdo->prepare(
-        "INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent)
-         VALUES (?, ?, ?, ?, ?)"
-    );
-    $stmt->execute([
-        $userId,
-        $action,
-        $description,
-        $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-        $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
-    ]);
-}
+**Function:** `calculateSlaData($pdo, $companyId, $startDate, $endDate, $totalMinutes, $slaTarget, $sourceFilter)`
+
+**Formula:**
+
+```
+uptimeMinutes    = totalMinutes − totalDowntimeMinutes
+uptimePercentage = (uptimeMinutes / totalMinutes) × 100
+slaCompliant     = uptimePercentage >= slaTarget
 ```
 
-### Usage Example
+**`totalMinutes`** is computed from the date range:
 
 ```php
-// After creating an incident
-logActivity($pdo, $_SESSION['user_id'], 'incident_created',
-    "Created downtime incident {$ref} for service: {$service_name}");
-
-// After login
-logActivity($pdo, $user['user_id'], 'user_login',
-    "User '{$username}' logged in successfully");
+$totalMinutes = (strtotime($endDate) - strtotime($startDate)) / 60;
 ```
 
-### Common Action Codes
-
-| Code | Trigger |
-|------|---------|
-| `user_login` | Successful login |
-| `user_logout` | Logout |
-| `login_failed` | Failed login attempt |
-| `incident_created` | New downtime incident |
-| `incident_resolved` | Incident status → resolved |
-| `incident_updated` | Update added to incident |
-| `security_incident_created` | New security incident |
-| `fraud_incident_created` | New fraud incident |
-| `user_created` | Admin created new user |
-| `user_updated` | User record modified |
-| `user_deleted` | User account deleted |
-| `report_exported` | PDF/Excel export generated |
-| `template_used` | Incident template applied |
-| `password_changed` | Password was changed |
-
----
-
-## 🔧 Admin Management Modules
-
-### Services Management (`admin_manage_services.php`)
-
-Handles CRUD for services. All operations use transactions. Deleting a service cascades to `incidents` (FK `ON DELETE CASCADE`).
-
-### Companies Management (`admin_manage_companies.php`)
-
-CRUD for partner companies. Deletion cascades through `incident_affected_companies`.
-
-### Components Management (`admin_manage_components.php`)
-
-CRUD for service sub-components. Includes the `service_component_map` pivot table.
-
-```php
-// When adding a component, map it to services:
-INSERT INTO components (name) VALUES (?);
-$componentId = $pdo->lastInsertId();
-
-foreach ($selectedServices as $serviceId) {
-    $stmt->execute([$serviceId, $componentId]);  // INSERT INTO service_component_map
-}
-```
-
-### Incident Types Management (`admin_manage_incident_types.php`)
-
-CRUD for incident classification types. Uses `incident_type_service_map` pivot table.
-
-### User Bulk Import (`user_bulk_import.php`)
-
-Accepts CSV with columns: `username, email, full_name, role`. Passwords are auto-generated and (optionally) emailed. Sets `changed_password = 0` to force password change on first login.
-
----
-
-## ⚡ Performance Optimization
-
-### Database Indexing
-
-Critical indexes already defined in `emptydb.sql`:
+**Downtime query** (simplified):
 
 ```sql
--- incidents table
-idx_status, idx_actual_start_time, idx_priority, idx_incident_source, idx_resolved_at
-
--- activity_logs table
-idx_user_id, idx_action, idx_created_at
-
--- incident_affected_companies (composite PK = implicit index)
--- downtime_incidents: idx_start_end (actual_start_time, actual_end_time)
--- sla_targets: unique_company_service
-```
-
-### Query Optimization Tips
-
-1. **Always LIMIT** dashboard/list queries
-2. **Avoid SELECT \*** — specify only needed columns
-3. **Use EXPLAIN** to diagnose slow queries:
-   ```sql
-   EXPLAIN SELECT * FROM incidents WHERE status = 'pending' ORDER BY created_at DESC;
-   ```
-4. **Paginate** activity logs and user lists
-5. **Prepared Statements** are reused by PDO's emulated prepare mode (set `ATTR_EMULATE_PREPARES => false` for true server-side prepared statements)
-
-### Frontend Optimization
-
-1. **Lazy Load Charts** — init only after DOM is ready
-2. **Debounce Search/Filter** inputs (300ms delay before query)
-3. **Minimize AJAX** — batch requests where possible
-4. **Loading Overlay** — prevents double submissions and improves perceived performance
-
----
-
-## 🧪 Testing Checklist
-
-### Manual Testing
-
-- [ ] **Login**: Auth works, session timeout enforced, failed attempts logged
-- [ ] **Incident Reporting**: All three forms (Downtime, Security, Fraud) submit correctly
-- [ ] **Template Loading**: Templates populate form fields via AJAX
-- [ ] **File Uploads**: Attachments save to `uploads/`, blocked for invalid types
-- [ ] **Incidents Page**: All three tabs display correct data, resolved incidents move to resolved section
-- [ ] **Resolution Workflow**: Resolvers required, root cause required, status updates in DB
-- [ ] **Analytics**: Charts render, date/company filters apply correctly, PDF exports
-- [ ] **SLA Report**: Uptime percentage accurate, Excel/PDF exports download
-- [ ] **Knowledge Base**: Articles list and detail page render
-- [ ] **Admin Panel**: User CRUD, bulk import, template management work
-- [ ] **Activity Logs**: Actions logged, filters work, CSV exports
-- [ ] **Dark Mode**: Persists across all pages via localStorage
-- [ ] **Responsive**: Test on mobile, tablet, desktop
-- [ ] **Cross-browser**: Chrome, Firefox, Edge
-
-### Database Tests
-
-```sql
--- Verify trigger calculation
-INSERT INTO downtime_incidents (incident_id, actual_start_time, actual_end_time)
-VALUES (1, '2026-01-01 10:00:00', '2026-01-01 11:30:00');
--- Check: downtime_minutes should be 90
-
--- Verify incident company linking
-SELECT i.incident_ref, GROUP_CONCAT(c.company_name) AS companies
-FROM incidents i
+SELECT SUM(di.downtime_minutes) AS total_downtime
+FROM downtime_incidents di
+JOIN incidents i ON di.incident_id = i.incident_id
 JOIN incident_affected_companies iac ON i.incident_id = iac.incident_id
-JOIN companies c ON iac.company_id = c.company_id
-GROUP BY i.incident_id;
+WHERE iac.company_id = :company_id
+  AND i.actual_start_time BETWEEN :start AND :end
+  AND i.status = 'resolved'
+  -- optional: AND i.incident_source = :source
+```
 
--- Verify SLA target coverage
-SELECT s.service_name, COUNT(st.target_id) AS targets
-FROM services s
-LEFT JOIN sla_targets st ON s.service_id = st.service_id
-GROUP BY s.service_id;
+`downtime_minutes` on `downtime_incidents` is auto-calculated by the MySQL `BEFORE INSERT` and `BEFORE UPDATE` triggers as `TIMESTAMPDIFF(MINUTE, actual_start_time, actual_end_time)`.
+
+**SLA target** defaults to `99.99` (from `sla_targets` table or the constant).
+
+---
+
+## Activity Logging
+
+**File:** `src/includes/activity_logger.php`
+
+### Adding a log entry
+
+```php
+// Available anywhere config.php is included
+logActivity($_SESSION['user_id'], 'action_code', 'Human-readable description');
+
+// Specialised wrappers
+logIncidentAction($_SESSION['user_id'], 'incident_updated', $incidentId, ['status' => 'resolved']);
+logExport($_SESSION['user_id'], 'sla_report_pdf', ['company_id' => 3, 'date_range' => '...']);
+```
+
+### Adding a new action type
+
+1. Pick a snake_case action code (e.g., `kb_article_viewed`)
+2. Call `logActivity(...)` with that code wherever the event occurs
+3. Add it to the action dropdown filter in `admin/activity_logs.php` so admins can filter by it
+
+No schema changes required — the `action` column is `VARCHAR(100)`.
+
+### Retention and cleanup
+
+`cleanupOldLogs(ACTIVITY_LOG_RETENTION_DAYS)` deletes rows older than the configured number of days. It is called automatically when `ACTIVITY_LOG_CLEANUP_ENABLED` is true (called from within the logger itself on a random sampling basis, not on every request).
+
+---
+
+## Admin Modules
+
+### manage.php + admin_manage_*.php
+
+`public/admin/manage.php` handles all POST actions for system configuration. After determining the `$action` from `$_POST['action']`, it delegates to one of the included modules:
+
+| Include file | Handles actions |
+|-------------|-----------------|
+| `admin_manage_services.php` | `create_service`, `update_service`, `delete_service` |
+| `admin_manage_companies.php` | `create_company`, `update_company`, `delete_company` |
+| `admin_manage_components.php` | `create_component`, `update_component`, `delete_component` (soft-disable) |
+| `admin_manage_incident_types.php` | `create_incident_type`, `update_incident_type`, `delete_incident_type` |
+
+All actions:
+- Validate for duplicates before INSERT / UPDATE
+- Call `logActivity()` on success
+- Return a `$message` variable (success or error string) consumed by the HTML template
+
+### users.php bulk actions
+
+- `bulk_delete` — deletes selected users; guards against deleting own account
+- `toggle_status` — flips `is_active` on a single user
+- `reset_password` — sets `password_hash` = bcrypt of `Etz@1234566`, sets `changed_password = 0`
+
+---
+
+## Frontend Patterns
+
+### Alpine.js conventions
+
+All interactivity uses inline Alpine.js — no separate `.js` files. Each interactive section is a component:
+
+```html
+<div x-data="{ open: false, tab: 'downtime' }">
+  <button @click="open = !open">Toggle</button>
+  <div x-show="open">...</div>
+</div>
+```
+
+Modal pattern (used for incident details, updates):
+
+```html
+<div x-data="{ show: false, incident: {} }">
+  <button @click="fetch('/get_incident.php?id=<?= $id ?>').then(r=>r.json()).then(d=>{ incident=d; show=true })">
+    View
+  </button>
+  <div x-show="show" class="fixed inset-0 ...">
+    <span x-text="incident.description"></span>
+  </div>
+</div>
+```
+
+### Status badge classes (Tailwind)
+
+```
+pending  → bg-yellow-100 text-yellow-800
+resolved → bg-green-100  text-green-800
+```
+
+Impact level badge classes:
+
+```
+Low      → bg-blue-100   text-blue-800
+Medium   → bg-yellow-100 text-yellow-800
+High     → bg-orange-100 text-orange-800
+Critical → bg-red-100    text-red-800
+```
+
+### Dark mode
+
+Toggled via a class on `<html>` using Alpine.js + `localStorage`:
+
+```html
+<html x-data x-bind:class="$store.darkMode.on ? 'dark' : ''">
+```
+
+Tailwind `dark:` variants are used throughout for dark mode styles.
+
+### Loading overlay
+
+Included via `<?php include __DIR__ . '/../src/includes/loading.php'; ?>`. Activates automatically on form submit and navigation. See [LOADING_GUIDE.md](LOADING_GUIDE.md) for usage details.
+
+### url() helper
+
+Always use `url()` for internal links to ensure correct paths in both XAMPP subdirectory and router modes:
+
+```php
+href="<?= url('incidents.php') ?>"
+href="<?= url('admin/users.php') ?>"
+```
+
+For static assets, `url()` appends `?v=<filemtime>` for cache-busting automatically.
+
+---
+
+## PDF and Excel Export
+
+### PDF (TCPDF)
+
+**Config:** `src/includes/pdf_config.php`
+
+Initialises a `TCPDF` instance with eTranzact branding, margins, and fonts. Usage:
+
+```php
+require_once __DIR__ . '/../src/includes/pdf_config.php';
+// $pdf is now a configured TCPDF object
+$pdf->AddPage();
+$pdf->writeHTML($htmlContent);
+$pdf->Output('report.pdf', 'D'); // D = download
+```
+
+**Used in:** `src/exports/export_analytics_pdf.php`, `src/exports/export_sla_report_pdf.php`
+
+### Excel (PhpSpreadsheet)
+
+Used in `public/sla_report.php`:
+
+```php
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
+$spreadsheet = new Spreadsheet();
+$sheet = $spreadsheet->getActiveSheet();
+$sheet->setCellValue('A1', 'Service');
+// ... populate cells ...
+
+header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+header('Content-Disposition: attachment; filename="sla_report.xlsx"');
+$writer = new Xlsx($spreadsheet);
+$writer->save('php://output');
 ```
 
 ---
 
-## 🚀 Deployment Checklist
+## Security Model
 
-### Pre-Deployment
+| Control | Implementation |
+|---------|---------------|
+| Authentication | External XPortal API + session; no local password check at login |
+| Session fixation | `session_regenerate_id(true)` on login |
+| Session timeout | Sliding-window idle timeout (default 1 hour) via `$_SESSION['login_time']` |
+| CSRF | `bin2hex(random_bytes(32))` token; `hash_equals()` on validation |
+| SQL injection | PDO prepared statements everywhere; `ATTR_EMULATE_PREPARES = false` |
+| XSS | `htmlspecialchars($v, ENT_QUOTES, 'UTF-8')` on all output |
+| Role enforcement | `requireRole('admin')` on every admin page, before any output |
+| File uploads | Extension whitelist + size limit; stored with timestamp-prefixed names |
+| Rate limiting | Session-based counter (5 req/min) on report forms |
+| Security headers | `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection` sent by `config.php` |
+| Cookie security | `httponly`, `SameSite=Strict`; set `secure=1` when on HTTPS |
+| RSA encryption | `OPENSSL_PKCS1_PADDING` with `openssl_public_encrypt()` for XPortal payload |
+| Audit trail | All significant actions logged with IP + user agent; 365-day retention |
+| Error exposure | Errors shown in development; suppressed and logged to file in production |
 
-- [ ] Set `APP_ENV` to `'production'` in `config/config.php`
-- [ ] Set `session.cookie_secure = 1` in `config/config.php` (HTTPS required)
-- [ ] Ensure `config/config.php` is in `.gitignore`
-- [ ] Run `composer install --no-dev`
-- [ ] Set file permissions: `644` for files, `755` for directories, `775` for `public/uploads/`
-- [ ] Configure HTTPS/SSL certificate
-- [ ] Set up automated database backups (daily recommended)
-- [ ] Review and purge any test/debug data
+**Enum validation for escalated_to (security incidents):**
 
-### Post-Deployment
-
-- [ ] Test login flow and admin access
-- [ ] Submit a test incident of each type (Downtime, Security, Fraud)
-- [ ] Resolve a test incident, verify resolvers saved correctly
-- [ ] Verify PDF and Excel exports generate without errors
-- [ ] Check `public/uploads/` is writable by Apache
-- [ ] Verify activity logs are recording
-- [ ] Monitor server resource usage (CPU, memory, disk)
-- [ ] Set up server uptime monitoring/alerting
+```php
+$allowedEscalations = ['CISO', 'IT Security Team', 'Regulatory Body', 'Law Enforcement'];
+if (!in_array($_POST['escalated_to'], $allowedEscalations)) {
+    $escalatedTo = null; // reject unknown values
+}
+```
 
 ---
 
-**Document Version**: 2.0.0  
-**Last Updated**: April 2026  
-**Maintained By**: eTranzact Development Team
+## Debugging Guide
+
+### Enable verbose errors
+
+In `config/config.php`:
+
+```php
+define('APP_ENV', 'development');
+```
+
+This sets `error_reporting(E_ALL)` and `ini_set('display_errors', 1)`. Revert to `'production'` before deploying.
+
+### Check the error log
+
+```
+# XAMPP Windows
+C:\xampp\apache\logs\error.log
+
+# Production Linux
+/var/log/apache2/error.log   (or wherever configured in php.ini error_log)
+
+# App-level production log
+config/logs/error.log        (set in config.php when APP_ENV = production)
+```
+
+All `error_log()` calls in auth.php and activity_logger.php write here.
+
+### Trace a login failure
+
+1. Set `APP_ENV = development` to see errors in browser
+2. Check `activity_logs` table: `SELECT * FROM activity_logs WHERE action = 'login_failed' ORDER BY created_at DESC LIMIT 10;`
+3. Check Apache error log for lines starting with `External auth API` — these come from `callExternalAuthApi()`
+
+Common causes:
+- `External auth API curl error` → machine cannot reach `webpay.etranzactgh.com` (firewall / no internet)
+- `External auth API returned HTTP 4xx/5xx` → XPortal is rejecting the request (wrong URL or key)
+- `RSA encryption failed` → `openssl` extension not loaded, or `EXTERNAL_AUTH_PUBLIC_KEY` is malformed
+
+### Trace an incident submission
+
+1. Open `report.php` (or `report_security.php` / `report_fraud.php`) — all form handling is at the top of the file before the HTML
+2. Add temporary `var_dump($_POST); die;` after the CSRF check to inspect submitted data
+3. Wrap the INSERT block in try/catch and dump the PDO exception message
+4. Check `activity_logs` for `incident_created` entries — presence confirms the INSERT succeeded
+
+### Inspect session state
+
+Add this temporarily to any page (after `requireLogin()`):
+
+```php
+echo '<pre>'; print_r($_SESSION); echo '</pre>'; die;
+```
+
+### Debug the downtime trigger
+
+If `downtime_minutes` is not being calculated:
+
+```sql
+-- Check trigger exists
+SHOW TRIGGERS FROM downtimedb WHERE `Table` = 'downtime_incidents';
+
+-- Manually test calculation
+SELECT
+  TIMESTAMPDIFF(MINUTE, actual_start_time, actual_end_time) AS expected_minutes,
+  downtime_minutes AS stored_minutes
+FROM downtime_incidents
+ORDER BY downtime_id DESC LIMIT 10;
+```
+
+If the trigger is missing, re-run the relevant section of `database/emptydb.sql`.
+
+### Debug API endpoints
+
+Use browser DevTools (Network tab) or curl:
+
+```bash
+# Must have a valid session cookie
+curl -b "PHPSESSID=<your_session_id>" \
+  "http://localhost/etz-downtime-tracker/public/get_incident.php?id=1&include_attachments=1"
+```
+
+Or add temporary logging in the endpoint:
+
+```php
+error_log("get_incident called with id=" . $_GET['id']);
+```
+
+### Common error messages
+
+| Error / Symptom | Likely cause | Fix |
+|-----------------|-------------|-----|
+| Blank white page | PHP fatal error, errors hidden | Set `APP_ENV = development` |
+| "Database Connection Failed" | Wrong credentials or MySQL not running | Check `config.php` and XAMPP |
+| "Access denied. You do not have permission" | `requireRole('admin')` failed | User role is `user`, not `admin` |
+| "CSRF validation failed" | Token expired (session expired mid-form) or form resubmit | Refresh the page and resubmit |
+| Charts show nothing | CDN not reachable, or JS error | Check internet access; open DevTools console |
+| PDF download triggers PHP error | TCPDF not installed or GD extension missing | Run `composer install`; enable `gd` in `php.ini` |
+| `Allowed memory size exhausted` | Large export | Increase `memory_limit` in `php.ini` to `256M` |
+| `openssl_public_encrypt(): key parameter is not a valid asymmetric key` | Malformed RSA key in config | Check `EXTERNAL_AUTH_PUBLIC_KEY` has correct PEM headers and no extra whitespace |
+
+---
+
+## Adding New Features
+
+### Adding a new incident type (e.g., "Compliance")
+
+1. **Database:** Add a record via Admin Panel → Manage → Incident Types, or:
+   ```sql
+   INSERT INTO incident_types (name, is_active) VALUES ('Compliance', 1);
+   INSERT INTO incident_type_service_map (service_id, type_id)
+   VALUES (<service_id>, LAST_INSERT_ID());
+   ```
+2. The `incident_types` table feeds the type dropdown in `report.php` automatically — no PHP changes needed if it follows the downtime incident model.
+
+### Adding a new admin page
+
+1. Create `public/admin/my_page.php`
+2. At the top:
+   ```php
+   <?php
+   require_once __DIR__ . '/../../config/config.php';
+   require_once __DIR__ . '/../../src/includes/auth.php';
+   requireRole('admin');
+   ```
+3. Include the admin navbar:
+   ```php
+   <?php include __DIR__ . '/../../src/includes/admin_navbar.php'; ?>
+   ```
+4. Add a link to it in `src/includes/admin_navbar.php`
+5. Log significant actions with `logActivity()`
+
+### Adding a new fourth incident type (e.g., "Operational")
+
+This requires more work — the current three types (downtime, security, fraud) each have dedicated tables. To add a fourth:
+
+1. Create tables: `operational_incidents`, `operational_incident_updates`, `operational_incident_attachments` (model after `security_incidents`)
+2. Create `public/report_operational.php` (model after `report_security.php`)
+3. Add a tab to `public/incidents.php`
+4. Add a new card to `public/report_category.php`
+5. Create or extend the admin deletion handler in `admin/delete_incidents.php`
+6. Add new action codes to `src/includes/activity_logger.php`
+
+### Adding a new logged action
+
+```php
+// In the relevant page, after the action completes:
+logActivity($_SESSION['user_id'], 'my_new_action', "Description of what happened");
+```
+
+Then add `my_new_action` to the filter dropdown in `public/admin/activity_logs.php` so admins can filter by it.
+
+### Adding a new configuration constant
+
+1. Add `define('MY_CONSTANT', 'value');` to `config/config.php`
+2. Add the same line (with a sensible default or `TODO` comment) to `config/config.php.example`
+3. Document it in the [Configuration Reference section of README.md](README.md#configuration-reference)
+
+---
+
+**Last updated:** April 2026
+**PHP target:** 8.2

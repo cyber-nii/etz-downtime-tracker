@@ -13,57 +13,167 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/activity_logger.php';
 
 /**
- * Authenticate user with username/email and password
+ * Authenticate user against the external REST API
  * @param string $usernameOrEmail Username or email
  * @param string $password Plain text password
  * @return array|false User data array on success, false on failure
  */
 function login($usernameOrEmail, $password)
 {
+    try {
+        // Call the external authentication API
+        $apiResponse = callExternalAuthApi($usernameOrEmail, $password);
+
+        if (!$apiResponse || empty($apiResponse[EXTERNAL_AUTH_RES_SUCCESS])) {
+            $reason = $apiResponse['message'] ?? 'Invalid credentials';
+            logActivity(null, 'login_failed', "Failed login attempt for: {$usernameOrEmail} — {$reason}");
+            return false;
+        }
+
+        // Find existing user or auto-provision from API response
+        $apiUserData = $apiResponse[EXTERNAL_AUTH_RES_USER] ?? [];
+        // Use the canonical username from the API response
+        $apiUsername = $apiUserData[EXTERNAL_AUTH_RES_USERNAME] ?? $usernameOrEmail;
+        $user = findOrProvisionUser($apiUsername, $apiUserData);
+
+        if (!$user) {
+            logActivity(null, 'login_failed', "Could not provision user: {$usernameOrEmail}");
+            return false;
+        }
+
+        // Set session variables
+        $_SESSION['user_id']    = $user['user_id'];
+        $_SESSION['username']   = $user['username'];
+        $_SESSION['full_name']  = $user['full_name'];
+        $_SESSION['role']       = $user['role'];
+        $_SESSION['login_time'] = time();
+
+        // Regenerate session ID for security
+        session_regenerate_id(true);
+
+        // Update last login time and log success
+        updateLastLogin($user['user_id']);
+        logLogin($user['user_id'], true);
+
+        return $user;
+    } catch (Exception $e) {
+        error_log("Login error: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * POST credentials to the external auth API and return the decoded response
+ * @param string $username
+ * @param string $password
+ * @return array|null Decoded JSON response, or null on network/HTTP error
+ */
+function callExternalAuthApi($username, $password)
+{
+    // Build the credentials JSON, then RSA-encrypt it with the server's public key
+    $credentials = json_encode([
+        EXTERNAL_AUTH_REQ_USERNAME => $username,
+        EXTERNAL_AUTH_REQ_PASSWORD => $password,
+    ]);
+
+    $encrypted = '';
+    if (!openssl_public_encrypt($credentials, $encrypted, EXTERNAL_AUTH_PUBLIC_KEY, OPENSSL_PKCS1_PADDING)) {
+        error_log("External auth API: RSA encryption failed — " . openssl_error_string());
+        return null;
+    }
+
+    $body = json_encode(['payload' => base64_encode($encrypted)]);
+
+    $ch = curl_init(EXTERNAL_AUTH_API_URL);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $body,
+        CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Accept: application/json, text/plain, */*'],
+        CURLOPT_TIMEOUT        => EXTERNAL_AUTH_API_TIMEOUT,
+        CURLOPT_SSL_VERIFYPEER => (APP_ENV !== 'development'),
+    ]);
+
+    $response  = curl_exec($ch);
+    $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($curlError) {
+        error_log("External auth API curl error: {$curlError}");
+        return null;
+    }
+
+    if ($httpCode !== 200) {
+        error_log("External auth API returned HTTP {$httpCode}");
+        return null;
+    }
+
+    $decoded = json_decode($response, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("External auth API returned invalid JSON");
+        return null;
+    }
+
+    return $decoded;
+}
+
+/**
+ * Find an existing user by username/email, or create one from API data
+ * @param string $usernameOrEmail The value the user typed at login
+ * @param array  $apiUserData     User fields returned by the external API
+ * @return array|false User row from DB, or false on failure
+ */
+function findOrProvisionUser($apiUsername, $apiUserData)
+{
     global $pdo;
 
+    $apiEmail    = $apiUserData[EXTERNAL_AUTH_RES_EMAIL] ?? '';
+    $apiFullName = trim(
+        ($apiUserData[EXTERNAL_AUTH_RES_FIRSTNAME] ?? '') . ' ' .
+        ($apiUserData[EXTERNAL_AUTH_RES_LASTNAME]  ?? '')
+    ) ?: $apiUsername;
+
     try {
-        // Prepare query to find user by username or email
+        // Look up by username or email
         $stmt = $pdo->prepare("
-            SELECT user_id, username, email, password_hash, full_name, role, is_active, changed_password 
-            FROM users 
+            SELECT user_id, username, email, full_name, role, is_active, changed_password
+            FROM users
             WHERE (username = ? OR email = ?) AND is_active = TRUE
+            LIMIT 1
         ");
-        $stmt->execute([$usernameOrEmail, $usernameOrEmail]);
+        $stmt->execute([$apiUsername, $apiEmail ?: $apiUsername]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Verify user exists and password is correct
-        if ($user && password_verify($password, $user['password_hash'])) {
-            // Set session variables
-            $_SESSION['user_id'] = $user['user_id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['full_name'] = $user['full_name'];
-            $_SESSION['role'] = $user['role'];
-            $_SESSION['changed_password'] = $user['changed_password'];
-            $_SESSION['login_time'] = time();
-
-            // Regenerate session ID for security
-            session_regenerate_id(true);
-
-            // Update last login time
-            updateLastLogin($user['user_id']);
-
-            // Log successful login
-            logLogin($user['user_id'], true);
-
+        if ($user) {
+            // Sync name and email from API in case they changed
+            if ($apiFullName !== $user['full_name'] || ($apiEmail && $apiEmail !== $user['email'])) {
+                $upd = $pdo->prepare("UPDATE users SET full_name = ?, email = ?, updated_at = NOW() WHERE user_id = ?");
+                $upd->execute([$apiFullName, $apiEmail ?: $user['email'], $user['user_id']]);
+                $user['full_name'] = $apiFullName;
+                $user['email']     = $apiEmail ?: $user['email'];
+            }
             return $user;
         }
 
-        // Log failed login attempt
-        if ($user) {
-            logLogin($user['user_id'], false, 'Invalid password');
-        } else {
-            logActivity(null, 'login_failed', "Failed login attempt for: {$usernameOrEmail}");
-        }
+        // Auto-provision: admin field is "NONE" for non-admins, anything else = admin
+        $localRole = ($apiUserData[EXTERNAL_AUTH_RES_ADMIN] ?? EXTERNAL_AUTH_ROLE_NONE) !== EXTERNAL_AUTH_ROLE_NONE
+            ? 'admin'
+            : 'user';
 
-        return false;
+        $ins = $pdo->prepare("
+            INSERT INTO users (username, email, full_name, role, is_active, changed_password, password_hash, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 1, 1, '', NOW(), NOW())
+        ");
+        $ins->execute([$apiUsername, $apiEmail, $apiFullName, $localRole]);
+
+        // Return the newly created row
+        $stmt2 = $pdo->prepare("SELECT user_id, username, email, full_name, role, is_active, changed_password FROM users WHERE user_id = ?");
+        $stmt2->execute([$pdo->lastInsertId()]);
+        return $stmt2->fetch(PDO::FETCH_ASSOC);
+
     } catch (PDOException $e) {
-        error_log("Login error: " . $e->getMessage());
+        error_log("findOrProvisionUser error: " . $e->getMessage());
         return false;
     }
 }
@@ -132,20 +242,7 @@ function requireLogin($redirectTo = null)
         exit;
     }
 
-    // Check if password change is required (not for admins)
-    if (
-        isset($_SESSION['changed_password']) &&
-        $_SESSION['changed_password'] == 0 &&
-        isset($_SESSION['role']) &&
-        $_SESSION['role'] !== 'admin'
-    ) {
-        $currentPage = basename($_SERVER['PHP_SELF']);
-        // Avoid redirect loop and allow logout
-        if ($currentPage !== 'change_password.php' && $currentPage !== 'logout.php') {
-            header('Location: ' . url('change_password.php'));
-            exit;
-        }
-    }
+
 }
 
 /**
