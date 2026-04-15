@@ -280,6 +280,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])
         $incidentSource = in_array($_POST['incident_source'] ?? '', ['internal', 'external']) ? $_POST['incident_source'] : 'external';
         $actualStartTime = $_POST['actual_start_time'];
         $description = !empty($_POST['description']) ? trim($_POST['description']) : null;
+        $rootCause   = !empty($_POST['root_cause'])   ? trim($_POST['root_cause'])   : null;
         $companies = isset($_POST['companies']) ? $_POST['companies'] : [];
 
         // Validate required fields
@@ -300,6 +301,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])
                         incident_source = :incident_source,
                         actual_start_time = :actual_start_time,
                         description = :description,
+                        root_cause = :root_cause,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE incident_id = :incident_id
                 ");
@@ -312,6 +314,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])
                     ':incident_source' => $incidentSource,
                     ':actual_start_time' => $actualStartTime,
                     ':description' => $description,
+                    ':root_cause' => $rootCause,
                     ':incident_id' => $incidentId
                 ]);
 
@@ -409,7 +412,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])
 
                 // Handle new file uploads
                 if (!empty($_FILES['new_attachments']['name'][0])) {
-                    $uploadDir = __DIR__ . '/../uploads/incidents/';
+                    $uploadDir = __DIR__ . '/uploads/incidents/';
                     $allowedTypes = [
                         'image/jpeg',
                         'image/jpg',
@@ -604,15 +607,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resol
 // ── Filter & pagination ────────────────────────────────────
 $statusFilter = in_array($_GET['status'] ?? '', ['pending', 'resolved']) ? $_GET['status'] : '';
 $searchFilter = trim($_GET['search'] ?? '');
+$dateFrom     = trim($_GET['date_from'] ?? '');
+$dateTo       = trim($_GET['date_to'] ?? '');
 $itemsPerPage = 10;
 $currentPage  = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset       = ($currentPage - 1) * $itemsPerPage;
 
 // Helper: build a URL preserving current filters + tab
-function pageUrl(int $page, string $status, string $search, string $tab = 'downtime'): string {
+function pageUrl(int $page, string $status, string $search, string $tab = 'downtime', string $dateFrom = '', string $dateTo = ''): string {
     $p = ['tab' => $tab, 'page' => $page];
     if ($status) $p['status'] = $status;
     if ($search !== '') $p['search'] = $search;
+    if ($dateFrom !== '') $p['date_from'] = $dateFrom;
+    if ($dateTo !== '') $p['date_to'] = $dateTo;
     return '?' . http_build_query($p);
 }
 
@@ -652,6 +659,14 @@ try {
             $whereClauses[] = "(s.service_name LIKE ? OR i.incident_ref LIKE ? OR i.root_cause LIKE ? OR it.name LIKE ? OR EXISTS (SELECT 1 FROM incident_affected_companies iac2 JOIN companies c2 ON iac2.company_id = c2.company_id WHERE iac2.incident_id = i.incident_id AND c2.company_name LIKE ?))";
             $wild = "%" . $searchFilter . "%";
             array_push($filterParams, $wild, $wild, $wild, $wild, $wild);
+        }
+        if ($dateFrom !== '') {
+            $whereClauses[] = "DATE(i.actual_start_time) >= ?";
+            $filterParams[] = $dateFrom;
+        }
+        if ($dateTo !== '') {
+            $whereClauses[] = "DATE(i.actual_start_time) <= ?";
+            $filterParams[] = $dateTo;
         }
         $whereSQL = $whereClauses ? "WHERE " . implode(" AND ", $whereClauses) : "";
 
@@ -713,6 +728,8 @@ try {
             $wild = '%' . $searchFilter . '%';
             array_push($filterParams, $wild, $wild, $wild, $wild);
         }
+        if ($dateFrom !== '') { $whereClauses[] = "DATE(s.actual_start_time) >= ?"; $filterParams[] = $dateFrom; }
+        if ($dateTo !== '')   { $whereClauses[] = "DATE(s.actual_start_time) <= ?"; $filterParams[] = $dateTo; }
         $whereSQL = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
 
         $countStmt = $pdo->prepare("SELECT COUNT(*) FROM security_incidents s $whereSQL");
@@ -749,6 +766,8 @@ try {
             $wild = '%' . $searchFilter . '%';
             array_push($filterParams, $wild, $wild, $wild);
         }
+        if ($dateFrom !== '') { $whereClauses[] = "DATE(f.actual_start_time) >= ?"; $filterParams[] = $dateFrom; }
+        if ($dateTo !== '')   { $whereClauses[] = "DATE(f.actual_start_time) <= ?"; $filterParams[] = $dateTo; }
         $whereSQL = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
 
         $countStmt = $pdo->prepare("SELECT COUNT(*) FROM fraud_incidents f $whereSQL");
@@ -910,9 +929,9 @@ try {
 
                 <!-- ── 3-Tab Switcher: Downtime / Security / Fraud ── -->
                 <?php
-                    $dtUrl  = '?tab=downtime'  . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '');
-                    $secUrl = '?tab=security'  . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '');
-                    $frUrl  = '?tab=fraud'     . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '');
+                    $dtUrl  = '?tab=downtime'  . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '') . ($dateFrom ? '&date_from=' . urlencode($dateFrom) : '') . ($dateTo ? '&date_to=' . urlencode($dateTo) : '');
+                    $secUrl = '?tab=security'  . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '') . ($dateFrom ? '&date_from=' . urlencode($dateFrom) : '') . ($dateTo ? '&date_to=' . urlencode($dateTo) : '');
+                    $frUrl  = '?tab=fraud'     . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '') . ($dateFrom ? '&date_from=' . urlencode($dateFrom) : '') . ($dateTo ? '&date_to=' . urlencode($dateTo) : '');
                 ?>
                 <div class="flex border-b border-gray-200 dark:border-gray-700 mb-6">
                     <a href="<?= $dtUrl ?>"
@@ -939,29 +958,40 @@ try {
                 </div>
 
                 <!-- Search and Filter Bar -->
-                <div class="mb-6 flex flex-col sm:flex-row gap-4">
-                    <div class="flex-1">
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                </svg>
+                <div class="mb-6 flex flex-col gap-3">
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <!-- Search -->
+                        <div class="flex-1">
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </div>
+                                <input type="text" id="incident-search"
+                                    placeholder="<?= $activeTab === 'security' ? 'Search by ref, threat type, systems or description…' : ($activeTab === 'fraud' ? 'Search by ref, fraud type or description…' : 'Search by service, company, ref, type or root cause…') ?>"
+                                    value="<?= htmlspecialchars($searchFilter) ?>"
+                                    class="block w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm">
+                                <?php if ($searchFilter): ?>
+                                    <a href="?tab=<?= urlencode($activeTab) ?><?= $statusFilter ? '&status=' . urlencode($statusFilter) : '' ?><?= $dateFrom ? '&date_from=' . urlencode($dateFrom) : '' ?><?= $dateTo ? '&date_to=' . urlencode($dateTo) : '' ?>"
+                                       class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                                        <i class="fas fa-times-circle"></i>
+                                    </a>
+                                <?php endif; ?>
                             </div>
-                            <input type="text" id="incident-search"
-                                placeholder="<?= $activeTab === 'security' ? 'Search by ref, threat type, systems or description…' : ($activeTab === 'fraud' ? 'Search by ref, fraud type or description…' : 'Search by service, company, ref, type or root cause…') ?>"
-                                value="<?= htmlspecialchars($searchFilter) ?>"
-                                class="block w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm">
-                            <?php if ($searchFilter): ?>
-                                <a href="?tab=<?= urlencode($activeTab) ?><?= $statusFilter ? '&status=' . urlencode($statusFilter) : '' ?>"
-                                   class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
-                                    <i class="fas fa-times-circle"></i>
-                                </a>
-                            <?php endif; ?>
+                        </div>
+                        <!-- Date range -->
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="date_from" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>"
+                                class="py-2.5 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <span class="text-gray-400 text-sm">–</span>
+                            <input type="date" id="date_to" name="date_to" value="<?= htmlspecialchars($dateTo) ?>"
+                                class="py-2.5 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                     </div>
                     <!-- status toggle buttons -->
-                    <div class="mt-4 flex md:mt-0 md:ml-6">
+                    <div class="flex md:mt-0">
                         <div class="inline-flex rounded-lg shadow-sm" role="group">
                             <button type="button" data-status=""
                                 class="status-toggle px-4 py-2 text-sm font-medium rounded-l-lg border border-gray-200 <?= $statusFilter === '' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-gray-700' ?> hover:bg-gray-50 transition-colors duration-200 ease-in-out focus:outline-none">
@@ -1000,7 +1030,7 @@ try {
                             <?= $searchFilter ? 'matching "<strong>' . htmlspecialchars($searchFilter) . '</strong>"' : '' ?>
                         <?php endif; ?>
                     </p>
-                    <?php if ($statusFilter || $searchFilter): ?>
+                    <?php if ($statusFilter || $searchFilter || $dateFrom || $dateTo): ?>
                         <a href="incidents.php?tab=<?= urlencode($activeTab) ?>" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-medium">
                             <i class="fas fa-times mr-1"></i> Clear filters
                         </a>
@@ -1039,9 +1069,8 @@ try {
                                 'low'    => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
                             ][$priorityKey] ?? 'bg-gray-100 text-gray-700';
 
-                            $borderAccent = ($activeTab === 'security') ? 'border-l-red-500' : 'border-l-amber-500';
                         ?>
-                        <div class="incident-card bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-4 p-5 border-l-4 <?= $borderAccent ?> overflow-hidden">
+                        <div class="incident-card bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-4 p-5 overflow-hidden">
                             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-semibold
@@ -1080,10 +1109,10 @@ try {
                                         <?php endif; ?>
                                     <?php endif; ?>
                                 </div>
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium
                                     <?= $inc['status'] === 'pending'
-                                        ? 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-700'
-                                        : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-700' ?>">
+                                        ? 'bg-amber-500 text-white dark:bg-amber-600'
+                                        : 'bg-green-500 text-white dark:bg-green-600' ?>">
                                     <i class="fas <?= $inc['status'] === 'pending' ? 'fa-clock' : 'fa-check-circle' ?> mr-1.5 text-[10px]"></i>
                                     <?= $inc['status'] === 'pending' ? 'Pending' : 'Resolved' ?>
                                 </span>
@@ -1224,13 +1253,6 @@ try {
                                 <?php foreach ($incidents as $incident):
                                     // ── colour maps ────────────────────────────────────
                                     $impactKey = strtolower($incident['impact_level'] ?? 'low');
-                                    $borderColors = [
-                                        'critical' => 'border-l-4 border-l-red-500',
-                                        'high' => 'border-l-4 border-l-orange-500',
-                                        'medium' => 'border-l-4 border-l-amber-400',
-                                        'low' => 'border-l-4 border-l-blue-400',
-                                    ];
-                                    $borderClass = $borderColors[$impactKey] ?? 'border-l-4 border-l-gray-300';
 
                                     $impactBadge = [
                                         'critical' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
@@ -1240,8 +1262,8 @@ try {
                                     ][$impactKey] ?? 'bg-gray-100 text-gray-700';
 
                                     $statusBadge = $incident['status'] === 'pending'
-                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                                        : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+                                        ? 'bg-amber-500 text-white dark:bg-amber-600'
+                                        : 'bg-green-500 text-white dark:bg-green-600';
 
                                     $priorityKey = strtolower($incident['priority'] ?? 'medium');
                                     $priorityBadge = [
@@ -1272,7 +1294,7 @@ try {
                                     }
                                     ?>
                                             <!-- ═══════════════ INCIDENT CARD ═══════════════════════ -->
-                                            <div class="incident-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 <?= $borderClass ?> overflow-hidden mb-5"
+                                            <div class="incident-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-5"
                                                 data-status="<?= $incident['status'] ?>">
 
                                                 <!-- ── Card Header ─────────────────────────────────── -->
@@ -1383,18 +1405,15 @@ try {
 
                                                             <!-- Meta info grid -->
                                                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                                                <!-- Reported by -->
+                                                                <!-- Incident Type -->
                                                                 <div class="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2.5">
-                                                                    <p
-                                                                        class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                                                                        Reported By</p>
+                                                                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Incident Type</p>
                                                                     <div class="flex items-center gap-1.5">
-                                                                        <i class="fas fa-user-circle text-gray-400 text-sm"></i>
-                                                                        <span
-                                                                            class="text-sm font-medium text-gray-800 dark:text-white truncate"><?= htmlspecialchars($incident['user_name']) ?></span>
+                                                                        <i class="fas fa-tag text-purple-400 text-sm"></i>
+                                                                        <span class="text-sm font-medium text-gray-800 dark:text-white truncate">
+                                                                            <?= htmlspecialchars($incident['incident_type_name'] ?? 'N/A') ?>
+                                                                        </span>
                                                                     </div>
-                                                                    <p class="text-[11px] text-gray-400 mt-0.5">
-                                                                        <?= date('M j, Y g:i A', strtotime($incident['created_at'])) ?></p>
                                                                 </div>
 
                                                                 <!-- Component -->
@@ -1408,32 +1427,57 @@ try {
                                                                 </div>
 
                                                                 <!-- Affected companies -->
-                                                                <div
+                                                                <?php
+                                                                $cos = !empty($incident['affected_companies']) ? explode(', ', $incident['affected_companies']) : [];
+                                                                $displayCos = array_slice($cos, 0, 3);
+                                                                $moreCos = count($cos) - 3;
+                                                                $allCosJson = htmlspecialchars(json_encode(array_map('trim', $cos)), ENT_QUOTES);
+                                                                ?>
+                                                                <div x-data="{ open: false, allCos: <?= $allCosJson ?> }"
                                                                     class="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2.5 col-span-2 sm:col-span-1">
-                                                                    <p
-                                                                        class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                                                                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
                                                                         Affected Companies (<?= $incident['company_count'] ?>)
                                                                     </p>
-                                                                    <?php
-                                                                    $cos = !empty($incident['affected_companies']) ? explode(', ', $incident['affected_companies']) : [];
-                                                                    $displayCos = array_slice($cos, 0, 3);
-                                                                    $moreCos = count($cos) - 3;
-                                                                    ?>
-                                                                    <div class="flex flex-wrap gap-1">
-                                                                        <?php foreach ($displayCos as $co): ?>
-                                                                                    <span
-                                                                                        class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
-                                                                                        <?= htmlspecialchars(trim($co)) ?>
-                                                                                    </span>
-                                                                        <?php endforeach; ?>
-                                                                        <?php if ($moreCos > 0): ?>
-                                                                                    <span
-                                                                                        class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">+<?= $moreCos ?>
-                                                                                        more</span>
-                                                                        <?php endif; ?>
-                                                                        <?php if (empty($cos)): ?><span
-                                                                                        class="text-xs text-gray-400 italic">None
-                                                                                        listed</span><?php endif; ?>
+                                                                    <button type="button" @click="open = true" class="text-left w-full focus:outline-none">
+                                                                        <div class="flex flex-wrap gap-1">
+                                                                            <?php foreach ($displayCos as $co): ?>
+                                                                                <span class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
+                                                                                    <?= htmlspecialchars(trim($co)) ?>
+                                                                                </span>
+                                                                            <?php endforeach; ?>
+                                                                            <?php if ($moreCos > 0): ?>
+                                                                                <span class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 font-medium cursor-pointer hover:bg-blue-200 transition-colors">
+                                                                                    +<?= $moreCos ?> more
+                                                                                </span>
+                                                                            <?php endif; ?>
+                                                                            <?php if (empty($cos)): ?>
+                                                                                <span class="text-xs text-gray-400 italic">None listed</span>
+                                                                            <?php endif; ?>
+                                                                        </div>
+                                                                    </button>
+                                                                    <!-- Modal -->
+                                                                    <div x-show="open" x-cloak
+                                                                        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                                                                        @click.self="open = false">
+                                                                        <div class="absolute inset-0 bg-gray-900/50" @click="open = false"></div>
+                                                                        <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-sm w-full p-5 z-10">
+                                                                            <div class="flex items-center justify-between mb-4">
+                                                                                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                                                                                    All Affected Companies (<span x-text="allCos.length"></span>)
+                                                                                </h3>
+                                                                                <button type="button" @click="open = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                                                                    <i class="fas fa-times"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                            <ul class="space-y-1.5 max-h-64 overflow-y-auto">
+                                                                                <template x-for="co in allCos" :key="co">
+                                                                                    <li class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 py-1 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                                                                                        <i class="fas fa-building text-blue-400 text-xs flex-shrink-0"></i>
+                                                                                        <span x-text="co"></span>
+                                                                                    </li>
+                                                                                </template>
+                                                                            </ul>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -1513,9 +1557,23 @@ try {
 
                                                             <!-- Timeline -->
                                                             <div class="space-y-2 max-h-52 overflow-y-auto pr-1 mb-3 scrollbar-thin">
+                                                                <!-- Reported by entry -->
+                                                                <div class="flex gap-2.5 text-sm">
+                                                                    <div class="flex-shrink-0 mt-1">
+                                                                        <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                                                            <i class="fas fa-user text-blue-400 text-[9px]"></i>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="flex-1 min-w-0">
+                                                                        <div class="flex items-baseline gap-1.5 flex-wrap">
+                                                                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-300"><?= htmlspecialchars($incident['user_name']) ?></span>
+                                                                            <span class="text-[10px] text-gray-400"><?= date('M j, g:i A', strtotime($incident['created_at'])) ?></span>
+                                                                        </div>
+                                                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 italic">Reported this incident</p>
+                                                                    </div>
+                                                                </div>
                                                                 <?php if (empty($incident['updates'])): ?>
-                                                                            <p class="text-xs text-gray-400 italic text-center py-4">No activity logged yet.
-                                                                            </p>
+                                                                            <p class="text-xs text-gray-400 italic text-center py-2">No further activity logged.</p>
                                                                 <?php else: ?>
                                                                             <?php foreach ($incident['updates'] as $update): ?>
                                                                                         <div class="flex gap-2.5 text-sm">
@@ -1603,7 +1661,7 @@ try {
                             <div class="flex items-center gap-1 order-1 sm:order-2">
                                 <!-- Previous -->
                                 <?php if ($currentPage > 1): ?>
-                                            <a href="<?= pageUrl($currentPage - 1, $statusFilter, $searchFilter) ?>"
+                                            <a href="<?= pageUrl($currentPage - 1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                                                 <i class="fas fa-chevron-left text-xs"></i>
                                             </a>
@@ -1616,7 +1674,7 @@ try {
 
                                 <!-- First page + ellipsis -->
                                 <?php if ($startPage > 1): ?>
-                                            <a href="<?= pageUrl(1, $statusFilter, $searchFilter) ?>"
+                                            <a href="<?= pageUrl(1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">1</a>
                                             <?php if ($startPage > 2): ?>
                                                         <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
@@ -1631,7 +1689,7 @@ try {
                                                             <?= $i ?>
                                                         </span>
                                             <?php else: ?>
-                                                        <a href="<?= pageUrl($i, $statusFilter, $searchFilter) ?>"
+                                                        <a href="<?= pageUrl($i, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo) ?>"
                                                             class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
                                                             <?= $i ?>
                                                         </a>
@@ -1643,13 +1701,13 @@ try {
                                             <?php if ($endPage < $totalPages - 1): ?>
                                                         <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
                                             <?php endif; ?>
-                                            <a href="<?= pageUrl($totalPages, $statusFilter, $searchFilter) ?>"
+                                            <a href="<?= pageUrl($totalPages, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"><?= $totalPages ?></a>
                                 <?php endif; ?>
 
                                 <!-- Next -->
                                 <?php if ($currentPage < $totalPages): ?>
-                                            <a href="<?= pageUrl($currentPage + 1, $statusFilter, $searchFilter) ?>"
+                                            <a href="<?= pageUrl($currentPage + 1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                                                 <i class="fas fa-chevron-right text-xs"></i>
                                             </a>
@@ -2018,6 +2076,17 @@ try {
                             placeholder="Describe the incident..."></textarea>
                     </div>
 
+                    <!-- Root Cause -->
+                    <div>
+                        <label for="edit_root_cause"
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Root Cause
+                        </label>
+                        <textarea id="edit_root_cause" name="root_cause" rows="3"
+                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="What caused this incident?"></textarea>
+                    </div>
+
                     <!-- Attachments Management -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -2331,6 +2400,7 @@ try {
                     document.getElementById('edit_priority').value = data.priority;
                     setEditSource(data.incident_source || 'external');
                     document.getElementById('edit_description').value = data.description || '';
+                    document.getElementById('edit_root_cause').value = data.root_cause || '';
 
                     // Format datetime for datetime-local input
                     if (data.actual_start_time) {
@@ -2648,6 +2718,23 @@ try {
                     submitSearch('');
                 }
             });
+        })();
+
+        // Date filter — navigate when either date changes
+        (function () {
+            const fromInput = document.getElementById('date_from');
+            const toInput   = document.getElementById('date_to');
+            function applyDates() {
+                const url = new URL(window.location);
+                const from = fromInput ? fromInput.value : '';
+                const to   = toInput   ? toInput.value   : '';
+                if (from) url.searchParams.set('date_from', from); else url.searchParams.delete('date_from');
+                if (to)   url.searchParams.set('date_to',   to);   else url.searchParams.delete('date_to');
+                url.searchParams.delete('page');
+                window.location.href = url.toString();
+            }
+            if (fromInput) fromInput.addEventListener('change', applyDates);
+            if (toInput)   toInput.addEventListener('change',   applyDates);
         })();
 
         // Refresh incidents function

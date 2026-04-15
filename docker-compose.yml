@@ -1,0 +1,60 @@
+services:
+
+  # ── PHP + Apache app ────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: etz_app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      APP_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Persist uploaded files across container restarts/rebuilds
+      - uploads_data:/var/www/html/public/uploads
+    ports:
+      - "${APP_PORT:-8080}:80"
+    networks:
+      - etz_network
+
+  # ── MariaDB 11.4 LTS database ──────────────────────────────────────────────
+  db:
+    image: mariadb:11.4
+    container_name: etz_db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASS}
+    volumes:
+      # Persistent MySQL data
+      - db_data:/var/lib/mysql
+      # Seed database on first boot (only runs when volume is empty)
+      - ./database/downtimedb.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    ports:
+      # Only expose externally if you need direct DB access; remove in strict prod.
+      - "${DB_PORT:-3306}:3306"
+    networks:
+      - etz_network
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  db_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+networks:
+  etz_network:
+    driver: bridge

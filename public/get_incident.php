@@ -24,6 +24,7 @@ try {
             i.component_id,
             i.incident_type_id,
             i.description,
+            i.root_cause,
             i.impact_level,
             i.priority,
             i.incident_source,

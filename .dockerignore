@@ -1,0 +1,34 @@
+# Git
+.git
+.gitignore
+
+# Dev tooling
+.agent/
+.claude/
+node_modules/
+tmp/
+
+# Docker files themselves (don't recurse)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Env files (injected at runtime)
+.env
+.env.*
+
+# Vendor is rebuilt in Dockerfile Stage 1
+vendor/
+
+# Uploads are mounted as a volume
+public/uploads/
+
+# Logs
+*.log
+config/logs/
+
+# Dev-only files
+encrypt_test.php
+*.bak
+*.swp
+*~
