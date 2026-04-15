@@ -1053,62 +1053,35 @@ try {
                         </div>
                     <?php else: ?>
                         <?php foreach ($otherIncidents as $inc):
-                            $impactKey = strtolower($inc['impact_level'] ?? 'low');
-                            $impactBadge = [
-                                'critical' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-                                'high'     => 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-                                'medium'   => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-                                'low'      => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-                            ][$impactKey] ?? 'bg-gray-100 text-gray-700';
-
+                            $impactKey   = strtolower($inc['impact_level'] ?? 'low');
                             $priorityKey = strtolower($inc['priority'] ?? 'medium');
-                            $priorityBadge = [
-                                'urgent' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-                                'high'   => 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-                                'medium' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-                                'low'    => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-                            ][$priorityKey] ?? 'bg-gray-100 text-gray-700';
-
                         ?>
                         <div class="incident-card bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-4 p-5 overflow-hidden">
                             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-semibold
-                                        <?= $activeTab === 'security' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' ?>">
+                                    <!-- Ref chip — neutral gray -->
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-semibold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                                         <i class="fas fa-hashtag text-[9px]"></i><?= htmlspecialchars($inc['incident_ref']) ?>
                                     </span>
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium <?= $impactBadge ?>">
+                                    <!-- All metadata badges — uniform neutral gray -->
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                                         <?= ucfirst($impactKey) ?> Impact
                                     </span>
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium <?= $priorityBadge ?>">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                                         <?= ucfirst($priorityKey) ?> Priority
                                     </span>
-                                    <?php if ($activeTab === 'security'): ?>
-                                        <?php
-                                            $c = $inc['containment_status'] ?? '';
-                                            $cBadge = match($c) {
-                                                'contained' => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-                                                'ongoing'   => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-                                                'under_investigation' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-                                                default => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-                                            };
-                                            $cLabel = match($c) {
-                                                'contained' => 'Contained', 'ongoing' => 'Ongoing',
-                                                'under_investigation' => 'Under Investigation',
-                                                default => ucfirst(str_replace('_', ' ', $c)),
-                                            };
-                                        ?>
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium <?= $cBadge ?>">
-                                            <?= htmlspecialchars($cLabel) ?>
+                                    <?php if ($activeTab === 'security' && !empty($inc['containment_status'])): ?>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                                            <?= htmlspecialchars(ucwords(str_replace('_', ' ', $inc['containment_status']))) ?>
                                         </span>
-                                    <?php else: ?>
-                                        <?php if (!empty($inc['regulatory_reported'])): ?>
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                                                <i class="fas fa-landmark mr-1 text-[9px]"></i>Regulatory
-                                            </span>
-                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                    <?php if ($activeTab === 'fraud' && !empty($inc['regulatory_reported'])): ?>
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                                            <i class="fas fa-landmark text-[9px]"></i>Regulatory
+                                        </span>
                                     <?php endif; ?>
                                 </div>
+                                <!-- Status — the only coloured badge -->
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium
                                     <?= $inc['status'] === 'pending'
                                         ? 'bg-amber-500 text-white dark:bg-amber-600'
@@ -1318,45 +1291,34 @@ try {
                                                             <?php endif; ?>
                                                         </div>
                                                         <!-- Badge row -->
+                                                        <?php $srcKey = $incident['incident_source'] ?? 'external'; ?>
                                                         <div class="flex items-center gap-1.5 flex-wrap">
-                                                            <span
-                                                                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $statusBadge ?>">
-                                                                <i
-                                                                    class="fas <?= $incident['status'] === 'pending' ? 'fa-hourglass-half' : 'fa-circle-check' ?> text-[9px]"></i>
+                                                            <!-- Status — the only coloured badge -->
+                                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $statusBadge ?>">
+                                                                <i class="fas <?= $incident['status'] === 'pending' ? 'fa-hourglass-half' : 'fa-circle-check' ?> text-[9px]"></i>
                                                                 <?= ucfirst($incident['status']) ?>
                                                             </span>
-                                                            <span
-                                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $impactBadge ?>">
+                                                            <!-- All other badges — uniform neutral gray -->
+                                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                                                                 <?= ucfirst($incident['impact_level']) ?> Impact
                                                             </span>
-                                                            <span
-                                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $priorityBadge ?>">
+                                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                                                                 <?= ucfirst($incident['priority']) ?> Priority
                                                             </span>
                                                             <?php if (!empty($incident['incident_type_name'])): ?>
-                                                                        <span
-                                                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                                                                            <i
-                                                                                class="fas fa-tag mr-1 text-[9px]"></i><?= htmlspecialchars($incident['incident_type_name']) ?>
-                                                                        </span>
+                                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                                                                    <i class="fas fa-tag text-[9px]"></i><?= htmlspecialchars($incident['incident_type_name']) ?>
+                                                                </span>
                                                             <?php endif; ?>
-                                                            <?php if ($incident['attachment_count'] > 0): ?>
-                                                                        <span
-                                                                            class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                                                                            <i class="fas fa-paperclip text-[9px]"></i> <?= $incident['attachment_count'] ?>
-                                                                        </span>
-                                                            <?php endif; ?>
-                                                            <?php
-                                                                $srcKey = $incident['incident_source'] ?? 'external';
-                                                                $srcBadge = $srcKey === 'internal'
-                                                                    ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
-                                                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-                                                                $srcIcon = $srcKey === 'internal' ? 'fa-server' : 'fa-building';
-                                                            ?>
-                                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $srcBadge ?>">
-                                                                <i class="fas <?= $srcIcon ?> text-[9px]"></i>
+                                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                                                                <i class="fas <?= $srcKey === 'internal' ? 'fa-server' : 'fa-building' ?> text-[9px]"></i>
                                                                 <?= $srcKey === 'internal' ? 'Internal' : 'External' ?>
                                                             </span>
+                                                            <?php if ($incident['attachment_count'] > 0): ?>
+                                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                                                                    <i class="fas fa-paperclip text-[9px]"></i><?= $incident['attachment_count'] ?>
+                                                                </span>
+                                                            <?php endif; ?>
                                                         </div>
                                                     </div>
 
