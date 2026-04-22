@@ -107,8 +107,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $component_ids = array_values(array_unique($component_ids));
     $incident_type_id = $_POST['incident_type_id'] === 'all' ? 'all' : (filter_var($_POST['incident_type_id'] ?? null, FILTER_VALIDATE_INT) ?: null);
     $impact_level = in_array($_POST['impact_level'] ?? '', ['Low', 'Medium', 'High', 'Critical']) ? $_POST['impact_level'] : 'Low';
-    $description = trim(filter_var($_POST['description'] ?? '', FILTER_SANITIZE_STRING));
-    $root_cause = trim(filter_var($_POST['root_cause'] ?? '', FILTER_SANITIZE_STRING));
+    $description = trim($_POST['description'] ?? '');
+    $root_cause = trim($_POST['root_cause'] ?? '');
     
     // Handle incident date and time
     $incident_date = $_POST['incident_date'] ?? date('Y-m-d');
@@ -233,8 +233,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (empty($company_ids)) {
         $errors[] = "Please select at least one company.";
     }
-    if (strlen($root_cause) > 1000) {
-        $errors[] = "Root cause is too long (max 1000 characters).";
+    if (strlen($root_cause) > 5000) {
+        $errors[] = "Root cause is too long (max 5000 characters).";
     }
     if ($causes_downtime && empty($_POST['incident_source'])) {
         $errors[] = "Please select whether this downtime is Internal or External.";

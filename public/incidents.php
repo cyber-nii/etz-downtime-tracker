@@ -225,7 +225,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])
 
         if ($status === 'resolved') {
             $params[':user_id'] = $_SESSION['user_id'];
-            $params[':resolved_at'] = $resolved_date;
+            $params[':resolved_at'] = date('Y-m-d H:i:s', strtotime($resolved_date));
             $params[':resolvers'] = json_encode(array_values($valid_resolvers));
             if (!empty($root_cause)) {
                 $params[':root_cause'] = $root_cause;
@@ -242,6 +242,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])
         }
 
         $stmt->execute($params);
+
+        // If resolving, close any open downtime record so SLA is calculated correctly
+        if ($status === 'resolved') {
+            $pdo->prepare("
+                UPDATE downtime_incidents
+                SET actual_end_time = :resolved_at
+                WHERE incident_id = :incident_id AND actual_end_time IS NULL
+            ")->execute([
+                ':resolved_at'  => date('Y-m-d H:i:s', strtotime($resolved_date)),
+                ':incident_id'  => $incidentId
+            ]);
+        }
 
         // Add system update with appropriate message
         // Detect if incident is being reopened (changing from resolved to pending)
@@ -1330,7 +1342,10 @@ try {
                                                                         <i class="fas fa-pen-to-square text-gray-400"></i> Edit
                                                                     </button>
                                                                     <button type="button"
-                                                                        onclick="showResolveModal(<?= $incident['incident_id'] ?>, '<?= addslashes(htmlspecialchars($incident['service_name'])) ?>', '<?= addslashes(htmlspecialchars($incident['root_cause'] ?? '')) ?>')"
+                                                                        data-incident-id="<?= $incident['incident_id'] ?>"
+                                                                        data-service-name="<?= htmlspecialchars($incident['service_name']) ?>"
+                                                                        data-root-cause="<?= htmlspecialchars($incident['root_cause'] ?? '') ?>"
+                                                                        onclick="showResolveModal(this.dataset.incidentId, this.dataset.serviceName, this.dataset.rootCause)"
                                                                         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors shadow-sm">
                                                                         <i class="fas fa-check"></i> Mark Resolved
                                                                     </button>
