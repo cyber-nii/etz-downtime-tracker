@@ -260,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                         class="px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                                         Export to Excel
                                     </div>
-                                    <a href="../src/exports/export_sla_report.php?start_date=<?= urlencode($startDate) ?>&end_date=<?= urlencode($endDate) ?>"
+                                    <a href="/exports/export_sla_report.php?start_date=<?= urlencode($startDate) ?>&end_date=<?= urlencode($endDate) ?>"
                                         class="text-gray-700 dark:text-gray-300 block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                                         role="menuitem" tabindex="-1" data-no-loading>
                                         <span class="flex items-center">
@@ -273,7 +273,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                         </span>
                                     </a>
                                     <?php if ($companyId): ?>
-                                        <a href="../src/exports/export_sla_report.php?company_id=<?= urlencode($companyId) ?>&start_date=<?= urlencode($startDate) ?>&end_date=<?= urlencode($endDate) ?>"
+                                        <a href="/exports/export_sla_report.php?company_id=<?= urlencode($companyId) ?>&start_date=<?= urlencode($startDate) ?>&end_date=<?= urlencode($endDate) ?>"
                                             class="text-gray-700 dark:text-gray-300 block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                                             role="menuitem" tabindex="-1" data-no-loading>
                                             <span class="flex items-center">

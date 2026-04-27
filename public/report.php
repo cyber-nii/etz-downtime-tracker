@@ -121,12 +121,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $priority = in_array($_POST['priority'] ?? '', ['Low', 'Medium', 'High', 'Urgent']) ? $_POST['priority'] : 'Medium';
     $incident_source = in_array($_POST['incident_source'] ?? '', ['internal', 'external']) ? $_POST['incident_source'] : 'external';
 
-    // Handle optional end time (only when causes_downtime is checked)
-    $incident_end_date = $_POST['incident_end_date'] ?? null;
-    $incident_end_time = $_POST['incident_end_time'] ?? null;
-    $actual_end_time = ($incident_end_date && $incident_end_time)
-        ? $incident_end_date . ' ' . $incident_end_time . ':00'
-        : null;
+    $actual_end_time = null;
 
     $status = 'pending';
     
@@ -248,16 +243,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $errors[] = "Incident date/time cannot be in the future.";
     }
 
-    // Validate end time if provided
-    if ($actual_end_time) {
-        $endDatetime = DateTime::createFromFormat('Y-m-d H:i:s', $actual_end_time);
-        if (!$endDatetime) {
-            $errors[] = "Invalid end date or time format.";
-        } elseif ($datetime && $endDatetime <= $datetime) {
-            $errors[] = "End time must be after the incident start time.";
-        }
-    }
-    
     if (!empty($errors)) {
         $error = implode(" ", $errors);
     } else {
@@ -997,30 +982,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 </select>
                             </div>
 
-                            <!-- End Time -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    When Did the Downtime End?
-                                    <span class="text-xs text-gray-500 dark:text-gray-400 font-normal ml-2">(Optional — leave blank if still ongoing)</span>
-                                </label>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label for="incident_end_date" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">End Date</label>
-                                        <input type="date" name="incident_end_date" id="incident_end_date"
-                                               max="<?= date('Y-m-d') ?>"
-                                               class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
-                                    </div>
-                                    <div>
-                                        <label for="incident_end_time" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">End Time</label>
-                                        <input type="time" name="incident_end_time" id="incident_end_time"
-                                               class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
-                                    </div>
-                                </div>
-                                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                    <i class="fas fa-info-circle mr-1"></i>
-                                    If provided, the incident will be marked as resolved automatically with the correct duration for SLA.
-                                </p>
-                            </div>
                         </div>
 
                         <!-- Root Cause -->
