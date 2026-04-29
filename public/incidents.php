@@ -1722,7 +1722,7 @@ try {
                 </button>
             </div>
 
-            <form id="exportForm" action="exports/export_incidents.php" method="GET" target="_blank">
+            <form id="exportForm" action="exports/export_incidents.php" method="GET" target="_blank" data-no-loading>
                 <div class="px-6 py-5 space-y-5">
 
                     <!-- Incident Type -->
