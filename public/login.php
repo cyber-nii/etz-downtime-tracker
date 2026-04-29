@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ">
     <!-- Background Image with Overlay -->
     <div class="absolute inset-0 z-0">
-        <img src="<?= url('../src/assets/bg.jpg') ?>" alt="Background" class="w-full h-full object-cover">
+        <img src="<?= url('assets/bg.jpg') ?>" alt="Background" class="w-full h-full object-cover">
         <div class="absolute inset-0 bg-gradient-to-br from-white-900/80 via-white-800/70 to-white-900/80 dark:from-gray-900/90 dark:via-blue-900/80 dark:to-gray-900/90"></div>
     </div>
 
@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="max-w-md w-full space-y-8">
             <!-- Logo and Header -->
             <div class="text-center">
-                <img src="<?= url('../src/assets/logo1.png') ?>" alt="eTranzact Logo" class="mx-auto h-24 w-auto">
+                <img src="<?= url('assets/logo1.png') ?>" alt="eTranzact Logo" class="mx-auto h-24 w-auto">
                 <h2 class="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
                     Welcome Back
                 </h2>
