@@ -94,7 +94,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 
     // Sanitize and validate inputs
-    $service_id = $_POST['service_id'] === 'all' ? 'all' : filter_var($_POST['service_id'] ?? null, FILTER_VALIDATE_INT);
+    $service_ids_raw = isset($_POST['service_ids']) && is_array($_POST['service_ids']) ? $_POST['service_ids'] : [];
+    $selected_all_services = false;
+    $selected_service_ids = [];
+    foreach ($service_ids_raw as $sid) {
+        if ($sid === 'all') { $selected_all_services = true; break; }
+        $sid = filter_var($sid, FILTER_VALIDATE_INT);
+        if ($sid) $selected_service_ids[] = $sid;
+    }
+    if ($selected_all_services) $selected_service_ids = [];
+    $selected_service_ids = array_values(array_unique($selected_service_ids));
     $component_ids_raw = isset($_POST['component_ids']) && is_array($_POST['component_ids']) ? $_POST['component_ids'] : [];
     $component_ids = [];
     $use_all_components = false;
@@ -222,8 +231,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     // Validation
-    if (empty($service_id)) {
-        $errors[] = "Please select a service.";
+    if (!$selected_all_services && empty($selected_service_ids)) {
+        $errors[] = "Please select at least one service.";
     }
     if (empty($company_ids)) {
         $errors[] = "Please select at least one company.";
@@ -252,7 +261,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
         try {
             // Handle expansion
-            $service_ids = ($service_id === 'all') ? array_map(function($s) { return $s['service_id']; }, $services) : [$service_id];
+            $service_ids = $selected_all_services ? array_map(function($s) { return $s['service_id']; }, $services) : $selected_service_ids;
             
             foreach ($service_ids as $s_id) {
                 // For components, NULL means "All / General".
@@ -509,11 +518,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         nextStep() {
                           this.stepError = '';
                           if (this.currentStep === 1) {
-                            const service = document.getElementById('service_id').value;
+                            const services = document.querySelectorAll('.service-checkbox:checked');
                             const companies = document.querySelectorAll('input[name=\'company_ids[]\']:checked');
                             const date = document.getElementById('incident_date').value;
                             const time = document.getElementById('incident_time').value;
-                            if (!service) { this.stepError = 'Please select a service.'; return; }
+                            if (services.length === 0) { this.stepError = 'Please select at least one service.'; return; }
                             if (companies.length === 0) { this.stepError = 'Please select at least one company.'; return; }
                             if (!date || !time) { this.stepError = 'Please fill in the incident date and time.'; return; }
                           }
@@ -634,21 +643,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                class="bg-gray-100 dark:bg-gray-600 rounded-lg py-2.5 px-3.5 text-sm text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-500 w-full cursor-not-allowed">
                     </div>
 
-                    <!-- Service Selection (full width) -->
+                    <!-- Service Selection (full width, multi-select) -->
                     <div>
-                        <label for="service_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Service Affected <span class="text-red-500">*</span>
                         </label>
-                        <select name="service_id" id="service_id" required onchange="filterDetails()"
-                            class="block w-full border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Select service...</option>
-                            <option value="all" <?= (isset($_POST['service_id']) && $_POST['service_id'] === 'all') ? 'selected' : '' ?>>All Services</option>
-                            <?php foreach ($services as $service): ?>
-                                <option value="<?= $service['service_id'] ?>" <?= (isset($_POST['service_id']) && $_POST['service_id'] == $service['service_id']) ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($service['service_name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <div class="relative" id="serviceDropdownWrapper">
+                            <button type="button" id="serviceDropdownBtn" onclick="toggleServiceDropdown()"
+                                class="w-full flex items-center justify-between border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm py-2.5 px-3.5 text-sm bg-white dark:bg-gray-700 dark:text-white text-left focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <span id="service-selected-text" class="block truncate text-gray-500 dark:text-gray-400">Select services...</span>
+                                <i class="fas fa-chevron-down text-gray-400 ml-2 flex-shrink-0"></i>
+                            </button>
+                            <div id="serviceDropdownMenu" class="hidden absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                <div class="p-2">
+                                    <label class="flex items-center px-2 py-1.5 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600">
+                                        <input type="checkbox" id="service-all" name="service_ids[]" value="all"
+                                            class="service-checkbox w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                                            <?= (isset($_POST['service_ids']) && in_array('all', $_POST['service_ids'])) ? 'checked' : '' ?>>
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">All Services</span>
+                                    </label>
+                                    <?php foreach ($services as $service): ?>
+                                        <label class="flex items-center px-2 py-1.5 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600">
+                                            <input type="checkbox" id="service-<?= $service['service_id'] ?>"
+                                                name="service_ids[]" value="<?= $service['service_id'] ?>"
+                                                class="service-checkbox w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                                                <?= (isset($_POST['service_ids']) && in_array($service['service_id'], $_POST['service_ids'])) ? 'checked' : '' ?>>
+                                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300"><?= htmlspecialchars($service['service_name']) ?></span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="selected-services" class="mt-2 flex flex-wrap gap-1.5"></div>
                     </div>
 
                     <!-- Template Selector (shown only when a specific service is selected) -->
@@ -1257,15 +1283,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             // Service details filtering
             window.filterDetails = function() {
-                const serviceId = document.getElementById('service_id').value;
+                const checkedServices = Array.from(document.querySelectorAll('.service-checkbox:checked'));
+                const isAll = checkedServices.some(cb => cb.value === 'all');
+                const serviceIds = isAll ? [] : checkedServices.map(cb => cb.value);
                 const incidentTypeId = document.getElementById('incident_type_id');
 
                 incidentTypeId.value = '';
 
                 // Show/hide component checkboxes by service
                 document.querySelectorAll('.component-option-label').forEach(label => {
-                    const services = label.dataset.services ? label.dataset.services.split(',') : [];
-                    if (serviceId === '' || serviceId === 'all' || services.includes(serviceId)) {
+                    const svcList = label.dataset.services ? label.dataset.services.split(',') : [];
+                    if (isAll || serviceIds.length === 0 || serviceIds.some(sid => svcList.includes(sid))) {
                         label.classList.remove('hidden');
                     } else {
                         label.classList.add('hidden');
@@ -1276,8 +1304,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 updateSelectedComponents();
 
                 document.querySelectorAll('.type-option').forEach(opt => {
-                    const services = opt.dataset.services ? opt.dataset.services.split(',') : [];
-                    if (serviceId === '' || serviceId === 'all' || services.includes(serviceId)) {
+                    const svcList = opt.dataset.services ? opt.dataset.services.split(',') : [];
+                    if (isAll || serviceIds.length === 0 || serviceIds.some(sid => svcList.includes(sid))) {
                         opt.classList.remove('hidden');
                     } else {
                         opt.classList.add('hidden');
@@ -1285,8 +1313,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 });
             };
 
-            // Trigger on load if service is pre-selected
-            if (document.getElementById('service_id').value) {
+            // Trigger filterDetails on load if services are pre-selected
+            if (document.querySelectorAll('.service-checkbox:checked').length > 0) {
                 filterDetails();
             }
             
@@ -1322,20 +1350,66 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             incidentTime.addEventListener('change', validateDateTime);
 
 
-            // ========== TEMPLATE SELECTOR FUNCTIONALITY ==========
-            let cachedTemplates = [];
-            const serviceSelect = document.getElementById('service_id');
+            // ========== SERVICE MULTI-SELECT DROPDOWN ==========
             const templateContainer = document.getElementById('templateSelectorContainer');
             const templateSelect = document.getElementById('template_select');
-            
-            // Load templates when service changes
-            if (serviceSelect) {
-                serviceSelect.addEventListener('change', function() {
-                    const serviceId = this.value;
-                    loadTemplates(serviceId);
-                });
+            let cachedTemplates = [];
+
+            window.toggleServiceDropdown = function() {
+                document.getElementById('serviceDropdownMenu').classList.toggle('hidden');
+            };
+            document.addEventListener('click', function(e) {
+                const wrapper = document.getElementById('serviceDropdownWrapper');
+                if (wrapper && !wrapper.contains(e.target)) {
+                    document.getElementById('serviceDropdownMenu').classList.add('hidden');
+                }
+            });
+            function updateSelectedServices() {
+                const checked = document.querySelectorAll('.service-checkbox:checked');
+                const textEl = document.getElementById('service-selected-text');
+                const tagsEl = document.getElementById('selected-services');
+                tagsEl.innerHTML = '';
+                if (checked.length === 0) {
+                    textEl.textContent = 'Select services...';
+                    textEl.classList.add('text-gray-500', 'dark:text-gray-400');
+                } else if (checked.length === 1 && checked[0].value === 'all') {
+                    textEl.textContent = 'All Services';
+                    textEl.classList.remove('text-gray-500', 'dark:text-gray-400');
+                } else {
+                    const names = Array.from(checked).map(cb => cb.closest('label').querySelector('span').textContent.trim());
+                    textEl.textContent = names.join(', ');
+                    textEl.classList.remove('text-gray-500', 'dark:text-gray-400');
+                    names.forEach(name => {
+                        const tag = document.createElement('span');
+                        tag.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+                        tag.textContent = name;
+                        tagsEl.appendChild(tag);
+                    });
+                }
+                filterDetails();
+                // Templates: only load when exactly one specific service is selected
+                const specific = Array.from(checked).filter(cb => cb.value !== 'all');
+                if (specific.length === 1) {
+                    loadTemplates(specific[0].value);
+                } else {
+                    templateContainer.style.display = 'none';
+                    templateSelect.value = '';
+                    cachedTemplates = [];
+                }
             }
-            
+            document.querySelectorAll('.service-checkbox').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    if (this.value === 'all' && this.checked) {
+                        document.querySelectorAll('.service-checkbox').forEach(c => { if (c.value !== 'all') c.checked = false; });
+                    } else if (this.value !== 'all' && this.checked) {
+                        document.getElementById('service-all').checked = false;
+                    }
+                    updateSelectedServices();
+                });
+            });
+            updateSelectedServices();
+
+            // ========== TEMPLATE SELECTOR FUNCTIONALITY ==========
             function loadTemplates(serviceId) {
                 // Hide if no service or "all services" selected
                 if (!serviceId || serviceId === '' || serviceId === 'all') {
