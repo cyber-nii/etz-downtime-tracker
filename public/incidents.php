@@ -658,6 +658,7 @@ $otherIncidents = [];
 $totalIncidents = 0;
 $totalPages     = 1;
 $services = $components = $incidentTypes = $companies = [];
+$allCompanies = $pdo->query("SELECT company_id, company_name FROM companies ORDER BY company_name")->fetchAll(PDO::FETCH_ASSOC);
 
 try {
     if ($activeTab === 'downtime') {
@@ -1031,7 +1032,7 @@ try {
                 </div>
 
                 <!-- Results summary -->
-                <div class="mb-4 flex items-center justify-between">
+                <div class="mb-4 flex items-center justify-between gap-3 flex-wrap">
                     <p class="text-sm text-gray-500 dark:text-gray-400">
                         <?php if ($totalIncidents === 0): ?>
                             No incidents found<?= $searchFilter ? ' for "<strong>' . htmlspecialchars($searchFilter) . '</strong>"' : '' ?>
@@ -1042,11 +1043,17 @@ try {
                             <?= $searchFilter ? 'matching "<strong>' . htmlspecialchars($searchFilter) . '</strong>"' : '' ?>
                         <?php endif; ?>
                     </p>
-                    <?php if ($statusFilter || $searchFilter || $dateFrom || $dateTo): ?>
-                        <a href="incidents.php?tab=<?= urlencode($activeTab) ?>" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-medium">
-                            <i class="fas fa-times mr-1"></i> Clear filters
-                        </a>
-                    <?php endif; ?>
+                    <div class="flex items-center gap-3">
+                        <?php if ($statusFilter || $searchFilter || $dateFrom || $dateTo): ?>
+                            <a href="incidents.php?tab=<?= urlencode($activeTab) ?>" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-medium">
+                                <i class="fas fa-times mr-1"></i> Clear filters
+                            </a>
+                        <?php endif; ?>
+                        <button type="button" onclick="openExportModal()"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors">
+                            <i class="fas fa-file-export"></i> Export
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Incidents Content (switches based on active tab) -->
@@ -1700,6 +1707,128 @@ try {
 
     </div>
     </main>
+
+    <!-- Export Incidents Modal -->
+    <div id="exportModal"
+        class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center z-50 p-4"
+        onclick="if(event.target===this)closeExportModal()">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg transform transition-all">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+                    <i class="fas fa-file-export text-emerald-500 mr-2"></i>Export Incidents
+                </h3>
+                <button onclick="closeExportModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+
+            <form id="exportForm" action="exports/export_incidents.php" method="GET" target="_blank">
+                <div class="px-6 py-5 space-y-5">
+
+                    <!-- Incident Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Incident Type</label>
+                        <div class="grid grid-cols-4 gap-2" id="exportTypeGroup">
+                            <?php
+                            $exportTypes = ['all' => 'All', 'downtime' => 'Downtime', 'security' => 'Security', 'fraud' => 'Fraud'];
+                            foreach ($exportTypes as $val => $label):
+                                $checked = ($val === $activeTab || ($val === 'all'));
+                            ?>
+                            <label class="flex flex-col items-center gap-1 p-2 rounded-lg border-2 cursor-pointer transition-colors
+                                <?= $val === $activeTab ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-500' : 'border-gray-200 dark:border-gray-600 hover:border-emerald-300' ?>
+                                export-type-label" data-value="<?= $val ?>">
+                                <input type="radio" name="type" value="<?= $val ?>"
+                                    <?= $val === $activeTab ? 'checked' : '' ?>
+                                    class="sr-only export-type-radio" onchange="onExportTypeChange(this)">
+                                <i class="fas <?= $val === 'all' ? 'fa-layer-group' : ($val === 'downtime' ? 'fa-bolt' : ($val === 'security' ? 'fa-shield-halved' : 'fa-triangle-exclamation')) ?> text-sm
+                                    <?= $val === $activeTab ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400' ?>"></i>
+                                <span class="text-xs font-medium text-gray-700 dark:text-gray-300"><?= $label ?></span>
+                            </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <!-- Date Range -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date Range</label>
+                        <div class="flex items-center gap-2">
+                            <input type="date" name="start_date" id="export_start_date"
+                                value="<?= htmlspecialchars($dateFrom ?: date('Y-m-01')) ?>"
+                                class="flex-1 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <span class="text-gray-400 text-sm">–</span>
+                            <input type="date" name="end_date" id="export_end_date"
+                                value="<?= htmlspecialchars($dateTo ?: date('Y-m-d')) ?>"
+                                class="flex-1 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                    </div>
+
+                    <!-- Bank / Company Filter (downtime + all only) -->
+                    <div id="exportCompanyRow">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Bank / Company <span class="text-xs text-gray-400 font-normal">(Downtime incidents)</span>
+                        </label>
+                        <select name="company_id" id="export_company_id"
+                            class="block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="">All Banks / Companies</option>
+                            <?php foreach ($allCompanies as $co): ?>
+                                <option value="<?= $co['company_id'] ?>"><?= htmlspecialchars($co['company_name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Status -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
+                        <div class="flex gap-2">
+                            <?php foreach ([''=>'All', 'pending'=>'Pending', 'resolved'=>'Resolved'] as $sv => $sl): ?>
+                            <label class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border-2 cursor-pointer text-sm font-medium transition-colors
+                                <?= $sv === '' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500 text-blue-700 dark:text-blue-400' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-300' ?>
+                                export-status-label" data-value="<?= $sv ?>">
+                                <input type="radio" name="status" value="<?= $sv ?>" <?= $sv === '' ? 'checked' : '' ?>
+                                    class="sr-only export-status-radio" onchange="onExportStatusChange(this)">
+                                <?php if ($sv === 'pending'): ?><i class="fas fa-clock text-yellow-500 text-xs"></i>
+                                <?php elseif ($sv === 'resolved'): ?><i class="fas fa-check-circle text-green-500 text-xs"></i>
+                                <?php else: ?><i class="fas fa-list-ul text-blue-500 text-xs"></i><?php endif; ?>
+                                <?= $sl ?>
+                            </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <!-- Format -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Export Format</label>
+                        <div class="flex gap-3">
+                            <label class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border-2 cursor-pointer font-medium text-sm transition-colors
+                                border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400
+                                export-format-label" data-value="xlsx">
+                                <input type="radio" name="format" value="xlsx" checked class="sr-only export-format-radio" onchange="onExportFormatChange(this)">
+                                <i class="fas fa-file-excel text-green-600"></i> Excel (.xlsx)
+                            </label>
+                            <label class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border-2 cursor-pointer font-medium text-sm transition-colors
+                                border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-emerald-300
+                                export-format-label" data-value="csv">
+                                <input type="radio" name="format" value="csv" class="sr-only export-format-radio" onchange="onExportFormatChange(this)">
+                                <i class="fas fa-file-csv text-blue-500"></i> CSV
+                            </label>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 rounded-b-xl flex items-center justify-end gap-3 border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" onclick="closeExportModal()"
+                        class="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="px-5 py-2 text-sm font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm">
+                        <i class="fas fa-download mr-1.5"></i> Download
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Resolve Issue Modal -->
     <div id="resolveModal"
@@ -2727,6 +2856,75 @@ try {
                 location.reload();
             }, 300);
         }
+
+        // ── Export Modal ──────────────────────────────────────────
+        function openExportModal() {
+            document.getElementById('exportModal').classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        }
+        function closeExportModal() {
+            document.getElementById('exportModal').classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        function onExportTypeChange(radio) {
+            document.querySelectorAll('.export-type-label').forEach(lbl => {
+                const active = lbl.dataset.value === radio.value;
+                lbl.classList.toggle('border-emerald-500', active);
+                lbl.classList.toggle('bg-emerald-50', active);
+                lbl.classList.toggle('dark:bg-emerald-900/20', active);
+                lbl.classList.toggle('dark:border-emerald-500', active);
+                lbl.classList.toggle('border-gray-200', !active);
+                lbl.classList.toggle('dark:border-gray-600', !active);
+                const icon = lbl.querySelector('i');
+                if (icon) {
+                    icon.classList.toggle('text-emerald-600', active);
+                    icon.classList.toggle('dark:text-emerald-400', active);
+                    icon.classList.toggle('text-gray-400', !active);
+                }
+            });
+            // Show company row only for downtime and all
+            const showCompany = radio.value === 'downtime' || radio.value === 'all';
+            document.getElementById('exportCompanyRow').style.display = showCompany ? '' : 'none';
+        }
+
+        function onExportStatusChange(radio) {
+            document.querySelectorAll('.export-status-label').forEach(lbl => {
+                const active = lbl.dataset.value === radio.value;
+                lbl.classList.toggle('border-blue-500', active);
+                lbl.classList.toggle('bg-blue-50', active);
+                lbl.classList.toggle('dark:bg-blue-900/20', active);
+                lbl.classList.toggle('dark:border-blue-500', active);
+                lbl.classList.toggle('text-blue-700', active);
+                lbl.classList.toggle('dark:text-blue-400', active);
+                lbl.classList.toggle('border-gray-200', !active);
+                lbl.classList.toggle('dark:border-gray-600', !active);
+                lbl.classList.toggle('text-gray-600', !active);
+                lbl.classList.toggle('dark:text-gray-400', !active);
+            });
+        }
+
+        function onExportFormatChange(radio) {
+            document.querySelectorAll('.export-format-label').forEach(lbl => {
+                const active = lbl.dataset.value === radio.value;
+                lbl.classList.toggle('border-emerald-500', active);
+                lbl.classList.toggle('bg-emerald-50', active);
+                lbl.classList.toggle('dark:bg-emerald-900/20', active);
+                lbl.classList.toggle('dark:border-emerald-500', active);
+                lbl.classList.toggle('text-emerald-700', active);
+                lbl.classList.toggle('dark:text-emerald-400', active);
+                lbl.classList.toggle('border-gray-200', !active);
+                lbl.classList.toggle('dark:border-gray-600', !active);
+                lbl.classList.toggle('text-gray-600', !active);
+                lbl.classList.toggle('dark:text-gray-400', !active);
+            });
+        }
+
+        // Initialise company row visibility on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkedType = document.querySelector('.export-type-radio:checked');
+            if (checkedType) onExportTypeChange(checkedType);
+        });
 
         // Attachment Viewer Functions
         function openAttachmentViewer(fileUrl, fileName) {

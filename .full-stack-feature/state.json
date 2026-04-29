@@ -1,0 +1,13 @@
+{
+  "feature": "Export reported incidents within a selected time frame to an Excel sheet",
+  "status": "in_progress",
+  "stack": "auto-detect",
+  "api_style": "rest",
+  "complexity": "medium",
+  "current_step": 2,
+  "current_phase": 1,
+  "completed_steps": [],
+  "files_created": [],
+  "started_at": "2026-04-27T00:00:00Z",
+  "last_updated": "2026-04-27T00:00:00Z"
+}
