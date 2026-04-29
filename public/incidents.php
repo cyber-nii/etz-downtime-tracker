@@ -1076,6 +1076,14 @@ try {
                             $priorityKey = strtolower($inc['priority'] ?? 'medium');
                         ?>
                         <div class="incident-card bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-4 p-5 overflow-hidden">
+                            <!-- Reporter — always on top -->
+                            <div class="-mx-5 -mt-5 mb-4 flex items-center gap-2 px-5 py-2.5 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800/30">
+                                <div class="w-5 h-5 rounded-full bg-blue-200 dark:bg-blue-800 flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-user text-blue-600 dark:text-blue-400 text-[9px]"></i>
+                                </div>
+                                <span class="text-xs font-bold text-blue-700 dark:text-blue-300"><?= htmlspecialchars($inc['reporter_name'] ?? 'Unknown') ?></span>
+                                <span class="text-[11px] text-blue-500 dark:text-blue-400">reported this incident</span>
+                            </div>
                             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <!-- Ref chip — neutral gray -->
@@ -1131,8 +1139,6 @@ try {
                                         <span class="text-gray-400 dark:text-gray-500">·</span>
                                         <span><i class="fas fa-calendar mr-1 text-gray-400"></i><?= date('M j, Y g:i A', strtotime($inc['actual_start_time'])) ?></span>
                                     <?php endif; ?>
-                                    <span class="text-gray-400 dark:text-gray-500">·</span>
-                                    <span><i class="fas fa-user mr-1 text-gray-400"></i><?= htmlspecialchars($inc['reporter_name'] ?? 'Unknown') ?></span>
                                 </div>
                             </div>
 
@@ -1288,6 +1294,15 @@ try {
                                             <!-- ═══════════════ INCIDENT CARD ═══════════════════════ -->
                                             <div class="incident-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-5"
                                                 data-status="<?= $incident['status'] ?>">
+
+                                                <!-- Reporter — always on top -->
+                                                <div class="flex items-center gap-2 px-5 py-2.5 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800/30">
+                                                    <div class="w-5 h-5 rounded-full bg-blue-200 dark:bg-blue-800 flex items-center justify-center flex-shrink-0">
+                                                        <i class="fas fa-user text-blue-600 dark:text-blue-400 text-[9px]"></i>
+                                                    </div>
+                                                    <span class="text-xs font-bold text-blue-700 dark:text-blue-300"><?= htmlspecialchars($incident['user_name']) ?></span>
+                                                    <span class="text-[11px] text-blue-500 dark:text-blue-400">reported this incident</span>
+                                                </div>
 
                                                 <!-- ── Card Header ─────────────────────────────────── -->
                                                 <div class="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1544,16 +1559,16 @@ try {
                                                                 <!-- Reported by entry -->
                                                                 <div class="flex gap-2.5 text-sm">
                                                                     <div class="flex-shrink-0 mt-1">
-                                                                        <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                                                                            <i class="fas fa-user text-blue-400 text-[9px]"></i>
+                                                                        <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40 ring-1 ring-blue-300 dark:ring-blue-700 flex items-center justify-center">
+                                                                            <i class="fas fa-user text-blue-500 dark:text-blue-400 text-[9px]"></i>
                                                                         </div>
                                                                     </div>
                                                                     <div class="flex-1 min-w-0">
                                                                         <div class="flex items-baseline gap-1.5 flex-wrap">
-                                                                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-300"><?= htmlspecialchars($incident['user_name']) ?></span>
+                                                                            <span class="text-xs font-bold text-blue-700 dark:text-blue-400"><?= htmlspecialchars($incident['user_name']) ?></span>
                                                                             <span class="text-[10px] text-gray-400"><?= date('M j, g:i A', strtotime($incident['created_at'])) ?></span>
                                                                         </div>
-                                                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 italic">Reported this incident</p>
+                                                                        <p class="text-xs text-blue-500 dark:text-blue-400 mt-0.5 italic font-medium">Reported this incident</p>
                                                                     </div>
                                                                 </div>
                                                                 <?php if (empty($incident['updates'])): ?>
