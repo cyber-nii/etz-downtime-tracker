@@ -661,19 +661,14 @@ $totalIncidents = 0;
 $totalPages     = 1;
 $services = $components = $incidentTypes = $companies = [];
 $allCompanies = $pdo->query("SELECT company_id, company_name FROM companies ORDER BY company_name")->fetchAll(PDO::FETCH_ASSOC);
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
+
 $exportUsers  = ($_SESSION['role'] === 'admin')
     ? $pdo->query("SELECT user_id, full_name, username, role FROM users ORDER BY full_name ASC")->fetchAll(PDO::FETCH_ASSOC)
     : [];
 $filterUsers  = $pdo->query("SELECT user_id, full_name FROM users ORDER BY full_name ASC")->fetchAll(PDO::FETCH_ASSOC);
->>>>>>> Stashed changes
-=======
 $exportUsers  = ($_SESSION['role'] === 'admin')
     ? $pdo->query("SELECT user_id, full_name, username, role FROM users ORDER BY full_name ASC")->fetchAll(PDO::FETCH_ASSOC)
     : [];
->>>>>>> 73f19875b6893fc08ae4d21d718042cbe9f2826f
 
 try {
     if ($activeTab === 'downtime') {
