@@ -58,6 +58,7 @@ COPY docker/php/php.ini /usr/local/etc/php/conf.d/app.ini
 
 # Copy application source (excluding .dockerignore'd paths)
 COPY --chown=www-data:www-data . /var/www/html
+COPY --chown=www-data:www-data src/assets/ /var/www/html/public/assets/
 
 # Copy compiled vendor from stage 1
 COPY --chown=www-data:www-data --from=composer-build /app/vendor /var/www/html/vendor

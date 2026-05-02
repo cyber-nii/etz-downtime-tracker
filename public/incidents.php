@@ -621,17 +621,19 @@ $statusFilter = in_array($_GET['status'] ?? '', ['pending', 'resolved']) ? $_GET
 $searchFilter = trim($_GET['search'] ?? '');
 $dateFrom     = trim($_GET['date_from'] ?? '');
 $dateTo       = trim($_GET['date_to'] ?? '');
+$userFilter   = intval($_GET['reporter'] ?? 0);
 $itemsPerPage = 10;
 $currentPage  = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset       = ($currentPage - 1) * $itemsPerPage;
 
 // Helper: build a URL preserving current filters + tab
-function pageUrl(int $page, string $status, string $search, string $tab = 'downtime', string $dateFrom = '', string $dateTo = ''): string {
+function pageUrl(int $page, string $status, string $search, string $tab = 'downtime', string $dateFrom = '', string $dateTo = '', int $reporter = 0): string {
     $p = ['tab' => $tab, 'page' => $page];
     if ($status) $p['status'] = $status;
     if ($search !== '') $p['search'] = $search;
     if ($dateFrom !== '') $p['date_from'] = $dateFrom;
     if ($dateTo !== '') $p['date_to'] = $dateTo;
+    if ($reporter > 0) $p['reporter'] = $reporter;
     return '?' . http_build_query($p);
 }
 
@@ -659,6 +661,13 @@ $totalIncidents = 0;
 $totalPages     = 1;
 $services = $components = $incidentTypes = $companies = [];
 $allCompanies = $pdo->query("SELECT company_id, company_name FROM companies ORDER BY company_name")->fetchAll(PDO::FETCH_ASSOC);
+<<<<<<< Updated upstream
+=======
+$exportUsers  = ($_SESSION['role'] === 'admin')
+    ? $pdo->query("SELECT user_id, full_name, username, role FROM users ORDER BY full_name ASC")->fetchAll(PDO::FETCH_ASSOC)
+    : [];
+$filterUsers  = $pdo->query("SELECT user_id, full_name FROM users ORDER BY full_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+>>>>>>> Stashed changes
 
 try {
     if ($activeTab === 'downtime') {
@@ -672,6 +681,10 @@ try {
             $whereClauses[] = "(s.service_name LIKE ? OR i.incident_ref LIKE ? OR i.root_cause LIKE ? OR it.name LIKE ? OR EXISTS (SELECT 1 FROM incident_affected_companies iac2 JOIN companies c2 ON iac2.company_id = c2.company_id WHERE iac2.incident_id = i.incident_id AND c2.company_name LIKE ?))";
             $wild = "%" . $searchFilter . "%";
             array_push($filterParams, $wild, $wild, $wild, $wild, $wild);
+        }
+        if ($userFilter > 0) {
+            $whereClauses[] = "i.reported_by = ?";
+            $filterParams[] = $userFilter;
         }
         if ($dateFrom !== '') {
             $whereClauses[] = "DATE(i.actual_start_time) >= ?";
@@ -741,6 +754,7 @@ try {
             $wild = '%' . $searchFilter . '%';
             array_push($filterParams, $wild, $wild, $wild, $wild);
         }
+        if ($userFilter > 0) { $whereClauses[] = "s.reported_by = ?"; $filterParams[] = $userFilter; }
         if ($dateFrom !== '') { $whereClauses[] = "DATE(s.actual_start_time) >= ?"; $filterParams[] = $dateFrom; }
         if ($dateTo !== '')   { $whereClauses[] = "DATE(s.actual_start_time) <= ?"; $filterParams[] = $dateTo; }
         $whereSQL = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
@@ -779,6 +793,7 @@ try {
             $wild = '%' . $searchFilter . '%';
             array_push($filterParams, $wild, $wild, $wild);
         }
+        if ($userFilter > 0) { $whereClauses[] = "f.reported_by = ?"; $filterParams[] = $userFilter; }
         if ($dateFrom !== '') { $whereClauses[] = "DATE(f.actual_start_time) >= ?"; $filterParams[] = $dateFrom; }
         if ($dateTo !== '')   { $whereClauses[] = "DATE(f.actual_start_time) <= ?"; $filterParams[] = $dateTo; }
         $whereSQL = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
@@ -942,9 +957,9 @@ try {
 
                 <!-- ── 3-Tab Switcher: Downtime / Security / Fraud ── -->
                 <?php
-                    $dtUrl  = '?tab=downtime'  . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '') . ($dateFrom ? '&date_from=' . urlencode($dateFrom) : '') . ($dateTo ? '&date_to=' . urlencode($dateTo) : '');
-                    $secUrl = '?tab=security'  . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '') . ($dateFrom ? '&date_from=' . urlencode($dateFrom) : '') . ($dateTo ? '&date_to=' . urlencode($dateTo) : '');
-                    $frUrl  = '?tab=fraud'     . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '') . ($dateFrom ? '&date_from=' . urlencode($dateFrom) : '') . ($dateTo ? '&date_to=' . urlencode($dateTo) : '');
+                    $dtUrl  = '?tab=downtime'  . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '') . ($userFilter ? '&reporter=' . $userFilter : '') . ($dateFrom ? '&date_from=' . urlencode($dateFrom) : '') . ($dateTo ? '&date_to=' . urlencode($dateTo) : '');
+                    $secUrl = '?tab=security'  . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '') . ($userFilter ? '&reporter=' . $userFilter : '') . ($dateFrom ? '&date_from=' . urlencode($dateFrom) : '') . ($dateTo ? '&date_to=' . urlencode($dateTo) : '');
+                    $frUrl  = '?tab=fraud'     . ($statusFilter ? '&status=' . urlencode($statusFilter) : '') . ($searchFilter ? '&search=' . urlencode($searchFilter) : '') . ($userFilter ? '&reporter=' . $userFilter : '') . ($dateFrom ? '&date_from=' . urlencode($dateFrom) : '') . ($dateTo ? '&date_to=' . urlencode($dateTo) : '');
                 ?>
                 <div class="flex border-b border-gray-200 dark:border-gray-700 mb-6">
                     <a href="<?= $dtUrl ?>"
@@ -987,11 +1002,26 @@ try {
                                     value="<?= htmlspecialchars($searchFilter) ?>"
                                     class="block w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm">
                                 <?php if ($searchFilter): ?>
-                                    <a href="?tab=<?= urlencode($activeTab) ?><?= $statusFilter ? '&status=' . urlencode($statusFilter) : '' ?><?= $dateFrom ? '&date_from=' . urlencode($dateFrom) : '' ?><?= $dateTo ? '&date_to=' . urlencode($dateTo) : '' ?>"
+                                    <a href="?tab=<?= urlencode($activeTab) ?><?= $statusFilter ? '&status=' . urlencode($statusFilter) : '' ?><?= $userFilter ? '&reporter=' . $userFilter : '' ?><?= $dateFrom ? '&date_from=' . urlencode($dateFrom) : '' ?><?= $dateTo ? '&date_to=' . urlencode($dateTo) : '' ?>"
                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
                                         <i class="fas fa-times-circle"></i>
                                     </a>
                                 <?php endif; ?>
+                            </div>
+                        </div>
+                        <!-- Reporter filter -->
+                        <div class="relative">
+                            <select id="reporter-filter"
+                                class="py-2.5 pl-3 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
+                                <option value="0">All reporters</option>
+                                <?php foreach ($filterUsers as $fu): ?>
+                                    <option value="<?= $fu['user_id'] ?>" <?= $userFilter === (int)$fu['user_id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($fu['full_name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                             </div>
                         </div>
                         <!-- Date range -->
@@ -1044,7 +1074,7 @@ try {
                         <?php endif; ?>
                     </p>
                     <div class="flex items-center gap-3">
-                        <?php if ($statusFilter || $searchFilter || $dateFrom || $dateTo): ?>
+                        <?php if ($statusFilter || $searchFilter || $userFilter || $dateFrom || $dateTo): ?>
                             <a href="incidents.php?tab=<?= urlencode($activeTab) ?>" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-medium">
                                 <i class="fas fa-times mr-1"></i> Clear filters
                             </a>
@@ -1645,7 +1675,7 @@ try {
                             <div class="flex items-center gap-1 order-1 sm:order-2">
                                 <!-- Previous -->
                                 <?php if ($currentPage > 1): ?>
-                                            <a href="<?= pageUrl($currentPage - 1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo) ?>"
+                                            <a href="<?= pageUrl($currentPage - 1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                                                 <i class="fas fa-chevron-left text-xs"></i>
                                             </a>
@@ -1658,7 +1688,7 @@ try {
 
                                 <!-- First page + ellipsis -->
                                 <?php if ($startPage > 1): ?>
-                                            <a href="<?= pageUrl(1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo) ?>"
+                                            <a href="<?= pageUrl(1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">1</a>
                                             <?php if ($startPage > 2): ?>
                                                         <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
@@ -1673,7 +1703,7 @@ try {
                                                             <?= $i ?>
                                                         </span>
                                             <?php else: ?>
-                                                        <a href="<?= pageUrl($i, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo) ?>"
+                                                        <a href="<?= pageUrl($i, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter) ?>"
                                                             class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
                                                             <?= $i ?>
                                                         </a>
@@ -1685,13 +1715,13 @@ try {
                                             <?php if ($endPage < $totalPages - 1): ?>
                                                         <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
                                             <?php endif; ?>
-                                            <a href="<?= pageUrl($totalPages, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo) ?>"
+                                            <a href="<?= pageUrl($totalPages, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"><?= $totalPages ?></a>
                                 <?php endif; ?>
 
                                 <!-- Next -->
                                 <?php if ($currentPage < $totalPages): ?>
-                                            <a href="<?= pageUrl($currentPage + 1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo) ?>"
+                                            <a href="<?= pageUrl($currentPage + 1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                                                 <i class="fas fa-chevron-right text-xs"></i>
                                             </a>
@@ -2841,6 +2871,22 @@ try {
             }
             if (fromInput) fromInput.addEventListener('change', applyDates);
             if (toInput)   toInput.addEventListener('change',   applyDates);
+        })();
+
+        // Reporter filter — navigate on change
+        (function () {
+            const sel = document.getElementById('reporter-filter');
+            if (!sel) return;
+            sel.addEventListener('change', function () {
+                const url = new URL(window.location);
+                if (this.value && this.value !== '0') {
+                    url.searchParams.set('reporter', this.value);
+                } else {
+                    url.searchParams.delete('reporter');
+                }
+                url.searchParams.delete('page');
+                window.location.href = url.toString();
+            });
         })();
 
         // Refresh incidents function
