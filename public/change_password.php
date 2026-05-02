@@ -110,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="relative min-h-screen">
     <!-- Background Image with Overlay -->
     <div class="fixed inset-0 z-0">
-        <img src="<?= url('../src/assets/mainbg.jpg') ?>" alt="Background" class="w-full h-full object-cover">
+        <img src="<?= url('assets/mainbg.jpg') ?>" alt="Background" class="w-full h-full object-cover">
         <div class="absolute inset-0 bg-white/90 dark:bg-gray-900/95"></div>
     </div>
 
@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="relative z-10 min-h-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div class="max-w-md w-full space-y-8">
             <div class="text-center">
-                <img src="<?= url('../src/assets/logo1.png') ?>" alt="eTranzact Logo" class="mx-auto h-20 w-auto">
+                <img src="<?= url('assets/logo1.png') ?>" alt="eTranzact Logo" class="mx-auto h-20 w-auto">
                 <h2 class="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">Change Your Password</h2>
                 <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
                     For security reasons, you must change your default password before proceeding.

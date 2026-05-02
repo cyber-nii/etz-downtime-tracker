@@ -32,7 +32,8 @@
       "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root downtimedb -e \"SHOW COLUMNS FROM security_incidents LIKE ''lessons_learned''; SHOW COLUMNS FROM security_incidents LIKE ''resolvers''; SHOW COLUMNS FROM fraud_incidents LIKE ''lessons_learned''; SHOW COLUMNS FROM fraud_incidents LIKE ''resolvers'';\")",
       "Bash(\"C:/xampp/mysql/bin/mysql.exe\" -u root downtimedb -e \"SHOW TABLES LIKE ''%incident_updates%'';\")",
       "Bash(grep -n \"CREATE TABLE\\\\|^\\) ENGINE\\\\|^\\\\s*\\\\`\" \"C:/xampp/htdocs/etz-downtime-tracker/database/downtimedb.sql\")",
-      "Bash(/c/xampp/mysql/bin/mysql *)"
+      "Bash(/c/xampp/mysql/bin/mysql *)",
+      "Bash(grep -n 'currentUser\\\\|role\\\\|is_admin\\\\|$_SESSION\\\\['\\\\''role'\\\\''\\\\]\\\\|$user\\\\[' C:/xampp/htdocs/etz-downtime-tracker/public/incidents.php)"
     ]
   }
 }

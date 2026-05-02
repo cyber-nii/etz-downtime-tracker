@@ -661,6 +661,7 @@ $totalIncidents = 0;
 $totalPages     = 1;
 $services = $components = $incidentTypes = $companies = [];
 $allCompanies = $pdo->query("SELECT company_id, company_name FROM companies ORDER BY company_name")->fetchAll(PDO::FETCH_ASSOC);
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
 $exportUsers  = ($_SESSION['role'] === 'admin')
@@ -668,6 +669,11 @@ $exportUsers  = ($_SESSION['role'] === 'admin')
     : [];
 $filterUsers  = $pdo->query("SELECT user_id, full_name FROM users ORDER BY full_name ASC")->fetchAll(PDO::FETCH_ASSOC);
 >>>>>>> Stashed changes
+=======
+$exportUsers  = ($_SESSION['role'] === 'admin')
+    ? $pdo->query("SELECT user_id, full_name, username, role FROM users ORDER BY full_name ASC")->fetchAll(PDO::FETCH_ASSOC)
+    : [];
+>>>>>>> 73f19875b6893fc08ae4d21d718042cbe9f2826f
 
 try {
     if ($activeTab === 'downtime') {
@@ -902,7 +908,7 @@ try {
 <body class="relative min-h-screen">
     <!-- Background Image with Overlay -->
     <div class="fixed inset-0 z-0">
-        <img src="<?= url('../src/assets/mainbg.jpg') ?>" alt="Background" class="w-full h-full object-cover">
+        <img src="<?= url('assets/mainbg.jpg') ?>" alt="Background" class="w-full h-full object-cover">
         <div class="absolute inset-0 bg-white/90 dark:bg-gray-900/95"></div>
     </div>
 
@@ -1106,6 +1112,14 @@ try {
                             $priorityKey = strtolower($inc['priority'] ?? 'medium');
                         ?>
                         <div class="incident-card bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-4 p-5 overflow-hidden">
+                            <!-- Reporter — always on top -->
+                            <div class="-mx-5 -mt-5 mb-4 flex items-center gap-2 px-5 py-2.5 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800/30">
+                                <div class="w-5 h-5 rounded-full bg-blue-200 dark:bg-blue-800 flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-user text-blue-600 dark:text-blue-400 text-[9px]"></i>
+                                </div>
+                                <span class="text-xs font-bold text-blue-700 dark:text-blue-300"><?= htmlspecialchars($inc['reporter_name'] ?? 'Unknown') ?></span>
+                                <span class="text-[11px] text-blue-500 dark:text-blue-400">reported this incident</span>
+                            </div>
                             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <!-- Ref chip — neutral gray -->
@@ -1161,8 +1175,6 @@ try {
                                         <span class="text-gray-400 dark:text-gray-500">·</span>
                                         <span><i class="fas fa-calendar mr-1 text-gray-400"></i><?= date('M j, Y g:i A', strtotime($inc['actual_start_time'])) ?></span>
                                     <?php endif; ?>
-                                    <span class="text-gray-400 dark:text-gray-500">·</span>
-                                    <span><i class="fas fa-user mr-1 text-gray-400"></i><?= htmlspecialchars($inc['reporter_name'] ?? 'Unknown') ?></span>
                                 </div>
                             </div>
 
@@ -1318,6 +1330,15 @@ try {
                                             <!-- ═══════════════ INCIDENT CARD ═══════════════════════ -->
                                             <div class="incident-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-5"
                                                 data-status="<?= $incident['status'] ?>">
+
+                                                <!-- Reporter — always on top -->
+                                                <div class="flex items-center gap-2 px-5 py-2.5 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800/30">
+                                                    <div class="w-5 h-5 rounded-full bg-blue-200 dark:bg-blue-800 flex items-center justify-center flex-shrink-0">
+                                                        <i class="fas fa-user text-blue-600 dark:text-blue-400 text-[9px]"></i>
+                                                    </div>
+                                                    <span class="text-xs font-bold text-blue-700 dark:text-blue-300"><?= htmlspecialchars($incident['user_name']) ?></span>
+                                                    <span class="text-[11px] text-blue-500 dark:text-blue-400">reported this incident</span>
+                                                </div>
 
                                                 <!-- ── Card Header ─────────────────────────────────── -->
                                                 <div class="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1574,16 +1595,16 @@ try {
                                                                 <!-- Reported by entry -->
                                                                 <div class="flex gap-2.5 text-sm">
                                                                     <div class="flex-shrink-0 mt-1">
-                                                                        <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                                                                            <i class="fas fa-user text-blue-400 text-[9px]"></i>
+                                                                        <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40 ring-1 ring-blue-300 dark:ring-blue-700 flex items-center justify-center">
+                                                                            <i class="fas fa-user text-blue-500 dark:text-blue-400 text-[9px]"></i>
                                                                         </div>
                                                                     </div>
                                                                     <div class="flex-1 min-w-0">
                                                                         <div class="flex items-baseline gap-1.5 flex-wrap">
-                                                                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-300"><?= htmlspecialchars($incident['user_name']) ?></span>
+                                                                            <span class="text-xs font-bold text-blue-700 dark:text-blue-400"><?= htmlspecialchars($incident['user_name']) ?></span>
                                                                             <span class="text-[10px] text-gray-400"><?= date('M j, g:i A', strtotime($incident['created_at'])) ?></span>
                                                                         </div>
-                                                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 italic">Reported this incident</p>
+                                                                        <p class="text-xs text-blue-500 dark:text-blue-400 mt-0.5 italic font-medium">Reported this incident</p>
                                                                     </div>
                                                                 </div>
                                                                 <?php if (empty($incident['updates'])): ?>
@@ -1742,7 +1763,9 @@ try {
     <div id="exportModal"
         class="hidden fixed inset-0 bg-gray-900/60 flex items-center justify-center z-50 p-4"
         onclick="if(event.target===this)closeExportModal()">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg transform transition-all">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl transform transition-all">
+
+            <!-- Header -->
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">
                     <i class="fas fa-file-export text-emerald-500 mr-2"></i>Export Incidents
@@ -1753,49 +1776,90 @@ try {
             </div>
 
             <form id="exportForm" action="exports/export_incidents.php" method="GET" target="_blank" data-no-loading>
-                <div class="px-6 py-5 space-y-5">
+                <div class="px-6 py-5">
 
-                    <!-- Incident Type -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Incident Type</label>
-                        <div class="grid grid-cols-4 gap-2" id="exportTypeGroup">
-                            <?php
-                            $exportTypes = ['all' => 'All', 'downtime' => 'Downtime', 'security' => 'Security', 'fraud' => 'Fraud'];
-                            foreach ($exportTypes as $val => $label):
-                                $checked = ($val === $activeTab || ($val === 'all'));
-                            ?>
-                            <label class="flex flex-col items-center gap-1 p-2 rounded-lg border-2 cursor-pointer transition-colors
-                                <?= $val === $activeTab ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-500' : 'border-gray-200 dark:border-gray-600 hover:border-emerald-300' ?>
-                                export-type-label" data-value="<?= $val ?>">
-                                <input type="radio" name="type" value="<?= $val ?>"
-                                    <?= $val === $activeTab ? 'checked' : '' ?>
-                                    class="sr-only export-type-radio" onchange="onExportTypeChange(this)">
-                                <i class="fas <?= $val === 'all' ? 'fa-layer-group' : ($val === 'downtime' ? 'fa-bolt' : ($val === 'security' ? 'fa-shield-halved' : 'fa-triangle-exclamation')) ?> text-sm
-                                    <?= $val === $activeTab ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400' ?>"></i>
-                                <span class="text-xs font-medium text-gray-700 dark:text-gray-300"><?= $label ?></span>
-                            </label>
-                            <?php endforeach; ?>
+                    <!-- Row 1: Incident Type + Status -->
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-5 mb-5">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Incident Type</label>
+                            <div class="grid grid-cols-4 gap-1.5" id="exportTypeGroup">
+                                <?php
+                                $exportTypes = ['all' => 'All', 'downtime' => 'Downtime', 'security' => 'Security', 'fraud' => 'Fraud'];
+                                foreach ($exportTypes as $val => $label):
+                                ?>
+                                <label class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 cursor-pointer transition-colors
+                                    <?= $val === $activeTab ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-500' : 'border-gray-200 dark:border-gray-600 hover:border-emerald-300 dark:hover:border-emerald-700' ?>
+                                    export-type-label" data-value="<?= $val ?>">
+                                    <input type="radio" name="type" value="<?= $val ?>"
+                                        <?= $val === $activeTab ? 'checked' : '' ?>
+                                        class="sr-only export-type-radio" onchange="onExportTypeChange(this)">
+                                    <i class="fas <?= $val === 'all' ? 'fa-layer-group' : ($val === 'downtime' ? 'fa-bolt' : ($val === 'security' ? 'fa-shield-halved' : 'fa-triangle-exclamation')) ?> text-sm
+                                        <?= $val === $activeTab ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400' ?>"></i>
+                                    <span class="text-xs font-medium text-gray-700 dark:text-gray-300 leading-tight text-center"><?= $label ?></span>
+                                </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Status</label>
+                            <div class="grid grid-cols-3 gap-1.5">
+                                <?php foreach ([''=>'All', 'pending'=>'Pending', 'resolved'=>'Resolved'] as $sv => $sl): ?>
+                                <label class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg border-2 cursor-pointer text-sm font-medium transition-colors
+                                    <?= $sv === '' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500 text-blue-700 dark:text-blue-400' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-700' ?>
+                                    export-status-label" data-value="<?= $sv ?>">
+                                    <input type="radio" name="status" value="<?= $sv ?>" <?= $sv === '' ? 'checked' : '' ?>
+                                        class="sr-only export-status-radio" onchange="onExportStatusChange(this)">
+                                    <?php if ($sv === 'pending'): ?><i class="fas fa-clock text-yellow-500 text-sm"></i>
+                                    <?php elseif ($sv === 'resolved'): ?><i class="fas fa-check-circle text-green-500 text-sm"></i>
+                                    <?php else: ?><i class="fas fa-list-ul text-blue-500 text-sm"></i><?php endif; ?>
+                                    <span class="text-xs leading-tight"><?= $sl ?></span>
+                                </label>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Date Range -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date Range</label>
-                        <div class="flex items-center gap-2">
-                            <input type="date" name="start_date" id="export_start_date"
-                                value="<?= htmlspecialchars($dateFrom ?: date('Y-m-01')) ?>"
-                                class="flex-1 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                            <span class="text-gray-400 text-sm">–</span>
-                            <input type="date" name="end_date" id="export_end_date"
-                                value="<?= htmlspecialchars($dateTo ?: date('Y-m-d')) ?>"
-                                class="flex-1 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <!-- Row 2: Date Range + Format -->
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-5 mb-5">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Date Range</label>
+                            <div class="flex items-center gap-2">
+                                <input type="date" name="start_date" id="export_start_date"
+                                    value="<?= htmlspecialchars($dateFrom ?: date('Y-m-01')) ?>"
+                                    class="flex-1 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                <span class="text-gray-400 text-sm flex-shrink-0">–</span>
+                                <input type="date" name="end_date" id="export_end_date"
+                                    value="<?= htmlspecialchars($dateTo ?: date('Y-m-d')) ?>"
+                                    class="flex-1 py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Format</label>
+                            <div class="grid grid-cols-2 gap-1.5">
+                                <label class="flex items-center justify-center gap-2 py-2 px-3 rounded-lg border-2 cursor-pointer font-medium text-sm transition-colors
+                                    border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400
+                                    export-format-label" data-value="xlsx">
+                                    <input type="radio" name="format" value="xlsx" checked class="sr-only export-format-radio" onchange="onExportFormatChange(this)">
+                                    <i class="fas fa-file-excel text-green-600"></i>
+                                    <span>Excel</span>
+                                </label>
+                                <label class="flex items-center justify-center gap-2 py-2 px-3 rounded-lg border-2 cursor-pointer font-medium text-sm transition-colors
+                                    border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-emerald-300 dark:hover:border-emerald-700
+                                    export-format-label" data-value="csv">
+                                    <input type="radio" name="format" value="csv" class="sr-only export-format-radio" onchange="onExportFormatChange(this)">
+                                    <i class="fas fa-file-csv text-blue-500"></i>
+                                    <span>CSV</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Bank / Company Filter (downtime + all only) -->
-                    <div id="exportCompanyRow">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Bank / Company <span class="text-xs text-gray-400 font-normal">(Downtime incidents)</span>
+                    <!-- Row 3: Company (full width, downtime only) -->
+                    <div id="exportCompanyRow" class="mb-5">
+                        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                            Bank / Company <span class="normal-case font-normal text-gray-400 ml-1">(Downtime only)</span>
                         </label>
                         <select name="company_id" id="export_company_id"
                             class="block w-full py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
@@ -1806,46 +1870,52 @@ try {
                         </select>
                     </div>
 
-                    <!-- Status -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
-                        <div class="flex gap-2">
-                            <?php foreach ([''=>'All', 'pending'=>'Pending', 'resolved'=>'Resolved'] as $sv => $sl): ?>
-                            <label class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border-2 cursor-pointer text-sm font-medium transition-colors
-                                <?= $sv === '' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500 text-blue-700 dark:text-blue-400' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-300' ?>
-                                export-status-label" data-value="<?= $sv ?>">
-                                <input type="radio" name="status" value="<?= $sv ?>" <?= $sv === '' ? 'checked' : '' ?>
-                                    class="sr-only export-status-radio" onchange="onExportStatusChange(this)">
-                                <?php if ($sv === 'pending'): ?><i class="fas fa-clock text-yellow-500 text-xs"></i>
-                                <?php elseif ($sv === 'resolved'): ?><i class="fas fa-check-circle text-green-500 text-xs"></i>
-                                <?php else: ?><i class="fas fa-list-ul text-blue-500 text-xs"></i><?php endif; ?>
-                                <?= $sl ?>
+                    <?php if (!empty($exportUsers)): ?>
+                    <!-- Row 4: Reporter Filter (admin only, full width) -->
+                    <div class="pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                                Filter by Reporter
+                                <span class="normal-case font-normal text-gray-400 ml-1">— leave blank to include all</span>
                             </label>
-                            <?php endforeach; ?>
+                            <button type="button" onclick="clearExportUsers()"
+                                class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium">
+                                Clear all
+                            </button>
                         </div>
-                    </div>
-
-                    <!-- Format -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Export Format</label>
-                        <div class="flex gap-3">
-                            <label class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border-2 cursor-pointer font-medium text-sm transition-colors
-                                border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400
-                                export-format-label" data-value="xlsx">
-                                <input type="radio" name="format" value="xlsx" checked class="sr-only export-format-radio" onchange="onExportFormatChange(this)">
-                                <i class="fas fa-file-excel text-green-600"></i> Excel (.xlsx)
-                            </label>
-                            <label class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border-2 cursor-pointer font-medium text-sm transition-colors
-                                border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-emerald-300
-                                export-format-label" data-value="csv">
-                                <input type="radio" name="format" value="csv" class="sr-only export-format-radio" onchange="onExportFormatChange(this)">
-                                <i class="fas fa-file-csv text-blue-500"></i> CSV
-                            </label>
+                        <div class="relative mb-2">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                            <input type="text" id="exportUserSearch" placeholder="Search by name or username…"
+                                oninput="filterExportUsers(this.value)"
+                                class="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
                         </div>
+                        <div id="exportUserList" class="max-h-40 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg">
+                            <div class="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700">
+                                <?php foreach ($exportUsers as $eu): ?>
+                                <label class="export-user-row flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-100 dark:border-gray-700"
+                                       data-name="<?= strtolower(htmlspecialchars($eu['full_name'])) ?>"
+                                       data-username="<?= strtolower(htmlspecialchars($eu['username'])) ?>">
+                                    <input type="checkbox" name="user_ids[]" value="<?= (int)$eu['user_id'] ?>"
+                                        class="export-user-cb w-3.5 h-3.5 rounded border-gray-300 dark:border-gray-600 text-emerald-600 focus:ring-emerald-500 flex-shrink-0 cursor-pointer">
+                                    <div class="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold
+                                        <?= $eu['role'] === 'admin' ? 'bg-purple-600' : ($eu['role'] === 'viewer' ? 'bg-gray-500' : 'bg-blue-600') ?>">
+                                        <?= strtoupper(substr($eu['full_name'], 0, 1)) ?>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <span class="text-xs font-medium text-gray-900 dark:text-white block truncate"><?= htmlspecialchars($eu['full_name']) ?></span>
+                                        <span class="text-xs text-gray-400 dark:text-gray-500">@<?= htmlspecialchars($eu['username']) ?></span>
+                                    </div>
+                                </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <p id="exportUserNoMatch" class="hidden text-center text-xs text-gray-400 italic py-2">No users match your search.</p>
                     </div>
+                    <?php endif; ?>
 
                 </div>
 
+                <!-- Footer -->
                 <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 rounded-b-xl flex items-center justify-end gap-3 border-t border-gray-200 dark:border-gray-700">
                     <button type="button" onclick="closeExportModal()"
                         class="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
@@ -2964,6 +3034,23 @@ try {
                 lbl.classList.toggle('text-gray-600', !active);
                 lbl.classList.toggle('dark:text-gray-400', !active);
             });
+        }
+
+        function filterExportUsers(q) {
+            q = q.toLowerCase().trim();
+            let visible = 0;
+            document.querySelectorAll('.export-user-row').forEach(row => {
+                const match = !q || row.dataset.name.includes(q) || row.dataset.username.includes(q);
+                row.classList.toggle('hidden', !match);
+                if (match) visible++;
+            });
+            const noMatch = document.getElementById('exportUserNoMatch');
+            if (noMatch) noMatch.classList.toggle('hidden', visible > 0);
+        }
+        function clearExportUsers() {
+            document.querySelectorAll('.export-user-cb').forEach(cb => cb.checked = false);
+            const s = document.getElementById('exportUserSearch');
+            if (s) { s.value = ''; filterExportUsers(''); }
         }
 
         // Initialise company row visibility on page load

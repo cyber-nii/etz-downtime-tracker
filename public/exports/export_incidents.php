@@ -24,6 +24,7 @@ $endDate   = trim($_GET['end_date']   ?? '');
 $companyId = isset($_GET['company_id']) && $_GET['company_id'] !== '' ? intval($_GET['company_id']) : null;
 $status    = in_array($_GET['status'] ?? '', ['pending', 'resolved']) ? $_GET['status'] : '';
 $format    = ($_GET['format'] ?? 'xlsx') === 'csv' ? 'csv' : 'xlsx';
+$userIds   = array_values(array_filter(array_map('intval', (array)($_GET['user_ids'] ?? [])), fn($id) => $id > 0));
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
 function incHdrStyle(string $bgHex, bool $whiteText = true): array {
@@ -50,7 +51,7 @@ try {
 // ════════════════════════════════════════════════════════════════════════════
 // DATA QUERIES
 // ════════════════════════════════════════════════════════════════════════════
-function fetchDowntimeIncidents(PDO $pdo, string $startDate, string $endDate, ?int $companyId, string $status): array {
+function fetchDowntimeIncidents(PDO $pdo, string $startDate, string $endDate, ?int $companyId, string $status, array $userIds = []): array {
     $where  = [];
     $params = [];
 
@@ -60,6 +61,11 @@ function fetchDowntimeIncidents(PDO $pdo, string $startDate, string $endDate, ?i
     if ($companyId !== null) {
         $where[] = 'EXISTS (SELECT 1 FROM incident_affected_companies iac2 WHERE iac2.incident_id = i.incident_id AND iac2.company_id = ?)';
         $params[] = $companyId;
+    }
+    if (!empty($userIds)) {
+        $ph = implode(',', array_fill(0, count($userIds), '?'));
+        $where[] = "i.reported_by IN ($ph)";
+        $params  = array_merge($params, $userIds);
     }
 
     $whereSQL = $where ? 'WHERE ' . implode(' AND ', $where) : '';
@@ -109,13 +115,18 @@ function fetchDowntimeIncidents(PDO $pdo, string $startDate, string $endDate, ?i
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function fetchSecurityIncidents(PDO $pdo, string $startDate, string $endDate, string $status): array {
+function fetchSecurityIncidents(PDO $pdo, string $startDate, string $endDate, string $status, array $userIds = []): array {
     $where  = [];
     $params = [];
 
     if ($startDate !== '') { $where[] = 'DATE(s.actual_start_time) >= ?'; $params[] = $startDate; }
     if ($endDate   !== '') { $where[] = 'DATE(s.actual_start_time) <= ?'; $params[] = $endDate; }
     if ($status    !== '') { $where[] = 's.status = ?';                   $params[] = $status; }
+    if (!empty($userIds)) {
+        $ph = implode(',', array_fill(0, count($userIds), '?'));
+        $where[] = "s.reported_by IN ($ph)";
+        $params  = array_merge($params, $userIds);
+    }
 
     $whereSQL = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
@@ -144,13 +155,18 @@ function fetchSecurityIncidents(PDO $pdo, string $startDate, string $endDate, st
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function fetchFraudIncidents(PDO $pdo, string $startDate, string $endDate, string $status): array {
+function fetchFraudIncidents(PDO $pdo, string $startDate, string $endDate, string $status, array $userIds = []): array {
     $where  = [];
     $params = [];
 
     if ($startDate !== '') { $where[] = 'DATE(f.actual_start_time) >= ?'; $params[] = $startDate; }
     if ($endDate   !== '') { $where[] = 'DATE(f.actual_start_time) <= ?'; $params[] = $endDate; }
     if ($status    !== '') { $where[] = 'f.status = ?';                   $params[] = $status; }
+    if (!empty($userIds)) {
+        $ph = implode(',', array_fill(0, count($userIds), '?'));
+        $where[] = "f.reported_by IN ($ph)";
+        $params  = array_merge($params, $userIds);
+    }
 
     $whereSQL = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
@@ -386,16 +402,17 @@ function outputCsv(array $rows, array $threatLabels, array $fraudLabels): void {
 // FETCH DATA
 // ════════════════════════════════════════════════════════════════════════════
 $dtRows  = ($incType === 'downtime' || $incType === 'all')
-    ? fetchDowntimeIncidents($pdo, $startDate, $endDate, $companyId, $status) : [];
+    ? fetchDowntimeIncidents($pdo, $startDate, $endDate, $companyId, $status, $userIds) : [];
 $secRows = ($incType === 'security' || $incType === 'all')
-    ? fetchSecurityIncidents($pdo, $startDate, $endDate, $status) : [];
+    ? fetchSecurityIncidents($pdo, $startDate, $endDate, $status, $userIds) : [];
 $frRows  = ($incType === 'fraud' || $incType === 'all')
-    ? fetchFraudIncidents($pdo, $startDate, $endDate, $status) : [];
+    ? fetchFraudIncidents($pdo, $startDate, $endDate, $status, $userIds) : [];
 
 // ── Filename ──────────────────────────────────────────────────────────────────
-$dateParts = array_filter([$startDate, $endDate]);
-$dateLabel = $dateParts ? implode('_to_', $dateParts) : date('Y-m-d');
-$filename  = 'Incidents_' . strtoupper($incType) . '_' . $dateLabel;
+$dateParts  = array_filter([$startDate, $endDate]);
+$dateLabel  = $dateParts ? implode('_to_', $dateParts) : date('Y-m-d');
+$userSuffix = !empty($userIds) ? '_by_' . count($userIds) . 'users' : '';
+$filename   = 'Incidents_' . strtoupper($incType) . $userSuffix . '_' . $dateLabel;
 
 // ── CSV ───────────────────────────────────────────────────────────────────────
 if ($format === 'csv') {
