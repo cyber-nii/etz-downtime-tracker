@@ -24,7 +24,9 @@ function login($usernameOrEmail, $password)
         // Call the external authentication API
         $apiResponse = callExternalAuthApi($usernameOrEmail, $password);
 
-        if (!$apiResponse || empty($apiResponse[EXTERNAL_AUTH_RES_SUCCESS])) {
+        $authOk = !empty($apiResponse['code']) && $apiResponse['code'] === '00'
+               && !empty($apiResponse[EXTERNAL_AUTH_RES_USER]['isLoggedIn']);
+        if (!$apiResponse || !$authOk) {
             $reason = $apiResponse['message'] ?? 'Invalid credentials';
             logActivity(null, 'login_failed', "Failed login attempt for: {$usernameOrEmail} — {$reason}");
             return false;

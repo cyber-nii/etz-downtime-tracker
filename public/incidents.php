@@ -1410,9 +1410,17 @@ try {
                                                                         </span>
                                                                         <?php $resolvers = !empty($incident['resolvers']) ? json_decode($incident['resolvers'], true) : []; ?>
                                                                         <?php if (!empty($resolvers)): ?>
-                                                                            <span class="text-[11px] text-gray-500 dark:text-gray-400 font-medium mt-0.5" title="Assisted by: <?= htmlspecialchars(implode(', ', $resolvers)) ?>">
-                                                                                <i class="fas fa-users mr-1"></i><?= count($resolvers) ?> Helper<?= count($resolvers) > 1 ? 's' : '' ?>
-                                                                            </span>
+                                                                            <div class="text-[11px] text-gray-500 dark:text-gray-400 font-medium mt-0.5 space-y-0.5">
+                                                                                <div class="flex items-center gap-1">
+                                                                                    <i class="fas fa-users"></i>
+                                                                                    <span>Assisted by:</span>
+                                                                                </div>
+                                                                                <ul class="ml-5 space-y-0.5">
+                                                                                    <?php foreach ($resolvers as $resolver): ?>
+                                                                                        <li class="text-xs text-gray-600 dark:text-gray-300"><?= htmlspecialchars($resolver) ?></li>
+                                                                                    <?php endforeach; ?>
+                                                                                </ul>
+                                                                            </div>
                                                                         <?php endif; ?>
                                                                         <span
                                                                             class="text-[11px] text-gray-400"><?= $incident['resolved_at'] ? date('M j, Y g:i A', strtotime($incident['resolved_at'])) : '' ?></span>
