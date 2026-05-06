@@ -27,7 +27,7 @@ function isAdminMobileActive($page)
                 <!-- Logo & Admin Badge -->
                 <div class="flex items-center space-x-3">
                     <a href="<?= url('index.php') ?>" class="flex items-center space-x-2.5 group">
-                        <img src="<?= url('../src/assets/logo1.png') ?>" alt="eTranzact Logo"
+                        <img src="<?= url('../assets/logo1.png') ?>" alt="eTranzact Logo"
                             class="h-12 w-auto object-contain">
                     </a>
                     <span

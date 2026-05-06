@@ -925,7 +925,7 @@ try {
                                 <i class="fas fa-check-circle text-green-400"></i>
                             </div>
                             <div class="ml-3">
-                                <p class="text-sm text-green-700"><?php echo htmlspecialchars($_SESSION['success']); ?></p>
+                                <p class="text-sm text-green-700"><?php echo htmlspecialchars($_SESSION['success'] ?? ''); ?></p>
                             </div>
                         </div>
                     </div>
@@ -1119,7 +1119,7 @@ try {
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <!-- Ref chip — neutral gray -->
                                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-semibold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                                        <i class="fas fa-hashtag text-[9px]"></i><?= htmlspecialchars($inc['incident_ref']) ?>
+                                        <i class="fas fa-hashtag text-[9px]"></i><?= htmlspecialchars($inc['incident_ref'] ?? '') ?>
                                     </span>
                                     <!-- All metadata badges — uniform neutral gray -->
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
@@ -1331,7 +1331,7 @@ try {
                                                     <div class="w-5 h-5 rounded-full bg-blue-200 dark:bg-blue-800 flex items-center justify-center flex-shrink-0">
                                                         <i class="fas fa-user text-blue-600 dark:text-blue-400 text-[9px]"></i>
                                                     </div>
-                                                    <span class="text-xs font-bold text-blue-700 dark:text-blue-300"><?= htmlspecialchars($incident['user_name']) ?></span>
+                                                    <span class="text-xs font-bold text-blue-700 dark:text-blue-300"><?= htmlspecialchars($incident['user_name'] ?? '') ?></span>
                                                     <span class="text-[11px] text-blue-500 dark:text-blue-400">reported this incident</span>
                                                 </div>
 
@@ -1341,7 +1341,7 @@ try {
                                                     <div class="flex flex-col gap-1.5">
                                                         <div class="flex items-center gap-2 flex-wrap">
                                                             <h3 class="text-base font-bold text-gray-900 dark:text-white leading-tight">
-                                                                <?= htmlspecialchars($incident['service_name']) ?>
+                                                                <?= htmlspecialchars($incident['service_name'] ?? '') ?>
                                                             </h3>
                                                             <?php if (!empty($incident['incident_ref'])): ?>
                                                                         <button type="button" x-data="{ copied: false }"
@@ -1349,7 +1349,7 @@ try {
                                                                             title="Click to copy"
                                                                             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-medium bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 transition-colors">
                                                                             <span x-show="!copied"><i class="fas fa-hashtag text-[9px]"></i>
-                                                                                <?= htmlspecialchars($incident['incident_ref']) ?></span>
+                                                                                <?= htmlspecialchars($incident['incident_ref'] ?? '') ?></span>
                                                                             <span x-show="copied" x-cloak class="text-green-600 dark:text-green-400"><i
                                                                                     class="fas fa-check text-[9px]"></i> Copied</span>
                                                                         </button>
@@ -1372,7 +1372,7 @@ try {
                                                             </span>
                                                             <?php if (!empty($incident['incident_type_name'])): ?>
                                                                 <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                                                                    <i class="fas fa-tag text-[9px]"></i><?= htmlspecialchars($incident['incident_type_name']) ?>
+                                                                    <i class="fas fa-tag text-[9px]"></i><?= htmlspecialchars($incident['incident_type_name'] ?? '') ?>
                                                                 </span>
                                                             <?php endif; ?>
                                                             <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
@@ -1528,7 +1528,7 @@ try {
                                                                                 Description</p>
                                                                             <p
                                                                                 class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed line-clamp-3">
-                                                                                <?= nl2br(htmlspecialchars($incident['description'])) ?>
+                                                                                <?= nl2br(htmlspecialchars($incident['description'] ?? '')) ?>
                                                                             </p>
                                                                         </div>
                                                             <?php endif; ?>
@@ -1542,7 +1542,7 @@ try {
                                                                                 <i class="fas fa-magnifying-glass mr-1"></i>Root Cause
                                                                             </p>
                                                                             <p class="text-sm text-gray-700 dark:text-gray-300">
-                                                                                <?= nl2br(htmlspecialchars($incident['root_cause'])) ?></p>
+                                                                                <?= nl2br(htmlspecialchars($incident['root_cause'] ?? '')) ?></p>
                                                                         </div>
                                                             <?php endif; ?>
 
@@ -1555,7 +1555,7 @@ try {
                                                                                 <i class="fas fa-lightbulb mr-1"></i>Lessons Learned
                                                                             </p>
                                                                             <p class="text-sm text-gray-700 dark:text-gray-300">
-                                                                                <?= nl2br(htmlspecialchars($incident['lessons_learned'])) ?></p>
+                                                                                <?= nl2br(htmlspecialchars($incident['lessons_learned'] ?? '')) ?></p>
                                                                         </div>
                                                             <?php endif; ?>
 

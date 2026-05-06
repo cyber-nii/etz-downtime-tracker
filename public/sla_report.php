@@ -260,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                         class="px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                                         Export to Excel
                                     </div>
-                                    <a href="/exports/export_sla_report.php?start_date=<?= urlencode($startDate) ?>&end_date=<?= urlencode($endDate) ?>"
+                                    <a href="<?= url('exports/export_sla_report.php') ?>?start_date=<?= urlencode($startDate) ?>&end_date=<?= urlencode($endDate) ?>"
                                         class="text-gray-700 dark:text-gray-300 block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                                         role="menuitem" tabindex="-1" data-no-loading>
                                         <span class="flex items-center">
@@ -273,7 +273,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                         </span>
                                     </a>
                                     <?php if ($companyId): ?>
-                                        <a href="/exports/export_sla_report.php?company_id=<?= urlencode($companyId) ?>&start_date=<?= urlencode($startDate) ?>&end_date=<?= urlencode($endDate) ?>"
+                                        <a href="<?= url('exports/export_sla_report.php') ?>?company_id=<?= urlencode($companyId ?? '') ?>&start_date=<?= urlencode($startDate) ?>&end_date=<?= urlencode($endDate) ?>"
                                             class="text-gray-700 dark:text-gray-300 block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                                             role="menuitem" tabindex="-1" data-no-loading>
                                             <span class="flex items-center">
@@ -314,7 +314,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                                 $selectedText = '-- Select Company --';
                                                 foreach ($companies as $company) {
                                                     if ($companyId == $company['company_id']) {
-                                                        $selectedText = htmlspecialchars($company['company_name']);
+                                                        $selectedText = htmlspecialchars($company['company_name'] ?? '');
                                                         break;
                                                     }
                                                 }
@@ -332,15 +332,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                             </span>
                                         </button>
                                         <input type="hidden" name="company_id" id="company_id"
-                                            value="<?= htmlspecialchars($companyId) ?>">
+                                            value="<?= htmlspecialchars($companyId ?? '') ?>">
                                         <div id="company-dropdown"
                                             class="hidden absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
                                             <?php foreach ($companies as $company): ?>
                                                 <div class="text-gray-900 cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
-                                                    data-value="<?= htmlspecialchars($company['company_id']) ?>"
-                                                    data-display="<?= htmlspecialchars($company['company_name']) ?>">
+                                                    data-value="<?= htmlspecialchars($company['company_id'] ?? '') ?>"
+                                                    data-display="<?= htmlspecialchars($company['company_name'] ?? '') ?>">
                                                     <span class="font-normal block truncate">
-                                                        <?= htmlspecialchars($company['company_name']) ?>
+                                                        <?= htmlspecialchars($company['company_name'] ?? '') ?>
                                                     </span>
                                                 </div>
                                             <?php endforeach; ?>
@@ -590,7 +590,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                                                 <td
                                                     class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white text-center">
-                                                    <?= htmlspecialchars($service['name']) ?>
+                                                    <?= htmlspecialchars($service['name'] ?? '') ?>
                                                 </td>
                                                 <td
                                                     class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-400">
@@ -671,7 +671,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                                                 <td
                                                     class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white text-center">
-                                                    <?= htmlspecialchars($incident['service_name']) ?>
+                                                    <?= htmlspecialchars($incident['service_name'] ?? '') ?>
                                                 </td>
                                                 <td
                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
@@ -711,12 +711,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $companyId) {
                                                     <?php endif; ?>
                                                 </td>
                                                 <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
-                                                    <?= htmlspecialchars($incident['root_cause']) ?>
+                                                    <?= htmlspecialchars($incident['root_cause'] ?? '') ?>
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-center">
                                                     <span
                                                         class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?= $impactClass ?>">
-                                                        <?= htmlspecialchars($incident['impact_level']) ?>
+                                                        <?= htmlspecialchars($incident['impact_level'] ?? '') ?>
                                                     </span>
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-center">

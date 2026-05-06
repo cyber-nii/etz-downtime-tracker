@@ -363,7 +363,7 @@ $currentMonth   = date('F Y');
                                 <div class="flex items-center justify-between mb-2">
                                     <div class="flex items-center gap-2.5">
                                         <span class="text-sm font-semibold text-gray-800 dark:text-white">
-                                            <?= htmlspecialchars($svc['service_name']) ?>
+                                            <?= htmlspecialchars($svc['service_name'] ?? '') ?>
                                         </span>
                                         <?php if ($svc['critical'] > 0): ?>
                                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 pulse-critical">
@@ -425,9 +425,9 @@ $currentMonth   = date('F Y');
                                     </div>
                                     <div class="min-w-0">
                                         <div class="flex items-center gap-1.5 flex-wrap">
-                                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-300"><?= htmlspecialchars($u['service_name']) ?></span>
+                                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-300"><?= htmlspecialchars($u['service_name'] ?? '') ?></span>
                                             <?php if ($u['incident_ref']): ?>
-                                                <span class="text-[10px] text-gray-400"><?= htmlspecialchars($u['incident_ref']) ?></span>
+                                                <span class="text-[10px] text-gray-400"><?= htmlspecialchars($u['incident_ref'] ?? '') ?></span>
                                             <?php endif; ?>
                                         </div>
                                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate" title="<?= htmlspecialchars($u['description'] ?? '') ?>">
@@ -500,14 +500,14 @@ $currentMonth   = date('F Y');
                                 ?>
                                 <tr class="table-row-hover">
                                     <td class="px-5 py-3.5 whitespace-nowrap">
-                                        <div class="text-sm font-semibold text-gray-900 dark:text-white"><?= htmlspecialchars($inc['service_name']) ?></div>
+                                        <div class="text-sm font-semibold text-gray-900 dark:text-white"><?= htmlspecialchars($inc['service_name'] ?? '') ?></div>
                                         <?php if ($inc['incident_ref']): ?>
-                                            <div class="text-[11px] text-gray-400 font-mono mt-0.5"><?= htmlspecialchars($inc['incident_ref']) ?></div>
+                                            <div class="text-[11px] text-gray-400 font-mono mt-0.5"><?= htmlspecialchars($inc['incident_ref'] ?? '') ?></div>
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-5 py-3.5 whitespace-nowrap">
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $impactColors ?>">
-                                            <?= htmlspecialchars($inc['impact_level']) ?>
+                                            <?= htmlspecialchars($inc['impact_level'] ?? '') ?>
                                         </span>
                                     </td>
                                     <td class="px-5 py-3.5 hidden md:table-cell">
