@@ -1031,6 +1031,9 @@ try {
                 <div class="mb-6 flex flex-col gap-3" id="filter-bar-wrapper">
                     <!-- Main bar: search + status toggles + filter button -->
                     <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                <div class="mb-6 flex flex-col gap-3" id="filter-bar-wrapper">
+                    <!-- Main bar: search + status toggles + filter button -->
+                    <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                         <!-- Search -->
                         <div class="flex-1">
                             <div class="relative">
