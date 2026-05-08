@@ -617,11 +617,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resol
 }
 
 // ── Filter & pagination ────────────────────────────────────
-$statusFilter = in_array($_GET['status'] ?? '', ['pending', 'resolved']) ? $_GET['status'] : '';
-$searchFilter = trim($_GET['search'] ?? '');
-$dateFrom     = trim($_GET['date_from'] ?? '');
-$dateTo       = trim($_GET['date_to'] ?? '');
-$userFilter   = intval($_GET['reporter'] ?? 0);
+$statusFilter    = in_array($_GET['status'] ?? '', ['pending', 'resolved']) ? $_GET['status'] : '';
+$searchFilter    = trim($_GET['search'] ?? '');
+$dateFrom        = trim($_GET['date_from'] ?? '');
+$dateTo          = trim($_GET['date_to'] ?? '');
+$userFilter      = intval($_GET['reporter'] ?? 0);
+$serviceFilter   = intval($_GET['service_id'] ?? 0);
+$companyFilter   = intval($_GET['company_id'] ?? 0);
 $itemsPerPage = 10;
 $currentPage  = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset       = ($currentPage - 1) * $itemsPerPage;
@@ -661,6 +663,7 @@ $totalIncidents = 0;
 $totalPages     = 1;
 $services = $components = $incidentTypes = $companies = [];
 $allCompanies = $pdo->query("SELECT company_id, company_name FROM companies ORDER BY company_name")->fetchAll(PDO::FETCH_ASSOC);
+$allServices  = $pdo->query("SELECT service_id, service_name FROM services ORDER BY service_name")->fetchAll(PDO::FETCH_ASSOC);
 
 $exportUsers  = ($_SESSION['role'] === 'admin')
     ? $pdo->query("SELECT user_id, full_name, username, role FROM users ORDER BY full_name ASC")->fetchAll(PDO::FETCH_ASSOC)
@@ -694,6 +697,14 @@ try {
         if ($dateTo !== '') {
             $whereClauses[] = "DATE(i.actual_start_time) <= ?";
             $filterParams[] = $dateTo;
+        }
+        if ($serviceFilter > 0) {
+            $whereClauses[] = "i.service_id = ?";
+            $filterParams[] = $serviceFilter;
+        }
+        if ($companyFilter > 0) {
+            $whereClauses[] = "EXISTS (SELECT 1 FROM incident_affected_companies iac3 WHERE iac3.incident_id = i.incident_id AND iac3.company_id = ?)";
+            $filterParams[] = $companyFilter;
         }
         $whereSQL = $whereClauses ? "WHERE " . implode(" AND ", $whereClauses) : "";
 
@@ -987,8 +998,9 @@ try {
                 </div>
 
                 <!-- Search and Filter Bar -->
-                <div class="mb-6 flex flex-col gap-3">
-                    <div class="flex flex-col sm:flex-row gap-3">
+                <div class="mb-6 flex flex-col gap-3" id="filter-bar-wrapper">
+                    <!-- Main bar: search + status toggles + filter button -->
+                    <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                         <!-- Search -->
                         <div class="flex-1">
                             <div class="relative">
@@ -1003,60 +1015,140 @@ try {
                                     value="<?= htmlspecialchars($searchFilter) ?>"
                                     class="block w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm">
                                 <?php if ($searchFilter): ?>
-                                    <a href="?tab=<?= urlencode($activeTab) ?><?= $statusFilter ? '&status=' . urlencode($statusFilter) : '' ?><?= $userFilter ? '&reporter=' . $userFilter : '' ?><?= $dateFrom ? '&date_from=' . urlencode($dateFrom) : '' ?><?= $dateTo ? '&date_to=' . urlencode($dateTo) : '' ?>"
+                                    <a href="?tab=<?= urlencode($activeTab) ?><?= $statusFilter ? '&status=' . urlencode($statusFilter) : '' ?><?= $userFilter ? '&reporter=' . $userFilter : '' ?><?= $dateFrom ? '&date_from=' . urlencode($dateFrom) : '' ?><?= $dateTo ? '&date_to=' . urlencode($dateTo) : '' ?><?= $serviceFilter ? '&service_id=' . $serviceFilter : '' ?><?= $companyFilter ? '&company_id=' . $companyFilter : '' ?>"
                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
                                         <i class="fas fa-times-circle"></i>
                                     </a>
                                 <?php endif; ?>
                             </div>
                         </div>
-                        <!-- Reporter filter -->
-                        <div class="relative">
-                            <select id="reporter-filter"
-                                class="py-2.5 pl-3 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
-                                <option value="0">All reporters</option>
-                                <?php foreach ($filterUsers as $fu): ?>
-                                    <option value="<?= $fu['user_id'] ?>" <?= $userFilter === (int)$fu['user_id'] ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($fu['full_name']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+
+                        <!-- Right side: status toggles + filter button -->
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <!-- Status toggles -->
+                            <div class="inline-flex rounded-lg shadow-sm" role="group">
+                                <button type="button" data-status=""
+                                    class="status-toggle px-3 py-2.5 text-sm font-medium rounded-l-lg border border-gray-200 dark:border-gray-600 <?= $statusFilter === '' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300' ?> hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors focus:outline-none">
+                                    <span class="flex items-center gap-1.5">
+                                        <i class="fas fa-list-ul text-xs <?= $statusFilter === '' ? 'text-blue-600' : 'text-gray-400' ?>"></i>
+                                        <span>All</span>
+                                    </span>
+                                </button>
+                                <button type="button" data-status="pending"
+                                    class="status-toggle px-3 py-2.5 text-sm font-medium border-t border-b border-gray-200 dark:border-gray-600 <?= $statusFilter === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300' ?> hover:bg-yellow-50 dark:hover:bg-gray-600 transition-colors focus:outline-none">
+                                    <span class="flex items-center gap-1.5">
+                                        <i class="fas fa-clock text-xs text-yellow-500"></i>
+                                        <span>Pending</span>
+                                    </span>
+                                </button>
+                                <button type="button" data-status="resolved"
+                                    class="status-toggle px-3 py-2.5 text-sm font-medium rounded-r-lg border border-gray-200 dark:border-gray-600 <?= $statusFilter === 'resolved' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300' ?> hover:bg-green-50 dark:hover:bg-gray-600 transition-colors focus:outline-none">
+                                    <span class="flex items-center gap-1.5">
+                                        <i class="fas fa-check-circle text-xs text-green-500"></i>
+                                        <span>Resolved</span>
+                                    </span>
+                                </button>
                             </div>
-                        </div>
-                        <!-- Date range -->
-                        <div class="flex items-center gap-2">
-                            <input type="date" id="date_from" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>"
-                                class="py-2.5 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <span class="text-gray-400 text-sm">–</span>
-                            <input type="date" id="date_to" name="date_to" value="<?= htmlspecialchars($dateTo) ?>"
-                                class="py-2.5 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+                            <!-- Filters button -->
+                            <button type="button" id="filter-panel-toggle"
+                                onclick="toggleFilterPanel()"
+                                class="relative inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <i class="fas fa-sliders text-gray-500 dark:text-gray-400"></i>
+                                <span>Filters</span>
+                                <?php
+                                    $activeSecondaryCount = (int)($userFilter > 0) + (int)($dateFrom !== '') + (int)($dateTo !== '') + (int)($serviceFilter > 0) + (int)($companyFilter > 0);
+                                ?>
+                                <span id="filter-badge" class="<?= $activeSecondaryCount > 0 ? 'flex' : 'hidden' ?> absolute -top-1.5 -right-1.5 h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold leading-none"><?= $activeSecondaryCount ?></span>
+                            </button>
                         </div>
                     </div>
-                    <!-- status toggle buttons -->
-                    <div class="flex md:mt-0">
-                        <div class="inline-flex rounded-lg shadow-sm" role="group">
-                            <button type="button" data-status=""
-                                class="status-toggle px-4 py-2 text-sm font-medium rounded-l-lg border border-gray-200 <?= $statusFilter === '' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-gray-700' ?> hover:bg-gray-50 transition-colors duration-200 ease-in-out focus:outline-none">
-                                <span class="flex items-center">
-                                    <i class="fas fa-list-ul mr-2 <?= $statusFilter === '' ? 'text-blue-600' : 'text-gray-500' ?>"></i>
-                                    <span>All</span>
-                                </span>
+
+                    <!-- Collapsible filter panel -->
+                    <div id="filter-panel"
+                         class="<?= $activeSecondaryCount > 0 ? '' : 'hidden' ?> rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 p-4 transition-all">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Reporter -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">Reporter</label>
+                                <div class="relative">
+                                    <select id="panel-reporter"
+                                        class="w-full py-2 pl-3 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
+                                        <option value="0">All reporters</option>
+                                        <?php foreach ($filterUsers as $fu): ?>
+                                            <option value="<?= $fu['user_id'] ?>" <?= $userFilter === (int)$fu['user_id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($fu['full_name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Service -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">Service</label>
+                                <div class="relative">
+                                    <select id="panel-service"
+                                        class="w-full py-2 pl-3 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
+                                        <option value="0">All services</option>
+                                        <?php foreach ($allServices as $svc): ?>
+                                            <option value="<?= $svc['service_id'] ?>" <?= $serviceFilter === (int)$svc['service_id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($svc['service_name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Telco / Company -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">Telco / Company</label>
+                                <div class="relative">
+                                    <select id="panel-company"
+                                        class="w-full py-2 pl-3 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
+                                        <option value="0">All companies</option>
+                                        <?php foreach ($allCompanies as $co): ?>
+                                            <option value="<?= $co['company_id'] ?>" <?= $companyFilter === (int)$co['company_id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($co['company_name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Date from -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">From date</label>
+                                <input type="date" id="panel-date-from" value="<?= htmlspecialchars($dateFrom) ?>"
+                                    class="w-full py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+
+                            <!-- Date to -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">To date</label>
+                                <input type="date" id="panel-date-to" value="<?= htmlspecialchars($dateTo) ?>"
+                                    class="w-full py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+
+                        <!-- Panel actions -->
+                        <div class="mt-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-600 pt-3">
+                            <button type="button" onclick="clearSecondaryFilters()"
+                                class="text-xs text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 font-medium transition-colors">
+                                <i class="fas fa-times mr-1"></i>Clear all
                             </button>
-                            <button type="button" data-status="pending"
-                                class="status-toggle px-4 py-2 text-sm font-medium border-t border-b border-gray-200 <?= $statusFilter === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-white text-gray-700' ?> hover:bg-yellow-50 transition-colors duration-200 ease-in-out focus:outline-none">
-                                <span class="flex items-center">
-                                    <i class="fas fa-clock mr-2 text-yellow-500"></i>
-                                    <span>Pending</span>
-                                </span>
-                            </button>
-                            <button type="button" data-status="resolved"
-                                class="status-toggle px-4 py-2 text-sm font-medium rounded-r-lg border border-gray-200 <?= $statusFilter === 'resolved' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-white text-gray-700' ?> hover:bg-green-50 transition-colors duration-200 ease-in-out focus:outline-none">
-                                <span class="flex items-center">
-                                    <i class="fas fa-check-circle mr-2 text-green-500"></i>
-                                    <span>Resolved</span>
-                                </span>
+                            <button type="button" onclick="applySecondaryFilters()"
+                                class="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <i class="fas fa-check text-xs"></i>Apply filters
                             </button>
                         </div>
                     </div>
@@ -1075,7 +1167,7 @@ try {
                         <?php endif; ?>
                     </p>
                     <div class="flex items-center gap-3">
-                        <?php if ($statusFilter || $searchFilter || $userFilter || $dateFrom || $dateTo): ?>
+                        <?php if ($statusFilter || $searchFilter || $userFilter || $dateFrom || $dateTo || $serviceFilter || $companyFilter): ?>
                             <a href="incidents.php?tab=<?= urlencode($activeTab) ?>" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-medium">
                                 <i class="fas fa-times mr-1"></i> Clear filters
                             </a>
@@ -2929,38 +3021,86 @@ try {
             });
         })();
 
-        // Date filter — navigate when either date changes
-        (function () {
-            const fromInput = document.getElementById('date_from');
-            const toInput   = document.getElementById('date_to');
-            function applyDates() {
-                const url = new URL(window.location);
-                const from = fromInput ? fromInput.value : '';
-                const to   = toInput   ? toInput.value   : '';
-                if (from) url.searchParams.set('date_from', from); else url.searchParams.delete('date_from');
-                if (to)   url.searchParams.set('date_to',   to);   else url.searchParams.delete('date_to');
-                url.searchParams.delete('page');
-                window.location.href = url.toString();
+        // ── Filter panel ──────────────────────────────────────────
+        function toggleFilterPanel() {
+            const panel  = document.getElementById('filter-panel');
+            const btn    = document.getElementById('filter-panel-toggle');
+            const isOpen = !panel.classList.contains('hidden');
+            if (isOpen) {
+                panel.classList.add('hidden');
+                btn.classList.remove('ring-2', 'ring-blue-500');
+            } else {
+                panel.classList.remove('hidden');
+                btn.classList.add('ring-2', 'ring-blue-500');
             }
-            if (fromInput) fromInput.addEventListener('change', applyDates);
-            if (toInput)   toInput.addEventListener('change',   applyDates);
-        })();
+        }
 
-        // Reporter filter — navigate on change
+        function applySecondaryFilters() {
+            const url      = new URL(window.location);
+            const reporter = document.getElementById('panel-reporter')?.value;
+            const service  = document.getElementById('panel-service')?.value;
+            const company  = document.getElementById('panel-company')?.value;
+            const dateFrom = document.getElementById('panel-date-from')?.value;
+            const dateTo   = document.getElementById('panel-date-to')?.value;
+
+            reporter && reporter !== '0' ? url.searchParams.set('reporter',   reporter) : url.searchParams.delete('reporter');
+            service  && service  !== '0' ? url.searchParams.set('service_id', service)  : url.searchParams.delete('service_id');
+            company  && company  !== '0' ? url.searchParams.set('company_id', company)  : url.searchParams.delete('company_id');
+            dateFrom ? url.searchParams.set('date_from', dateFrom) : url.searchParams.delete('date_from');
+            dateTo   ? url.searchParams.set('date_to',   dateTo)   : url.searchParams.delete('date_to');
+            url.searchParams.delete('page');
+            window.location.href = url.toString();
+        }
+
+        function clearSecondaryFilters() {
+            const url = new URL(window.location);
+            ['reporter', 'service_id', 'company_id', 'date_from', 'date_to'].forEach(k => url.searchParams.delete(k));
+            url.searchParams.delete('page');
+            window.location.href = url.toString();
+        }
+
+        // Update badge count whenever a panel input changes
         (function () {
-            const sel = document.getElementById('reporter-filter');
-            if (!sel) return;
-            sel.addEventListener('change', function () {
-                const url = new URL(window.location);
-                if (this.value && this.value !== '0') {
-                    url.searchParams.set('reporter', this.value);
-                } else {
-                    url.searchParams.delete('reporter');
+            const inputs = ['panel-reporter', 'panel-service', 'panel-company', 'panel-date-from', 'panel-date-to'];
+            function refreshBadge() {
+                const count = inputs.filter(id => {
+                    const el = document.getElementById(id);
+                    if (!el) return false;
+                    return el.tagName === 'SELECT' ? el.value !== '0' : el.value !== '';
+                }).length;
+                const badge = document.getElementById('filter-badge');
+                if (badge) {
+                    badge.textContent = count;
+                    count > 0 ? badge.classList.replace('hidden', 'flex') : badge.classList.replace('flex', 'hidden');
                 }
-                url.searchParams.delete('page');
-                window.location.href = url.toString();
+            }
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', refreshBadge);
             });
         })();
+
+        // Close panel on outside click
+        document.addEventListener('click', function (e) {
+            const panel  = document.getElementById('filter-panel');
+            const btn    = document.getElementById('filter-panel-toggle');
+            const wrapper = document.getElementById('filter-bar-wrapper');
+            if (!panel || panel.classList.contains('hidden')) return;
+            if (wrapper && wrapper.contains(e.target)) return;
+            panel.classList.add('hidden');
+            btn && btn.classList.remove('ring-2', 'ring-blue-500');
+        });
+
+        // Close panel on Escape
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') return;
+            const panel = document.getElementById('filter-panel');
+            const btn   = document.getElementById('filter-panel-toggle');
+            if (panel && !panel.classList.contains('hidden')) {
+                panel.classList.add('hidden');
+                btn && btn.classList.remove('ring-2', 'ring-blue-500');
+            }
+        });
 
         // Refresh incidents function
         function refreshIncidents() {
