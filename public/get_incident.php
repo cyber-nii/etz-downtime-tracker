@@ -58,6 +58,16 @@ try {
     $compStmt->execute([$incidentId]);
     $incident['component_ids'] = array_map('intval', $compStmt->fetchAll(PDO::FETCH_COLUMN));
 
+    // Fetch affected telcos
+    $telcoStmt = $pdo->prepare("SELECT telco_id FROM incident_telcos WHERE incident_id = ?");
+    $telcoStmt->execute([$incidentId]);
+    $incident['telco_ids'] = array_map('intval', $telcoStmt->fetchAll(PDO::FETCH_COLUMN));
+
+    // Fetch affected third parties
+    $tpStmt = $pdo->prepare("SELECT tp_id FROM incident_third_parties WHERE incident_id = ?");
+    $tpStmt->execute([$incidentId]);
+    $incident['tp_ids'] = array_map('intval', $tpStmt->fetchAll(PDO::FETCH_COLUMN));
+
     // Fetch attachments if requested
     if (isset($_GET['include_attachments']) && $_GET['include_attachments'] == '1') {
         error_log("Fetching attachments for incident ID: " . $incidentId);

@@ -58,6 +58,10 @@ try {
         ORDER BY it.name ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
     
+    // Fetch telcos and third parties
+    $telcos       = $pdo->query("SELECT telco_id, name FROM telcos WHERE is_active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+    $thirdParties = $pdo->query("SELECT tp_id, name FROM third_parties WHERE is_active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+
     // Fetch all companies and sort them with 'All' first, then alphabetically
     $allCompanies = $pdo->query("SELECT * FROM companies")->fetchAll(PDO::FETCH_ASSOC);
     
@@ -157,7 +161,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
         $company_ids = array_values(array_unique($company_ids));
     }
-    
+
+    // Parse telco IDs
+    $telco_ids = [];
+    if (!empty($_POST['telco_ids']) && is_array($_POST['telco_ids'])) {
+        foreach ($_POST['telco_ids'] as $tid) {
+            $tid = filter_var($tid, FILTER_VALIDATE_INT);
+            if ($tid) $telco_ids[] = $tid;
+        }
+        $telco_ids = array_values(array_unique($telco_ids));
+    }
+
+    // Parse third party IDs
+    $tp_ids = [];
+    if (!empty($_POST['tp_ids']) && is_array($_POST['tp_ids'])) {
+        foreach ($_POST['tp_ids'] as $tid) {
+            $tid = filter_var($tid, FILTER_VALIDATE_INT);
+            if ($tid) $tp_ids[] = $tid;
+        }
+        $tp_ids = array_values(array_unique($tp_ids));
+    }
+
     // Handle multiple file uploads
     $errors = [];
     $attachment_path = null; // Keep for backward compatibility (first file)
@@ -320,6 +344,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     foreach ($component_ids as $co_cid) {
                         $icomp_stmt->execute([$incident_id, $co_cid]);
                     }
+                }
+
+                // 3b. Insert telcos
+                if (!empty($telco_ids)) {
+                    $telco_stmt = $pdo->prepare("INSERT IGNORE INTO incident_telcos (incident_id, telco_id) VALUES (?, ?)");
+                    foreach ($telco_ids as $tid) { $telco_stmt->execute([$incident_id, $tid]); }
+                }
+
+                // 3c. Insert third parties
+                if (!empty($tp_ids)) {
+                    $tp_stmt = $pdo->prepare("INSERT IGNORE INTO incident_third_parties (incident_id, tp_id) VALUES (?, ?)");
+                    foreach ($tp_ids as $tid) { $tp_stmt->execute([$incident_id, $tid]); }
                 }
 
                 // 4. Insert into downtime_incidents table ONLY if:
@@ -747,6 +783,44 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                    </div>
+                    <!-- Telcos Affected + Third Parties Involved — side by side -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        <!-- Telcos Affected -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Telcos Affected <span class="text-gray-400 text-xs font-normal">(optional)</span>
+                            </label>
+                            <div class="grid grid-cols-1 gap-2 border border-gray-300 dark:border-gray-600 rounded-md p-3">
+                                <?php foreach ($telcos as $telco): ?>
+                                    <label class="flex items-center space-x-2 text-sm cursor-pointer">
+                                        <input type="checkbox" name="telco_ids[]" value="<?= $telco['telco_id'] ?>"
+                                            class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-green-600 focus:ring-green-500"
+                                            <?= (isset($_POST['telco_ids']) && in_array($telco['telco_id'], (array)$_POST['telco_ids'])) ? 'checked' : '' ?>>
+                                        <span class="text-gray-700 dark:text-gray-300"><?= htmlspecialchars($telco['name']) ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <!-- Third Parties Involved -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Third Parties Involved <span class="text-gray-400 text-xs font-normal">(optional)</span>
+                            </label>
+                            <div class="grid grid-cols-1 gap-2 border border-gray-300 dark:border-gray-600 rounded-md p-3">
+                                <?php foreach ($thirdParties as $tp): ?>
+                                    <label class="flex items-center space-x-2 text-sm cursor-pointer">
+                                        <input type="checkbox" name="tp_ids[]" value="<?= $tp['tp_id'] ?>"
+                                            class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500"
+                                            <?= (isset($_POST['tp_ids']) && in_array($tp['tp_id'], (array)$_POST['tp_ids'])) ? 'checked' : '' ?>>
+                                        <span class="text-gray-700 dark:text-gray-300"><?= htmlspecialchars($tp['name']) ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
                     </div>
 
                     <!-- Companies Affected -->

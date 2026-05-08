@@ -148,6 +148,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $_SESSION['message'] = ['type' => 'success', 'text' => 'Company deleted successfully'];
 
+            // ============ TELCO ACTIONS ============
+        } elseif ($action === 'create_telco') {
+            $name = trim($_POST['name'] ?? '');
+            if (empty($name)) throw new Exception('Telco name is required');
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM telcos WHERE name = ?");
+            $stmt->execute([$name]);
+            if ($stmt->fetchColumn() > 0) throw new Exception('A telco with this name already exists');
+            $pdo->prepare("INSERT INTO telcos (name) VALUES (?)")->execute([$name]);
+            logActivity($_SESSION['user_id'], 'created_telco', "Created telco: $name");
+            $_SESSION['message'] = ['type' => 'success', 'text' => 'Telco created successfully'];
+
+        } elseif ($action === 'update_telco') {
+            $id   = intval($_POST['telco_id'] ?? 0);
+            $name = trim($_POST['name'] ?? '');
+            if (empty($name)) throw new Exception('Telco name is required');
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM telcos WHERE name = ? AND telco_id != ?");
+            $stmt->execute([$name, $id]);
+            if ($stmt->fetchColumn() > 0) throw new Exception('A telco with this name already exists');
+            $pdo->prepare("UPDATE telcos SET name = ? WHERE telco_id = ?")->execute([$name, $id]);
+            logActivity($_SESSION['user_id'], 'updated_telco', "Updated telco ID $id to: $name");
+            $_SESSION['message'] = ['type' => 'success', 'text' => 'Telco updated successfully'];
+
+        } elseif ($action === 'toggle_telco_status') {
+            $id = intval($_POST['telco_id'] ?? 0);
+            $newStatus = intval($_POST['new_status'] ?? 1);
+            $pdo->prepare("UPDATE telcos SET is_active = ? WHERE telco_id = ?")->execute([$newStatus, $id]);
+            logActivity($_SESSION['user_id'], 'toggled_telco_status', "Toggled telco ID $id status to $newStatus");
+            $_SESSION['message'] = ['type' => 'success', 'text' => 'Telco status updated'];
+
+        } elseif ($action === 'delete_telco') {
+            $id = intval($_POST['telco_id'] ?? 0);
+            $stmt = $pdo->prepare("SELECT name FROM telcos WHERE telco_id = ?");
+            $stmt->execute([$id]);
+            $name = $stmt->fetchColumn();
+            $pdo->prepare("DELETE FROM telcos WHERE telco_id = ?")->execute([$id]);
+            logActivity($_SESSION['user_id'], 'deleted_telco', "Deleted telco: $name");
+            $_SESSION['message'] = ['type' => 'success', 'text' => 'Telco deleted successfully'];
+
+            // ============ THIRD PARTY ACTIONS ============
+        } elseif ($action === 'create_third_party') {
+            $name     = trim($_POST['name'] ?? '');
+            $category = trim($_POST['category'] ?? '');
+            if (empty($name)) throw new Exception('Third party name is required');
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM third_parties WHERE name = ?");
+            $stmt->execute([$name]);
+            if ($stmt->fetchColumn() > 0) throw new Exception('A third party with this name already exists');
+            $pdo->prepare("INSERT INTO third_parties (name, category) VALUES (?, ?)")->execute([$name, $category ?: null]);
+            logActivity($_SESSION['user_id'], 'created_third_party', "Created third party: $name");
+            $_SESSION['message'] = ['type' => 'success', 'text' => 'Third party created successfully'];
+
+        } elseif ($action === 'update_third_party') {
+            $id       = intval($_POST['tp_id'] ?? 0);
+            $name     = trim($_POST['name'] ?? '');
+            $category = trim($_POST['category'] ?? '');
+            if (empty($name)) throw new Exception('Third party name is required');
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM third_parties WHERE name = ? AND tp_id != ?");
+            $stmt->execute([$name, $id]);
+            if ($stmt->fetchColumn() > 0) throw new Exception('A third party with this name already exists');
+            $pdo->prepare("UPDATE third_parties SET name = ?, category = ? WHERE tp_id = ?")->execute([$name, $category ?: null, $id]);
+            logActivity($_SESSION['user_id'], 'updated_third_party', "Updated third party ID $id to: $name");
+            $_SESSION['message'] = ['type' => 'success', 'text' => 'Third party updated successfully'];
+
+        } elseif ($action === 'delete_third_party') {
+            $id = intval($_POST['tp_id'] ?? 0);
+            $stmt = $pdo->prepare("SELECT name FROM third_parties WHERE tp_id = ?");
+            $stmt->execute([$id]);
+            $name = $stmt->fetchColumn();
+            $pdo->prepare("DELETE FROM third_parties WHERE tp_id = ?")->execute([$id]);
+            logActivity($_SESSION['user_id'], 'deleted_third_party', "Deleted third party: $name");
+            $_SESSION['message'] = ['type' => 'success', 'text' => 'Third party deleted successfully'];
+
             // ============ COMPONENT ACTIONS ============
         } elseif ($action === 'create_component') {
             // Support both single name and array of names (bulk create)
@@ -356,6 +427,12 @@ try {
         ORDER BY company_name ASC
     ")->fetchAll();
 
+    // Get all telcos
+    $telcos = $pdo->query("SELECT * FROM telcos ORDER BY name ASC")->fetchAll();
+
+    // Get all third parties
+    $thirdParties = $pdo->query("SELECT * FROM third_parties ORDER BY name ASC")->fetchAll();
+
     // Get all components with their assigned service names
     $components = $pdo->query("
         SELECT c.component_id, c.name, c.is_active,
@@ -387,6 +464,8 @@ try {
     $activeComponents = count(array_filter($components, fn($c) => $c['is_active']));
     $totalIncidentTypes = count($incidentTypes);
     $activeIncidentTypes = count(array_filter($incidentTypes, fn($it) => $it['is_active']));
+    $totalTelcos = count($telcos);
+    $totalThirdParties = count($thirdParties);
 
 } catch (PDOException $e) {
     die("Error fetching data: " . $e->getMessage());
@@ -469,6 +548,16 @@ try {
                             class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
                             <i class="fas fa-exclamation-triangle mr-2"></i> Incident Types (<?= $totalIncidentTypes ?>)
                         </button>
+                        <button @click="activeTab = 'telcos'"
+                            :class="activeTab === 'telcos' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                            <i class="fas fa-signal mr-2"></i> Telcos (<?= $totalTelcos ?>)
+                        </button>
+                        <button @click="activeTab = 'third_parties'"
+                            :class="activeTab === 'third_parties' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                            <i class="fas fa-handshake mr-2"></i> Third Parties (<?= $totalThirdParties ?>)
+                        </button>
                     </nav>
                 </div>
 
@@ -490,6 +579,16 @@ try {
                 <!-- INCIDENT TYPES TAB -->
                 <div x-show="activeTab === 'incident_types'" x-cloak>
                     <?php include __DIR__ . '/../../src/includes/admin_manage_incident_types.php'; ?>
+                </div>
+
+                <!-- TELCOS TAB -->
+                <div x-show="activeTab === 'telcos'" x-cloak>
+                    <?php include __DIR__ . '/../../src/includes/admin_manage_telcos.php'; ?>
+                </div>
+
+                <!-- THIRD PARTIES TAB -->
+                <div x-show="activeTab === 'third_parties'" x-cloak>
+                    <?php include __DIR__ . '/../../src/includes/admin_manage_third_parties.php'; ?>
                 </div>
             </div>
         </main>

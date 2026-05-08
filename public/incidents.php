@@ -287,6 +287,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])
         $componentIds = array_values(array_unique(array_filter(array_map('intval', $componentIdsRaw))));
         $componentId = !empty($componentIds) ? $componentIds[0] : null; // backward compat
         $incidentTypeId = !empty($_POST['incident_type_id']) ? intval($_POST['incident_type_id']) : null;
+        $telcoIds = isset($_POST['telco_ids']) ? array_map('intval', (array)$_POST['telco_ids']) : [];
+        $tpIds    = isset($_POST['tp_ids'])    ? array_map('intval', (array)$_POST['tp_ids'])    : [];
         $impactLevel = $_POST['impact_level'];
         $priority = $_POST['priority'];
         $incidentSource = in_array($_POST['incident_source'] ?? '', ['internal', 'external']) ? $_POST['incident_source'] : 'external';
@@ -396,6 +398,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])
                     foreach ($componentIds as $cid) {
                         $icStmt->execute([$incidentId, $cid]);
                     }
+                }
+
+                // Sync incident_telcos junction table
+                $pdo->prepare("DELETE FROM incident_telcos WHERE incident_id = ?")->execute([$incidentId]);
+                if (!empty($telcoIds)) {
+                    $tStmt = $pdo->prepare("INSERT IGNORE INTO incident_telcos (incident_id, telco_id) VALUES (?, ?)");
+                    foreach ($telcoIds as $tid) { $tStmt->execute([$incidentId, $tid]); }
+                }
+
+                // Sync incident_third_parties junction table
+                $pdo->prepare("DELETE FROM incident_third_parties WHERE incident_id = ?")->execute([$incidentId]);
+                if (!empty($tpIds)) {
+                    $tpStmt = $pdo->prepare("INSERT IGNORE INTO incident_third_parties (incident_id, tp_id) VALUES (?, ?)");
+                    foreach ($tpIds as $tid) { $tpStmt->execute([$incidentId, $tid]); }
                 }
 
                 // Handle attachment deletions
@@ -617,11 +633,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resol
 }
 
 // ── Filter & pagination ────────────────────────────────────
-$statusFilter = in_array($_GET['status'] ?? '', ['pending', 'resolved']) ? $_GET['status'] : '';
-$searchFilter = trim($_GET['search'] ?? '');
-$dateFrom     = trim($_GET['date_from'] ?? '');
-$dateTo       = trim($_GET['date_to'] ?? '');
-$userFilter   = intval($_GET['reporter'] ?? 0);
+$statusFilter    = in_array($_GET['status'] ?? '', ['pending', 'resolved']) ? $_GET['status'] : '';
+$searchFilter    = trim($_GET['search'] ?? '');
+$dateFrom        = trim($_GET['date_from'] ?? '');
+$dateTo          = trim($_GET['date_to'] ?? '');
+$userFilter      = intval($_GET['reporter'] ?? 0);
+$serviceFilter   = intval($_GET['service_id'] ?? 0);
+$companyFilters  = array_values(array_filter(array_map('intval', explode(',', $_GET['company_ids'] ?? ''))));
+$telcoFilter     = intval($_GET['telco_id'] ?? 0);
 $itemsPerPage = 10;
 $currentPage  = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset       = ($currentPage - 1) * $itemsPerPage;
@@ -661,6 +680,8 @@ $totalIncidents = 0;
 $totalPages     = 1;
 $services = $components = $incidentTypes = $companies = [];
 $allCompanies = $pdo->query("SELECT company_id, company_name FROM companies ORDER BY company_name")->fetchAll(PDO::FETCH_ASSOC);
+$allServices  = $pdo->query("SELECT service_id, service_name FROM services ORDER BY service_name")->fetchAll(PDO::FETCH_ASSOC);
+$allTelcos    = $pdo->query("SELECT telco_id, name FROM telcos WHERE is_active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 
 $exportUsers  = ($_SESSION['role'] === 'admin')
     ? $pdo->query("SELECT user_id, full_name, username, role FROM users ORDER BY full_name ASC")->fetchAll(PDO::FETCH_ASSOC)
@@ -695,6 +716,18 @@ try {
             $whereClauses[] = "DATE(i.actual_start_time) <= ?";
             $filterParams[] = $dateTo;
         }
+        if ($serviceFilter > 0) {
+            $whereClauses[] = "i.service_id = ?";
+            $filterParams[] = $serviceFilter;
+        }
+        foreach ($companyFilters as $cid) {
+            $whereClauses[] = "EXISTS (SELECT 1 FROM incident_affected_companies iac3 WHERE iac3.incident_id = i.incident_id AND iac3.company_id = ?)";
+            $filterParams[] = $cid;
+        }
+        if ($telcoFilter > 0) {
+            $whereClauses[] = "EXISTS (SELECT 1 FROM incident_telcos itf WHERE itf.incident_id = i.incident_id AND itf.telco_id = ?)";
+            $filterParams[] = $telcoFilter;
+        }
         $whereSQL = $whereClauses ? "WHERE " . implode(" AND ", $whereClauses) : "";
 
         $countStmt = $pdo->prepare("SELECT COUNT(DISTINCT i.incident_id) FROM incidents i JOIN services s ON i.service_id = s.service_id LEFT JOIN incident_types it ON i.incident_type_id = it.type_id $whereSQL");
@@ -715,6 +748,8 @@ try {
                 it.name as incident_type_name,
                 CASE WHEN GROUP_CONCAT(DISTINCT c.company_name ORDER BY c.company_name SEPARATOR ', ') LIKE '%All%' THEN 'All' ELSE GROUP_CONCAT(DISTINCT c.company_name ORDER BY c.company_name SEPARATOR ', ') END as affected_companies,
                 COUNT(DISTINCT c.company_id) as company_count,
+                GROUP_CONCAT(DISTINCT t.name  ORDER BY t.name  SEPARATOR ', ') AS affected_telcos,
+                GROUP_CONCAT(DISTINCT tp.name ORDER BY tp.name SEPARATOR ', ') AS affected_tps,
                 (SELECT COUNT(*) FROM incident_updates iu WHERE iu.incident_id = i.incident_id) as update_count,
                 (SELECT COUNT(*) FROM incident_attachments ia WHERE ia.incident_id = i.incident_id) as attachment_count
             FROM incidents i
@@ -726,6 +761,10 @@ try {
             LEFT JOIN incident_components icomp ON i.incident_id = icomp.incident_id
             LEFT JOIN components sc ON icomp.component_id = sc.component_id
             LEFT JOIN incident_types it ON i.incident_type_id = it.type_id
+            LEFT JOIN incident_telcos        itl ON i.incident_id = itl.incident_id
+            LEFT JOIN telcos                 t   ON itl.telco_id  = t.telco_id
+            LEFT JOIN incident_third_parties itp ON i.incident_id = itp.incident_id
+            LEFT JOIN third_parties          tp  ON itp.tp_id     = tp.tp_id
             $whereSQL
             GROUP BY i.incident_id
             ORDER BY FIELD(i.status, 'pending', 'resolved'), i.updated_at DESC
@@ -745,6 +784,8 @@ try {
         $components    = $pdo->query("SELECT component_id, name FROM components WHERE is_active = 1 ORDER BY name")->fetchAll();
         $incidentTypes = $pdo->query("SELECT type_id, name FROM incident_types ORDER BY name")->fetchAll();
         $companies     = $pdo->query("SELECT company_id, company_name FROM companies ORDER BY company_name")->fetchAll();
+        $telcos        = $pdo->query("SELECT telco_id, name FROM telcos WHERE is_active = 1 ORDER BY name")->fetchAll();
+        $thirdParties  = $pdo->query("SELECT tp_id, name FROM third_parties WHERE is_active = 1 ORDER BY name")->fetchAll();
 
     } elseif ($activeTab === 'security') {
         $whereClauses = [];
@@ -987,8 +1028,9 @@ try {
                 </div>
 
                 <!-- Search and Filter Bar -->
-                <div class="mb-6 flex flex-col gap-3">
-                    <div class="flex flex-col sm:flex-row gap-3">
+                <div class="mb-6 flex flex-col gap-3" id="filter-bar-wrapper">
+                    <!-- Main bar: search + status toggles + filter button -->
+                    <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                         <!-- Search -->
                         <div class="flex-1">
                             <div class="relative">
@@ -1003,60 +1045,178 @@ try {
                                     value="<?= htmlspecialchars($searchFilter) ?>"
                                     class="block w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm">
                                 <?php if ($searchFilter): ?>
-                                    <a href="?tab=<?= urlencode($activeTab) ?><?= $statusFilter ? '&status=' . urlencode($statusFilter) : '' ?><?= $userFilter ? '&reporter=' . $userFilter : '' ?><?= $dateFrom ? '&date_from=' . urlencode($dateFrom) : '' ?><?= $dateTo ? '&date_to=' . urlencode($dateTo) : '' ?>"
+                                    <a href="?tab=<?= urlencode($activeTab) ?><?= $statusFilter ? '&status=' . urlencode($statusFilter) : '' ?><?= $userFilter ? '&reporter=' . $userFilter : '' ?><?= $dateFrom ? '&date_from=' . urlencode($dateFrom) : '' ?><?= $dateTo ? '&date_to=' . urlencode($dateTo) : '' ?><?= $serviceFilter ? '&service_id=' . $serviceFilter : '' ?><?= $telcoFilter ? '&telco_id=' . $telcoFilter : '' ?><?= !empty($companyFilters) ? '&company_ids=' . urlencode(implode(',', $companyFilters)) : '' ?>"
                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
                                         <i class="fas fa-times-circle"></i>
                                     </a>
                                 <?php endif; ?>
                             </div>
                         </div>
-                        <!-- Reporter filter -->
-                        <div class="relative">
-                            <select id="reporter-filter"
-                                class="py-2.5 pl-3 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
-                                <option value="0">All reporters</option>
-                                <?php foreach ($filterUsers as $fu): ?>
-                                    <option value="<?= $fu['user_id'] ?>" <?= $userFilter === (int)$fu['user_id'] ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($fu['full_name']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+
+                        <!-- Right side: status toggles + filter button -->
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <!-- Status toggles -->
+                            <div class="inline-flex rounded-lg shadow-sm" role="group">
+                                <button type="button" data-status=""
+                                    class="status-toggle px-3 py-2.5 text-sm font-medium rounded-l-lg border border-gray-200 dark:border-gray-600 <?= $statusFilter === '' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300' ?> hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors focus:outline-none">
+                                    <span class="flex items-center gap-1.5">
+                                        <i class="fas fa-list-ul text-xs <?= $statusFilter === '' ? 'text-blue-600' : 'text-gray-400' ?>"></i>
+                                        <span>All</span>
+                                    </span>
+                                </button>
+                                <button type="button" data-status="pending"
+                                    class="status-toggle px-3 py-2.5 text-sm font-medium border-t border-b border-gray-200 dark:border-gray-600 <?= $statusFilter === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300' ?> hover:bg-yellow-50 dark:hover:bg-gray-600 transition-colors focus:outline-none">
+                                    <span class="flex items-center gap-1.5">
+                                        <i class="fas fa-clock text-xs text-yellow-500"></i>
+                                        <span>Pending</span>
+                                    </span>
+                                </button>
+                                <button type="button" data-status="resolved"
+                                    class="status-toggle px-3 py-2.5 text-sm font-medium rounded-r-lg border border-gray-200 dark:border-gray-600 <?= $statusFilter === 'resolved' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300' ?> hover:bg-green-50 dark:hover:bg-gray-600 transition-colors focus:outline-none">
+                                    <span class="flex items-center gap-1.5">
+                                        <i class="fas fa-check-circle text-xs text-green-500"></i>
+                                        <span>Resolved</span>
+                                    </span>
+                                </button>
                             </div>
-                        </div>
-                        <!-- Date range -->
-                        <div class="flex items-center gap-2">
-                            <input type="date" id="date_from" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>"
-                                class="py-2.5 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <span class="text-gray-400 text-sm">–</span>
-                            <input type="date" id="date_to" name="date_to" value="<?= htmlspecialchars($dateTo) ?>"
-                                class="py-2.5 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+                            <!-- Filters button -->
+                            <?php $activeSecondaryCount = (int)($userFilter > 0) + (int)($dateFrom !== '') + (int)($dateTo !== '') + (int)($serviceFilter > 0) + (int)(!empty($companyFilters)) + (int)($telcoFilter > 0); ?>
+                            <button type="button" id="filter-panel-toggle"
+                                onclick="toggleFilterPanel()"
+                                class="relative inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <i class="fas fa-sliders text-gray-500 dark:text-gray-400"></i>
+                                <span>Filters</span>
+                                <span id="filter-badge" class="<?= $activeSecondaryCount > 0 ? 'flex' : 'hidden' ?> absolute -top-1.5 -right-1.5 h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold leading-none"><?= $activeSecondaryCount ?></span>
+                            </button>
                         </div>
                     </div>
-                    <!-- status toggle buttons -->
-                    <div class="flex md:mt-0">
-                        <div class="inline-flex rounded-lg shadow-sm" role="group">
-                            <button type="button" data-status=""
-                                class="status-toggle px-4 py-2 text-sm font-medium rounded-l-lg border border-gray-200 <?= $statusFilter === '' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-gray-700' ?> hover:bg-gray-50 transition-colors duration-200 ease-in-out focus:outline-none">
-                                <span class="flex items-center">
-                                    <i class="fas fa-list-ul mr-2 <?= $statusFilter === '' ? 'text-blue-600' : 'text-gray-500' ?>"></i>
-                                    <span>All</span>
-                                </span>
+
+                    <!-- Collapsible filter panel -->
+                    <div id="filter-panel"
+                         class="<?= $activeSecondaryCount > 0 ? '' : 'hidden' ?> rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 p-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Reporter -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">Reporter</label>
+                                <div class="relative">
+                                    <select id="panel-reporter"
+                                        class="w-full py-2 pl-3 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
+                                        <option value="0">All reporters</option>
+                                        <?php foreach ($filterUsers as $fu): ?>
+                                            <option value="<?= $fu['user_id'] ?>" <?= $userFilter === (int)$fu['user_id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($fu['full_name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Service -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">Service</label>
+                                <div class="relative">
+                                    <select id="panel-service"
+                                        class="w-full py-2 pl-3 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
+                                        <option value="0">All services</option>
+                                        <?php foreach ($allServices as $svc): ?>
+                                            <option value="<?= $svc['service_id'] ?>" <?= $serviceFilter === (int)$svc['service_id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($svc['service_name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Telco -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">Telco</label>
+                                <div class="relative">
+                                    <select id="panel-telco"
+                                        class="w-full py-2 pl-3 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none">
+                                        <option value="0">All telcos</option>
+                                        <?php foreach ($allTelcos as $tl): ?>
+                                            <option value="<?= $tl['telco_id'] ?>" <?= $telcoFilter === (int)$tl['telco_id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($tl['name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Company (multi-select) -->
+                            <div class="relative" id="company-multiselect-wrapper">
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">Company</label>
+                                <!-- Trigger button -->
+                                <button type="button" id="company-multiselect-btn" onclick="toggleCompanyDropdown(event)"
+                                    class="w-full flex items-center justify-between py-2 pl-3 pr-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <span id="company-multiselect-label" class="truncate text-left">
+                                        <?php if (!empty($companyFilters)):
+                                            $selectedNames = array_column(array_filter($allCompanies, fn($c) => in_array((int)$c['company_id'], $companyFilters)), 'company_name');
+                                            echo count($selectedNames) === 1 ? htmlspecialchars($selectedNames[0]) : count($selectedNames) . ' companies selected';
+                                        else: ?>All companies<?php endif; ?>
+                                    </span>
+                                    <svg class="h-4 w-4 text-gray-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                                <!-- Dropdown -->
+                                <div id="company-multiselect-dropdown"
+                                    class="hidden absolute z-30 mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-lg max-h-52 overflow-y-auto">
+                                    <?php foreach ($allCompanies as $co): ?>
+                                        <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-800 dark:text-gray-200">
+                                            <input type="checkbox" class="company-filter-cb rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                                                value="<?= $co['company_id'] ?>"
+                                                <?= in_array((int)$co['company_id'], $companyFilters) ? 'checked' : '' ?>>
+                                            <?= htmlspecialchars($co['company_name']) ?>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                                <!-- Hidden input carries selected IDs to applySecondaryFilters -->
+                                <input type="hidden" id="panel-company-ids" value="<?= htmlspecialchars(implode(',', $companyFilters)) ?>">
+                            </div>
+
+                            <!-- Date from -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">From date</label>
+                                <input type="date" id="panel-date-from" value="<?= htmlspecialchars($dateFrom) ?>"
+                                    class="w-full py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+
+                            <!-- Date to -->
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">To date</label>
+                                <input type="date" id="panel-date-to" value="<?= htmlspecialchars($dateTo) ?>"
+                                    class="w-full py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+
+                        <!-- NB notice -->
+                        <div class="mt-4 flex gap-2.5 rounded-lg border border-amber-200 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
+                            <i class="fas fa-circle-info mt-0.5 flex-shrink-0 text-amber-500"></i>
+                            <span>
+                                <strong class="font-semibold">NB:</strong>
+                                For incidents reported <strong>before 08/05/26</strong>, use the <em>Company</em> dropdown to filter — telco and company were recorded together there.
+                                For incidents <strong>on or after 08/05/26</strong>, you can filter by <em>Telco</em> and <em>Company</em> independently.
+                            </span>
+                        </div>
+
+                        <!-- Panel actions -->
+                        <div class="mt-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-600 pt-3">
+                            <button type="button" onclick="clearSecondaryFilters()"
+                                class="text-xs text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 font-medium transition-colors">
+                                <i class="fas fa-times mr-1"></i>Clear all
                             </button>
-                            <button type="button" data-status="pending"
-                                class="status-toggle px-4 py-2 text-sm font-medium border-t border-b border-gray-200 <?= $statusFilter === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-white text-gray-700' ?> hover:bg-yellow-50 transition-colors duration-200 ease-in-out focus:outline-none">
-                                <span class="flex items-center">
-                                    <i class="fas fa-clock mr-2 text-yellow-500"></i>
-                                    <span>Pending</span>
-                                </span>
-                            </button>
-                            <button type="button" data-status="resolved"
-                                class="status-toggle px-4 py-2 text-sm font-medium rounded-r-lg border border-gray-200 <?= $statusFilter === 'resolved' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-white text-gray-700' ?> hover:bg-green-50 transition-colors duration-200 ease-in-out focus:outline-none">
-                                <span class="flex items-center">
-                                    <i class="fas fa-check-circle mr-2 text-green-500"></i>
-                                    <span>Resolved</span>
-                                </span>
+                            <button type="button" onclick="applySecondaryFilters()"
+                                class="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <i class="fas fa-check text-xs"></i>Apply filters
                             </button>
                         </div>
                     </div>
@@ -1075,9 +1235,26 @@ try {
                         <?php endif; ?>
                     </p>
                     <div class="flex items-center gap-3">
-                        <?php if ($statusFilter || $searchFilter || $userFilter || $dateFrom || $dateTo): ?>
+                        <?php if ($statusFilter || $searchFilter || $userFilter || $dateFrom || $dateTo || $serviceFilter || !empty($companyFilters) || $telcoFilter): ?>
                             <a href="incidents.php?tab=<?= urlencode($activeTab) ?>" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-medium">
                                 <i class="fas fa-times mr-1"></i> Clear filters
+                            </a>
+                        <?php endif; ?>
+                        <?php
+                            $exportUrl = 'exports/export_incidents.php?type=' . urlencode($activeTab) . '&format=xlsx';
+                            if ($statusFilter)          $exportUrl .= '&status='     . urlencode($statusFilter);
+                            if ($dateFrom)              $exportUrl .= '&start_date=' . urlencode($dateFrom);
+                            if ($dateTo)                $exportUrl .= '&end_date='   . urlencode($dateTo);
+                            if ($userFilter > 0)        $exportUrl .= '&user_ids[]=' . $userFilter;
+                            if (!empty($companyFilters)) {
+                                foreach ($companyFilters as $cid) $exportUrl .= '&company_id=' . $cid;
+                            }
+                        ?>
+                        <?php if ($statusFilter || $searchFilter || $userFilter || $dateFrom || $dateTo || $serviceFilter || !empty($companyFilters) || $telcoFilter): ?>
+                            <a href="<?= $exportUrl ?>" target="_blank"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors"
+                                title="Export results matching your current filters">
+                                <i class="fas fa-filter"></i> Export current filter
                             </a>
                         <?php endif; ?>
                         <button type="button" onclick="openExportModal()"
@@ -1519,6 +1696,39 @@ try {
                                                                     </div>
                                                                 </div>
                                                             </div>
+
+                                                            <?php
+                                                            $telcos_list = !empty($incident['affected_telcos']) ? array_map('trim', explode(', ', $incident['affected_telcos'])) : [];
+                                                            $tps_list    = !empty($incident['affected_tps'])    ? array_map('trim', explode(', ', $incident['affected_tps']))    : [];
+                                                            $has_telcos  = !empty($telcos_list);
+                                                            $has_tps     = !empty($tps_list);
+                                                            ?>
+
+                                                            <?php if ($has_telcos || $has_tps): ?>
+                                                            <!-- Telcos + Third Parties — side-by-side mini tiles -->
+                                                            <div class="grid grid-cols-2 gap-3">
+                                                                <?php if ($has_telcos): ?>
+                                                                <div class="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2">
+                                                                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Telcos</p>
+                                                                    <div class="flex flex-wrap gap-1">
+                                                                        <?php foreach ($telcos_list as $tl): ?>
+                                                                            <span class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300 border border-green-100 dark:border-green-800"><?= htmlspecialchars($tl) ?></span>
+                                                                        <?php endforeach; ?>
+                                                                    </div>
+                                                                </div>
+                                                                <?php endif; ?>
+                                                                <?php if ($has_tps): ?>
+                                                                <div class="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2">
+                                                                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Third Parties</p>
+                                                                    <div class="flex flex-wrap gap-1">
+                                                                        <?php foreach ($tps_list as $tp): ?>
+                                                                            <span class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300 border border-purple-100 dark:border-purple-800"><?= htmlspecialchars($tp) ?></span>
+                                                                        <?php endforeach; ?>
+                                                                    </div>
+                                                                </div>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                            <?php endif; ?>
 
                                                             <!-- Description -->
                                                             <?php if (!empty($incident['description'])): ?>
@@ -2415,6 +2625,43 @@ try {
                         </div>
                     </div>
 
+                    <!-- Telcos Affected + Third Parties Involved — side by side -->
+                    <div class="grid grid-cols-2 gap-4">
+
+                        <!-- Telcos Affected -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Telcos Affected <span class="text-gray-400 text-xs font-normal">(optional)</span>
+                            </label>
+                            <div class="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-md p-3">
+                                <?php foreach ($telcos as $telco): ?>
+                                    <label class="flex items-center space-x-2 text-sm">
+                                        <input type="checkbox" name="telco_ids[]" value="<?= $telco['telco_id'] ?>"
+                                            class="edit-telco-checkbox rounded border-gray-300 dark:border-gray-600 text-green-600 focus:ring-green-500">
+                                        <span class="text-gray-700 dark:text-gray-300"><?= htmlspecialchars($telco['name']) ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <!-- Third Parties Involved -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Third Parties Involved <span class="text-gray-400 text-xs font-normal">(optional)</span>
+                            </label>
+                            <div class="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-md p-3">
+                                <?php foreach ($thirdParties as $tp): ?>
+                                    <label class="flex items-center space-x-2 text-sm">
+                                        <input type="checkbox" name="tp_ids[]" value="<?= $tp['tp_id'] ?>"
+                                            class="edit-tp-checkbox rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500">
+                                        <span class="text-gray-700 dark:text-gray-300"><?= htmlspecialchars($tp['name']) ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                    </div>
+
                     <!-- Action Buttons -->
                     <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                         <button type="button" onclick="hideEditModal()"
@@ -2644,6 +2891,20 @@ try {
                     if (allEditCheckbox && allEditCheckbox.checked) {
                         otherEditCheckboxes.forEach(cb => cb.checked = false);
                     }
+
+                    // Pre-check telcos
+                    document.querySelectorAll('.edit-telco-checkbox').forEach(cb => cb.checked = false);
+                    (data.telco_ids || []).forEach(tid => {
+                        const cb = document.querySelector(`.edit-telco-checkbox[value="${tid}"]`);
+                        if (cb) cb.checked = true;
+                    });
+
+                    // Pre-check third parties
+                    document.querySelectorAll('.edit-tp-checkbox').forEach(cb => cb.checked = false);
+                    (data.tp_ids || []).forEach(tid => {
+                        const cb = document.querySelector(`.edit-tp-checkbox[value="${tid}"]`);
+                        if (cb) cb.checked = true;
+                    });
 
                     // Add event listeners for exclusive selection
                     if (allEditCheckbox) {
@@ -2929,38 +3190,122 @@ try {
             });
         })();
 
-        // Date filter — navigate when either date changes
-        (function () {
-            const fromInput = document.getElementById('date_from');
-            const toInput   = document.getElementById('date_to');
-            function applyDates() {
-                const url = new URL(window.location);
-                const from = fromInput ? fromInput.value : '';
-                const to   = toInput   ? toInput.value   : '';
-                if (from) url.searchParams.set('date_from', from); else url.searchParams.delete('date_from');
-                if (to)   url.searchParams.set('date_to',   to);   else url.searchParams.delete('date_to');
-                url.searchParams.delete('page');
-                window.location.href = url.toString();
+        // ── Filter panel ──────────────────────────────────────────
+        function toggleFilterPanel() {
+            const panel  = document.getElementById('filter-panel');
+            const btn    = document.getElementById('filter-panel-toggle');
+            const isOpen = !panel.classList.contains('hidden');
+            if (isOpen) {
+                panel.classList.add('hidden');
+                btn.classList.remove('ring-2', 'ring-blue-500');
+            } else {
+                panel.classList.remove('hidden');
+                btn.classList.add('ring-2', 'ring-blue-500');
             }
-            if (fromInput) fromInput.addEventListener('change', applyDates);
-            if (toInput)   toInput.addEventListener('change',   applyDates);
-        })();
+        }
 
-        // Reporter filter — navigate on change
+        // ── Company multi-select dropdown ─────────────────────────
+        function toggleCompanyDropdown(e) {
+            e.stopPropagation();
+            const dd = document.getElementById('company-multiselect-dropdown');
+            dd.classList.toggle('hidden');
+        }
+
+        // Close company dropdown on outside click
+        document.addEventListener('click', function (e) {
+            const wrapper = document.getElementById('company-multiselect-wrapper');
+            const dd = document.getElementById('company-multiselect-dropdown');
+            if (dd && !dd.classList.contains('hidden') && wrapper && !wrapper.contains(e.target)) {
+                dd.classList.add('hidden');
+            }
+        });
+
+        // Sync checkboxes → hidden input + button label
+        document.addEventListener('change', function (e) {
+            if (!e.target.classList.contains('company-filter-cb')) return;
+            const checked = [...document.querySelectorAll('.company-filter-cb:checked')].map(cb => cb.value);
+            document.getElementById('panel-company-ids').value = checked.join(',');
+            const label = document.getElementById('company-multiselect-label');
+            if (label) {
+                if (checked.length === 0) label.textContent = 'All companies';
+                else if (checked.length === 1) label.textContent = e.target.closest('label').textContent.trim();
+                else label.textContent = checked.length + ' companies selected';
+            }
+            refreshFilterBadge();
+        });
+
+        function applySecondaryFilters() {
+            const url        = new URL(window.location);
+            const reporter   = document.getElementById('panel-reporter')?.value;
+            const service    = document.getElementById('panel-service')?.value;
+            const telco      = document.getElementById('panel-telco')?.value;
+            const companyIds = document.getElementById('panel-company-ids')?.value;
+            const dateFrom   = document.getElementById('panel-date-from')?.value;
+            const dateTo     = document.getElementById('panel-date-to')?.value;
+
+            reporter   && reporter   !== '0' ? url.searchParams.set('reporter',    reporter)   : url.searchParams.delete('reporter');
+            service    && service    !== '0' ? url.searchParams.set('service_id',  service)    : url.searchParams.delete('service_id');
+            telco      && telco      !== '0' ? url.searchParams.set('telco_id',    telco)      : url.searchParams.delete('telco_id');
+            companyIds && companyIds !== ''  ? url.searchParams.set('company_ids', companyIds) : url.searchParams.delete('company_ids');
+            dateFrom ? url.searchParams.set('date_from', dateFrom) : url.searchParams.delete('date_from');
+            dateTo   ? url.searchParams.set('date_to',   dateTo)   : url.searchParams.delete('date_to');
+            url.searchParams.delete('page');
+            window.location.href = url.toString();
+        }
+
+        function clearSecondaryFilters() {
+            const url = new URL(window.location);
+            ['reporter', 'service_id', 'telco_id', 'company_ids', 'date_from', 'date_to'].forEach(k => url.searchParams.delete(k));
+            url.searchParams.delete('page');
+            window.location.href = url.toString();
+        }
+
+        function refreshFilterBadge() {
+            const inputs = ['panel-reporter', 'panel-service', 'panel-telco', 'panel-date-from', 'panel-date-to'];
+            let count = inputs.filter(id => {
+                const el = document.getElementById(id);
+                if (!el) return false;
+                return el.tagName === 'SELECT' ? el.value !== '0' : el.value !== '';
+            }).length;
+            const companyIds = document.getElementById('panel-company-ids')?.value;
+            if (companyIds && companyIds !== '') count++;
+            const badge = document.getElementById('filter-badge');
+            if (badge) {
+                badge.textContent = count;
+                count > 0 ? badge.classList.replace('hidden', 'flex') : badge.classList.replace('flex', 'hidden');
+            }
+        }
+
+        // Update badge count whenever a panel input changes
         (function () {
-            const sel = document.getElementById('reporter-filter');
-            if (!sel) return;
-            sel.addEventListener('change', function () {
-                const url = new URL(window.location);
-                if (this.value && this.value !== '0') {
-                    url.searchParams.set('reporter', this.value);
-                } else {
-                    url.searchParams.delete('reporter');
-                }
-                url.searchParams.delete('page');
-                window.location.href = url.toString();
+            const inputs = ['panel-reporter', 'panel-service', 'panel-telco', 'panel-date-from', 'panel-date-to'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', refreshFilterBadge);
             });
         })();
+
+        // Close panel on outside click
+        document.addEventListener('click', function (e) {
+            const panel   = document.getElementById('filter-panel');
+            const btn     = document.getElementById('filter-panel-toggle');
+            const wrapper = document.getElementById('filter-bar-wrapper');
+            if (!panel || panel.classList.contains('hidden')) return;
+            if (wrapper && wrapper.contains(e.target)) return;
+            panel.classList.add('hidden');
+            btn && btn.classList.remove('ring-2', 'ring-blue-500');
+        });
+
+        // Close panel on Escape
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') return;
+            const panel = document.getElementById('filter-panel');
+            const btn   = document.getElementById('filter-panel-toggle');
+            if (panel && !panel.classList.contains('hidden')) {
+                panel.classList.add('hidden');
+                btn && btn.classList.remove('ring-2', 'ring-blue-500');
+            }
+        });
 
         // Refresh incidents function
         function refreshIncidents() {
