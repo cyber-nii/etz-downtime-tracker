@@ -641,18 +641,22 @@ $userFilter      = intval($_GET['reporter'] ?? 0);
 $serviceFilter   = intval($_GET['service_id'] ?? 0);
 $companyFilters  = array_values(array_filter(array_map('intval', explode(',', $_GET['company_ids'] ?? ''))));
 $telcoFilter     = intval($_GET['telco_id'] ?? 0);
+$companyIdsStr   = implode(',', $companyFilters);
 $itemsPerPage = 10;
 $currentPage  = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset       = ($currentPage - 1) * $itemsPerPage;
 
 // Helper: build a URL preserving current filters + tab
-function pageUrl(int $page, string $status, string $search, string $tab = 'downtime', string $dateFrom = '', string $dateTo = '', int $reporter = 0): string {
+function pageUrl(int $page, string $status, string $search, string $tab = 'downtime', string $dateFrom = '', string $dateTo = '', int $reporter = 0, int $serviceId = 0, string $companyIds = '', int $telcoId = 0): string {
     $p = ['tab' => $tab, 'page' => $page];
     if ($status) $p['status'] = $status;
     if ($search !== '') $p['search'] = $search;
     if ($dateFrom !== '') $p['date_from'] = $dateFrom;
     if ($dateTo !== '') $p['date_to'] = $dateTo;
     if ($reporter > 0) $p['reporter'] = $reporter;
+    if ($serviceId > 0) $p['service_id'] = $serviceId;
+    if ($companyIds !== '') $p['company_ids'] = $companyIds;
+    if ($telcoId > 0) $p['telco_id'] = $telcoId;
     return '?' . http_build_query($p);
 }
 
@@ -1028,9 +1032,6 @@ try {
                 </div>
 
                 <!-- Search and Filter Bar -->
-                <div class="mb-6 flex flex-col gap-3" id="filter-bar-wrapper">
-                    <!-- Main bar: search + status toggles + filter button -->
-                    <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                 <div class="mb-6 flex flex-col gap-3" id="filter-bar-wrapper">
                     <!-- Main bar: search + status toggles + filter button -->
                     <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
@@ -1912,7 +1913,7 @@ try {
                             <div class="flex items-center gap-1 order-1 sm:order-2">
                                 <!-- Previous -->
                                 <?php if ($currentPage > 1): ?>
-                                            <a href="<?= pageUrl($currentPage - 1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter) ?>"
+                                            <a href="<?= pageUrl($currentPage - 1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter, $serviceFilter, $companyIdsStr, $telcoFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                                                 <i class="fas fa-chevron-left text-xs"></i>
                                             </a>
@@ -1925,7 +1926,7 @@ try {
 
                                 <!-- First page + ellipsis -->
                                 <?php if ($startPage > 1): ?>
-                                            <a href="<?= pageUrl(1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter) ?>"
+                                            <a href="<?= pageUrl(1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter, $serviceFilter, $companyIdsStr, $telcoFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">1</a>
                                             <?php if ($startPage > 2): ?>
                                                         <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
@@ -1940,7 +1941,7 @@ try {
                                                             <?= $i ?>
                                                         </span>
                                             <?php else: ?>
-                                                        <a href="<?= pageUrl($i, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter) ?>"
+                                                        <a href="<?= pageUrl($i, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter, $serviceFilter, $companyIdsStr, $telcoFilter) ?>"
                                                             class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
                                                             <?= $i ?>
                                                         </a>
@@ -1952,13 +1953,13 @@ try {
                                             <?php if ($endPage < $totalPages - 1): ?>
                                                         <span class="inline-flex items-center justify-center w-9 h-9 text-sm text-gray-400">…</span>
                                             <?php endif; ?>
-                                            <a href="<?= pageUrl($totalPages, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter) ?>"
+                                            <a href="<?= pageUrl($totalPages, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter, $serviceFilter, $companyIdsStr, $telcoFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"><?= $totalPages ?></a>
                                 <?php endif; ?>
 
                                 <!-- Next -->
                                 <?php if ($currentPage < $totalPages): ?>
-                                            <a href="<?= pageUrl($currentPage + 1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter) ?>"
+                                            <a href="<?= pageUrl($currentPage + 1, $statusFilter, $searchFilter, $activeTab, $dateFrom, $dateTo, $userFilter, $serviceFilter, $companyIdsStr, $telcoFilter) ?>"
                                                 class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                                                 <i class="fas fa-chevron-right text-xs"></i>
                                             </a>
