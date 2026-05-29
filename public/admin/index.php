@@ -65,11 +65,11 @@ try {
     </style>
 </head>
 
-<body class="relative min-h-screen">
-    <!-- Background Image with Overlay -->
+<body class="relative min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <!-- Background -->
     <div class="fixed inset-0 z-0">
         <img src="<?= url('assets/mainbg.jpg') ?>" alt="Background" class="w-full h-full object-cover">
-        <div class="absolute inset-0 bg-white/90 dark:bg-gray-900/95"></div>
+        <div class="absolute inset-0 bg-slate-50/90 dark:bg-slate-950/95 backdrop-blur-[3px] transition-colors duration-200"></div>
     </div>
 
     <!-- Content Wrapper -->
@@ -163,8 +163,8 @@ try {
                             </p>
                         </div>
                         <div
-                            class="w-12 h-12 bg-purple-50 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-user-shield text-purple-600 dark:text-purple-400 text-xl"></i>
+                            class="w-12 h-12 bg-cyan-50 dark:bg-cyan-950/30 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-user-shield text-blue-600 dark:text-cyan-400 text-xl"></i>
                         </div>
                     </div>
                 </div>
@@ -222,7 +222,7 @@ try {
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span
                                             class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                        <?= $user['role'] === 'admin' ? 'bg-purple-100 text-purple-800' :
+                                        <?= $user['role'] === 'admin' ? 'bg-cyan-100 text-cyan-800' :
                                             ($user['role'] === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800') ?>">
                                             <?= ucfirst($user['role']) ?>
                                         </span>

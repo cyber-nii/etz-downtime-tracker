@@ -945,11 +945,11 @@ try {
     </style>
 </head>
 
-<body class="relative min-h-screen">
-    <!-- Background Image with Overlay -->
+<body class="relative min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <!-- Background -->
     <div class="fixed inset-0 z-0">
         <img src="<?= url('assets/mainbg.jpg') ?>" alt="Background" class="w-full h-full object-cover">
-        <div class="absolute inset-0 bg-white/90 dark:bg-gray-900/95"></div>
+        <div class="absolute inset-0 bg-slate-50/90 dark:bg-slate-950/95 backdrop-blur-[3px] transition-colors duration-200"></div>
     </div>
 
     <!-- Content Wrapper -->
@@ -1388,7 +1388,7 @@ try {
                                             <div class="flex gap-2.5 text-sm">
                                                 <div class="flex-shrink-0 mt-1">
                                                     <div class="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                                                        <i class="fas <?= $update['user_name'] === 'System' ? 'fa-robot text-purple-400' : 'fa-user text-blue-400' ?> text-[9px]"></i>
+                                                        <i class="fas <?= $update['user_name'] === 'System' ? 'fa-robot text-cyan-400' : 'fa-user text-blue-400' ?> text-[9px]"></i>
                                                     </div>
                                                 </div>
                                                 <div class="flex-1 min-w-0">
@@ -1628,7 +1628,7 @@ try {
                                                                 <div class="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2.5">
                                                                     <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Incident Type</p>
                                                                     <div class="flex items-center gap-1.5">
-                                                                        <i class="fas fa-tag text-purple-400 text-sm"></i>
+                                                                        <i class="fas fa-tag text-cyan-400 text-sm"></i>
                                                                         <span class="text-sm font-medium text-gray-800 dark:text-white truncate">
                                                                             <?= htmlspecialchars($incident['incident_type_name'] ?? 'N/A') ?>
                                                                         </span>
@@ -1726,7 +1726,7 @@ try {
                                                                     <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Third Parties</p>
                                                                     <div class="flex flex-wrap gap-1">
                                                                         <?php foreach ($tps_list as $tp): ?>
-                                                                            <span class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300 border border-purple-100 dark:border-purple-800"><?= htmlspecialchars($tp) ?></span>
+                                                                            <span class="inline-block px-1.5 py-0.5 rounded text-[11px] bg-cyan-50 text-cyan-700 dark:bg-cyan-950/20 dark:text-cyan-300 border border-cyan-100 dark:border-cyan-800/60"><?= htmlspecialchars($tp) ?></span>
                                                                         <?php endforeach; ?>
                                                                     </div>
                                                                 </div>
@@ -1833,7 +1833,7 @@ try {
                                                                                                 <div
                                                                                                     class="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                                                                                                     <i
-                                                                                                        class="fas <?= $update['user_name'] === 'System' ? 'fa-robot text-purple-400' : 'fa-user text-blue-400' ?> text-[9px]"></i>
+                                                                                                        class="fas <?= $update['user_name'] === 'System' ? 'fa-robot text-cyan-400' : 'fa-user text-blue-400' ?> text-[9px]"></i>
                                                                                                 </div>
                                                                                             </div>
                                                                                             <div class="flex-1 min-w-0">
@@ -2115,7 +2115,7 @@ try {
                                     <input type="checkbox" name="user_ids[]" value="<?= (int)$eu['user_id'] ?>"
                                         class="export-user-cb w-3.5 h-3.5 rounded border-gray-300 dark:border-gray-600 text-emerald-600 focus:ring-emerald-500 flex-shrink-0 cursor-pointer">
                                     <div class="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold
-                                        <?= $eu['role'] === 'admin' ? 'bg-purple-600' : ($eu['role'] === 'viewer' ? 'bg-gray-500' : 'bg-blue-600') ?>">
+                                        <?= $eu['role'] === 'admin' ? 'bg-cyan-600' : ($eu['role'] === 'viewer' ? 'bg-gray-500' : 'bg-blue-600') ?>">
                                         <?= strtoupper(substr($eu['full_name'], 0, 1)) ?>
                                     </div>
                                     <div class="min-w-0">
@@ -2657,7 +2657,7 @@ try {
                                 <?php foreach ($thirdParties as $tp): ?>
                                     <label class="flex items-center space-x-2 text-sm">
                                         <input type="checkbox" name="tp_ids[]" value="<?= $tp['tp_id'] ?>"
-                                            class="edit-tp-checkbox rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500">
+                                            class="edit-tp-checkbox rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500/20 focus:border-blue-500">
                                         <span class="text-gray-700 dark:text-gray-300"><?= htmlspecialchars($tp['name']) ?></span>
                                     </label>
                                 <?php endforeach; ?>

@@ -21,10 +21,11 @@ $users = $stmt->fetchAll();
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>* { font-family: 'Inter', sans-serif; }</style>
 </head>
-<body class="relative min-h-screen">
+<body class="relative min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <!-- Background -->
     <div class="fixed inset-0 z-0">
         <img src="<?= url('assets/mainbg.jpg') ?>" alt="Background" class="w-full h-full object-cover">
-        <div class="absolute inset-0 bg-white/90 dark:bg-gray-900/95"></div>
+        <div class="absolute inset-0 bg-slate-50/90 dark:bg-slate-950/95 backdrop-blur-[3px] transition-colors duration-200"></div>
     </div>
 
     <div class="relative z-10">
@@ -167,7 +168,7 @@ $users = $stmt->fetchAll();
                                     class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer flex-shrink-0">
                                 <div class="flex items-center gap-3 flex-1 min-w-0">
                                     <div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center font-semibold text-sm text-white
-                                        <?= $user['role'] === 'admin' ? 'bg-purple-600' : ($user['role'] === 'viewer' ? 'bg-gray-500' : 'bg-blue-600') ?>">
+                                        <?= $user['role'] === 'admin' ? 'bg-cyan-600' : ($user['role'] === 'viewer' ? 'bg-gray-500' : 'bg-blue-600') ?>">
                                         <?= strtoupper(substr($user['full_name'], 0, 1)) ?>
                                     </div>
                                     <div class="min-w-0">
@@ -177,7 +178,7 @@ $users = $stmt->fetchAll();
                                         <p class="text-xs text-gray-500 dark:text-gray-400">
                                             @<?= htmlspecialchars($user['username']) ?>
                                             &middot;
-                                            <span class="<?= $user['role'] === 'admin' ? 'text-purple-600 dark:text-purple-400' : ($user['role'] === 'viewer' ? 'text-gray-500' : 'text-blue-600 dark:text-blue-400') ?>">
+                                            <span class="<?= $user['role'] === 'admin' ? 'text-blue-600 dark:text-cyan-400' : ($user['role'] === 'viewer' ? 'text-gray-500' : 'text-blue-600 dark:text-blue-400') ?>">
                                                 <?= ucfirst($user['role']) ?>
                                             </span>
                                             <?php if (!$user['is_active']): ?>

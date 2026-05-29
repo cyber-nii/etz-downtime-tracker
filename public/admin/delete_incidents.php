@@ -401,11 +401,11 @@ function statusBadge(string $status): string {
     <style>* { font-family: 'Inter', sans-serif; }</style>
 </head>
 
-<body class="relative min-h-screen">
+<body class="relative min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
     <!-- Background -->
     <div class="fixed inset-0 z-0">
         <img src="<?= url('assets/mainbg.jpg') ?>" alt="Background" class="w-full h-full object-cover">
-        <div class="absolute inset-0 bg-white/90 dark:bg-gray-900/95"></div>
+        <div class="absolute inset-0 bg-slate-50/90 dark:bg-slate-950/95 backdrop-blur-[3px] transition-colors duration-200"></div>
     </div>
 
     <!-- Content Wrapper -->
@@ -785,7 +785,7 @@ function statusBadge(string $status): string {
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-cyan-100 text-cyan-800 dark:bg-cyan-950/30 dark:text-cyan-300">
                                                 <?= htmlspecialchars(ucwords(str_replace('_', ' ', $inc['threat_type'] ?? ''))) ?>
                                             </span>
                                         </td>

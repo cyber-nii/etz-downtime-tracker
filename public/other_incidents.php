@@ -251,12 +251,11 @@ $fraudLabels = [
     </style>
 </head>
 
-<body class="relative min-h-screen">
-
+<body class="relative min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
     <!-- Background -->
     <div class="fixed inset-0 z-0">
         <img src="<?= url('assets/mainbg.jpg') ?>" alt="Background" class="w-full h-full object-cover">
-        <div class="absolute inset-0 bg-white/90 dark:bg-gray-900/95"></div>
+        <div class="absolute inset-0 bg-slate-50/90 dark:bg-slate-950/95 backdrop-blur-[3px] transition-colors duration-200"></div>
     </div>
 
     <!-- Content Wrapper -->

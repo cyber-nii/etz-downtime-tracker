@@ -99,11 +99,11 @@ $actionTypes = [
     </style>
 </head>
 
-<body class="relative min-h-screen">
-    <!-- Background Image with Overlay -->
+<body class="relative min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <!-- Background -->
     <div class="fixed inset-0 z-0">
         <img src="<?= url('assets/mainbg.jpg') ?>" alt="Background" class="w-full h-full object-cover">
-        <div class="absolute inset-0 bg-white/90 dark:bg-gray-900/95"></div>
+        <div class="absolute inset-0 bg-slate-50/90 dark:bg-slate-950/95 backdrop-blur-[3px] transition-colors duration-200"></div>
     </div>
 
     <!-- Content Wrapper -->
@@ -147,8 +147,8 @@ $actionTypes = [
 
                 <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
                     <div class="flex items-center gap-4">
-                        <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
-                            <i class="fas fa-chart-line text-xl text-purple-600 dark:text-purple-400"></i>
+                        <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-cyan-100 dark:bg-cyan-950/40 flex items-center justify-center">
+                            <i class="fas fa-chart-line text-xl text-blue-600 dark:text-cyan-400"></i>
                         </div>
                         <div>
                             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Top Action</p>
@@ -248,7 +248,7 @@ $actionTypes = [
                             'user_created'       => 'peer-checked:bg-blue-100 peer-checked:text-blue-800 peer-checked:border-blue-300 dark:peer-checked:bg-blue-900 dark:peer-checked:text-blue-200 dark:peer-checked:border-blue-700',
                             'user_updated'       => 'peer-checked:bg-yellow-100 peer-checked:text-yellow-800 peer-checked:border-yellow-300 dark:peer-checked:bg-yellow-900 dark:peer-checked:text-yellow-200 dark:peer-checked:border-yellow-700',
                             'user_deleted'       => 'peer-checked:bg-red-100 peer-checked:text-red-800 peer-checked:border-red-300 dark:peer-checked:bg-red-900 dark:peer-checked:text-red-200 dark:peer-checked:border-red-700',
-                            'user_role_changed'  => 'peer-checked:bg-purple-100 peer-checked:text-purple-800 peer-checked:border-purple-300 dark:peer-checked:bg-purple-900 dark:peer-checked:text-purple-200 dark:peer-checked:border-purple-700',
+                            'user_role_changed'  => 'peer-checked:bg-cyan-100 peer-checked:text-cyan-800 peer-checked:border-cyan-300 dark:peer-checked:bg-cyan-900 dark:peer-checked:text-cyan-200 dark:peer-checked:border-cyan-700',
                             'incident_created'   => 'peer-checked:bg-orange-100 peer-checked:text-orange-800 peer-checked:border-orange-300 dark:peer-checked:bg-orange-900 dark:peer-checked:text-orange-200 dark:peer-checked:border-orange-700',
                             'incident_updated'   => 'peer-checked:bg-amber-100 peer-checked:text-amber-800 peer-checked:border-amber-300 dark:peer-checked:bg-amber-900 dark:peer-checked:text-amber-200 dark:peer-checked:border-amber-700',
                             'incident_deleted'   => 'peer-checked:bg-red-100 peer-checked:text-red-800 peer-checked:border-red-300 dark:peer-checked:bg-red-900 dark:peer-checked:text-red-200 dark:peer-checked:border-red-700',
@@ -381,7 +381,7 @@ $actionTypes = [
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                                         <?php
                                         $avatarPalette = [
-                                            'bg-blue-500', 'bg-green-500', 'bg-purple-500',
+                                            'bg-blue-500', 'bg-green-500', 'bg-cyan-500',
                                             'bg-orange-500', 'bg-pink-500', 'bg-teal-500',
                                             'bg-indigo-500', 'bg-rose-500',
                                         ];
@@ -410,7 +410,7 @@ $actionTypes = [
                                                 'user_created'          => 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
                                                 'user_updated'          => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
                                                 'user_deleted'          => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-                                                'user_role_changed'     => 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+                                                'user_role_changed'     => 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-purple-200',
                                                 'incident_created'      => 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
                                                 'incident_updated'      => 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
                                                 'incident_deleted'      => 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',

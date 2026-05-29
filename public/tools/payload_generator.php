@@ -168,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button onclick="copyText('curl-cmd', this)" class="text-xs text-blue-400 hover:text-blue-300 transition-colors">Copy</button>
                 </div>
                 <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                    <pre id="curl-cmd" class="text-purple-300 text-sm"><?= htmlspecialchars($curlCmd) ?></pre>
+                    <pre id="curl-cmd" class="text-cyan-300 text-sm"><?= htmlspecialchars($curlCmd) ?></pre>
                 </div>
             </div>
 
